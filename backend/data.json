@@ -1,0 +1,141 @@
+{
+  "usuarios": [
+    {
+      "activo": 1,
+      "operador_id": null,
+      "id": 1,
+      "nombre": "Alejandro",
+      "empresa": "MaquiControl SAS",
+      "email": "dueno@mail.com",
+      "password_hash": "$2a$10$aARRzU22HVtTuW3DUrmsnO8Fg.8/zJdVQn2KJ2r8MSNLIySxaHmpS",
+      "rol": "admin",
+      "created_at": "2026-05-05T04:32:01.486Z"
+    },
+    {
+      "activo": 1,
+      "operador_id": null,
+      "id": 1777956521314,
+      "created_at": "2026-05-05T04:48:40.826Z",
+      "nombre": "Carlos",
+      "empresa": "Obras SAS",
+      "email": "carlos@test.com",
+      "password_hash": "$2a$10$vMXoXFbH8GfvwHAvqh3g/enZ.codBI7tsccgpo2WXcaedAWbq55Iu",
+      "rol": "admin"
+    },
+    {
+      "activo": 1,
+      "operador_id": 1778998869229,
+      "id": 1778998868923,
+      "created_at": "2026-05-17T06:21:08.394Z",
+      "nombre": "ALEJANDRO ROJAS",
+      "empresa": "MaquiControl Operaciones",
+      "email": "brayanrojasedu2@gmail.com",
+      "password_hash": "$2a$10$KaI8Xbi36Q1qOA/kELn5GuEjWY.B2oQv/31rTbgo9JfVWAJIJLcGi",
+      "rol": "operador"
+    },
+    {
+      "activo": 1,
+      "operador_id": null,
+      "id": 1779000824567,
+      "created_at": "2026-05-17T06:53:44.518Z",
+      "nombre": "Andres Romero",
+      "empresa": "Andres SAS",
+      "email": "andre@gmail.com",
+      "password_hash": "$2a$10$2wdc8S5CeDNK/akycoDBsumNq2ywunFlSZztltxsjL72JZoVTteui",
+      "rol": "admin"
+    },
+    {
+      "activo": 1,
+      "operador_id": null,
+      "id": 1779036631101,
+      "created_at": "2026-05-17T16:50:30.646Z",
+      "nombre": "alejo",
+      "empresa": "maquicontrol",
+      "email": "brayanrojasedu@gmail.com",
+      "password_hash": "$2a$10$bNupU/wdbwD.aE8qe/vhMO7zHvlHAh5t1Mcx85jy6IEd3NWxkbWu2",
+      "rol": "admin"
+    },
+    {
+      "activo": 1,
+      "operador_id": 1779036959230,
+      "id": 1779036960106,
+      "created_at": "2026-05-17T16:55:59.205Z",
+      "nombre": "gerson",
+      "empresa": "MaquiControl Operaciones",
+      "email": "gerson@gmail.com",
+      "password_hash": "$2a$10$aNHDXJHYixZ78ynYk5LT6uHDdrCNYYuZE5vca2M48t19.hvmwz0fq",
+      "rol": "operador"
+    },
+    {
+      "activo": 1,
+      "operador_id": null,
+      "id": 1779037103278,
+      "created_at": "2026-05-17T16:58:22.820Z",
+      "nombre": "brayan alejandro",
+      "empresa": "rojas rodriguez",
+      "email": "brayanrojasedu1@gmail.com",
+      "password_hash": "$2a$10$rfnbsFxPlC1.UyEWEb6xW.KeeyRL9RF579azMC5ejlgfWls3vThOG",
+      "rol": "admin"
+    }
+  ],
+  "maquinaria": [],
+  "gastos": [],
+  "ingresos": [],
+  "salarios": [],
+  "horas": [],
+  "mantenimientos": [],
+  "combustible": [],
+  "pagos": [],
+  "operadores": [
+    {
+      "activo": 0,
+      "id": 1778998869229,
+      "created_at": "2026-05-17T06:21:08.234Z",
+      "nombre": "ALEJANDRO ROJAS",
+      "cedula": "1110233245",
+      "telefono": "3228989393",
+      "email": "brayanrojasedu2@gmail.com",
+      "observaciones": null
+    },
+    {
+      "activo": 0,
+      "id": 1779036959230,
+      "created_at": "2026-05-17T16:55:58.787Z",
+      "nombre": "gerson",
+      "cedula": null,
+      "telefono": null,
+      "email": "gerson@gmail.com",
+      "observaciones": null
+    }
+  ],
+  "periodos": [
+    {
+      "id": 1778998883159,
+      "created_at": "2026-05-17T06:21:22.839Z",
+      "operador_id": "1778998869229",
+      "estado": "cerrado",
+      "anticipos": 500000,
+      "fecha_inicio": "2026-05-17",
+      "desde_hora_id": null,
+      "fecha_fin": "2026-05-17",
+      "horas_total": 38,
+      "salario_bruto": 1330000,
+      "salario_neto": 830000,
+      "nota": null
+    },
+    {
+      "id": 1779036964248,
+      "created_at": "2026-05-17T16:56:03.373Z",
+      "operador_id": "1779036959230",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-17",
+      "desde_hora_id": null,
+      "fecha_fin": null,
+      "horas_total": null,
+      "salario_bruto": null,
+      "salario_neto": null,
+      "nota": null
+    }
+  ]
+}
