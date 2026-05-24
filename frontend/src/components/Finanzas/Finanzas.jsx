@@ -18,6 +18,19 @@ const FORM_GAS  = { descripcion: '', categoria: '', monto: 0, fecha: hoy(), maqu
 const FORM_SAL  = { operadorNombre: '', maquinaNombre: '', horasTrabajadas: 0, valorHora: 0, anticipos: 0, estado: 'Pendiente', fecha: hoy() };
 const FORM_PAG  = { cliente: '', maquinaNombre: '', descripcion: '', valorTotal: 0, valorPagado: 0, fecha: hoy() };
 
+const normalizarPago = (p) => {
+    const valorTotal = Number(p.valorTotal ?? p.monto ?? 0) || 0;
+    const valorPagado = Number(p.valorPagado ?? 0) || 0;
+    const saldoPendiente = Number(p.saldoPendiente ?? Math.max(valorTotal - valorPagado, 0)) || 0;
+    return {
+        ...p,
+        valorTotal,
+        valorPagado,
+        saldoPendiente,
+        estado: p.estado || (saldoPendiente <= 0 ? 'Pagado' : valorPagado > 0 ? 'Parcial' : 'Pendiente'),
+    };
+};
+
 function Finanzas({ tabInicial = 'ingresos' }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
@@ -44,7 +57,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         getIngresos().then(r => setIngresos(r.data)).catch(console.error);
         getGastos().then(r => setGastos(r.data)).catch(console.error);
         getSalarios().then(r => setSalarios(r.data)).catch(console.error);
-        getPagos().then(r => setPagos(r.data)).catch(console.error);
+        getPagos().then(r => setPagos((r.data || []).map(normalizarPago))).catch(console.error);
     };
 
     const abrirNuevo = () => {
@@ -58,7 +71,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         if (tab === 'ingresos') setFormIng({ ...item });
         if (tab === 'gastos')   setFormGas({ ...item });
         if (tab === 'salarios') setFormSal({ ...item });
-        if (tab === 'pagos')    setFormPag({ ...item });
+        if (tab === 'pagos')    setFormPag(normalizarPago(item));
         setMostrarForm(true);
     };
 
@@ -78,11 +91,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         ops[tabNombre](id).then(cargarTodo).catch(console.error);
     };
 
-    const totalIngresos  = ingresos.reduce((a, i) => a + (i.total || 0), 0);
-    const totalGastos    = gastos.reduce((a, g) => a + (g.monto || 0), 0);
+    const totalIngresos  = ingresos.reduce((a, i) => a + (Number(i.total) || 0), 0);
+    const totalGastos    = gastos.reduce((a, g) => a + (Number(g.monto) || 0), 0);
     const utilidad       = totalIngresos - totalGastos;
-    const totalPorCobrar = pagos.reduce((a, p) => a + (p.saldoPendiente || 0), 0);
-    const totalCobrado   = pagos.reduce((a, p) => a + (p.valorPagado || 0), 0);
+    const totalPorCobrar = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
+    const totalCobrado   = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
 
     const nomsMaquinas = maquinas.map(m => m.nombre);
 

@@ -22,10 +22,10 @@ function Dashboard({ onIrMaquinaria, onNuevaMaquina }) {
         getGastos().then(res => setGastos(res.data)).catch(err => console.error(err));
     }, []);
 
-    const totalIngresos = ingresos.reduce((acc, i) => acc + (i.total || 0), 0);
-    const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0);
+    const totalIngresos = ingresos.reduce((acc, i) => acc + (Number(i.total) || 0), 0);
+    const totalGastos = gastos.reduce((acc, g) => acc + (Number(g.monto) || 0), 0);
 
-    const fmt = (v) => '$' + v.toLocaleString('es-CO');
+    const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 
     const estadoClass = (estado) => {
         if (estado === 'Activa') return 'ea';

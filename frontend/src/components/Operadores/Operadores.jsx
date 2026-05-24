@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getHoras, getSalarios, getMaquinas, deleteHora, deleteSalario, createOperadorAPI, deleteOperadorAPI, createUsuario, getOperadoresAPI, getPeriodoActivoAPI } from '../../api';
+import { getHoras, getSalarios, getMaquinas, deleteHora, deleteSalario, createOperadorAPI, deleteOperadorAPI, createUsuario, getOperadoresAPI, getPeriodoActivoAPI, getUsuarios } from '../../api';
 import DetalleOperador from './DetalleOperador';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -33,6 +33,7 @@ function Operadores() {
     const [salarios, setSalarios]     = useState([]);
     const [mostrarForm, setMostrarForm] = useState(false);
     const [form, setForm]               = useState(FORM_VACIO);
+    const [registrando, setRegistrando] = useState(false);
     const [opSel, setOpSel]             = useState(null);
     const [periodosActivos, setPeriodosActivos] = useState({});
 
@@ -70,29 +71,56 @@ function Operadores() {
     useEffect(() => { cargar(); }, []);
 
     const registrar = async () => {
-        if (!form.nombre) return toast('El nombre es obligatorio', 'e');
-        if (form.crearAcceso && !form.email) return toast('El correo es obligatorio para crear acceso', 'e');
+        if (registrando) return;
+
+        const nombre = form.nombre.trim();
+        const email = form.email.trim().toLowerCase();
+        const cedula = form.cedula.trim();
+        const telefono = form.telefono.trim();
+        const observaciones = form.observaciones.trim();
+
+        if (!nombre) return toast('El nombre es obligatorio', 'e');
+        if (form.crearAcceso && !email) return toast('El correo es obligatorio para crear acceso', 'e');
         if (form.crearAcceso && form.password.length < 6) return toast('La clave del operador debe tener al menos 6 caracteres', 'e');
 
         try {
+            setRegistrando(true);
+
+            if (form.crearAcceso) {
+                const { data: usuarios } = await getUsuarios();
+                const correoExiste = (usuarios || []).some((user) => String(user.email || '').toLowerCase() === email);
+                if (correoExiste) {
+                    toast('Ese correo ya tiene una cuenta. Usa otro correo o registra el operador sin acceso.', 'e');
+                    return;
+                }
+            }
+
             const payloadOperador = {
-                nombre: form.nombre,
-                cedula: form.cedula,
-                telefono: form.telefono,
-                email: form.email,
-                observaciones: form.observaciones,
+                nombre,
+                cedula,
+                telefono,
+                email,
+                observaciones,
             };
             const { data: operadorApi } = await createOperadorAPI(payloadOperador);
 
             if (form.crearAcceso) {
-                await createUsuario({
-                    nombre: form.nombre,
-                    empresa: 'MaquiControl Operaciones',
-                    email: form.email,
-                    password: form.password,
-                    rol: 'operador',
-                    operadorId: operadorApi.id,
-                });
+                try {
+                    await createUsuario({
+                        nombre,
+                        empresa: 'MaquiControl Operaciones',
+                        email,
+                        password: form.password,
+                        rol: 'operador',
+                        operadorId: operadorApi.id,
+                    });
+                } catch (accesoErr) {
+                    await cargar();
+                    setMostrarForm(false);
+                    setForm(FORM_VACIO);
+                    toast(`Operador registrado, pero no se pudo crear el acceso: ${accesoErr.response?.data?.error || 'revisa el correo y la clave'}`, 'e');
+                    return;
+                }
             }
 
             cargar();
@@ -101,6 +129,8 @@ function Operadores() {
             toast(form.crearAcceso ? 'Operador y acceso creados' : 'Operador registrado');
         } catch (err) {
             toast(err.response?.data?.error || 'No se pudo registrar el operador', 'e');
+        } finally {
+            setRegistrando(false);
         }
     };
 
@@ -250,7 +280,7 @@ function Operadores() {
                             </div>
                         )}
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="bp" onClick={registrar}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Registrar</button>
+                            <button className="bp" onClick={registrar} disabled={registrando}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {registrando ? 'Registrando...' : 'Registrar'}</button>
                             <button className="bs" onClick={() => setMostrarForm(false)}>Cancelar</button>
                         </div>
                     </div>

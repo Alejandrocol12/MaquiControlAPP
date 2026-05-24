@@ -76,15 +76,219 @@
       "email": "brayanrojasedu1@gmail.com",
       "password_hash": "$2a$10$rfnbsFxPlC1.UyEWEb6xW.KeeyRL9RF579azMC5ejlgfWls3vThOG",
       "rol": "admin"
+    },
+    {
+      "id": 1779319987628,
+      "created_at": "2026-05-20T23:33:07.267Z",
+      "nombre": "ALEJANDRO",
+      "empresa": "MaquiControl Operaciones",
+      "email": "alejandro@gmail.com",
+      "password_hash": "$2a$10$ot1hbneyNpVDqCojDgRknevXVQ5sOd8UGNxgh6VWxWSOrPZHNs.h6",
+      "rol": "operador",
+      "activo": 1,
+      "operador_id": 1779319988157
+    },
+    {
+      "id": 1779326879720,
+      "created_at": "2026-05-21T01:27:59.086Z",
+      "nombre": "ALEJANDRO",
+      "empresa": "MaquiControl Operaciones",
+      "email": "alejo@gmail.com",
+      "password_hash": "$2a$10$aJFm1wi3KWV258B5mkvwFu4JmHjPZuPh3IzuVsrcGNVbIiJqFGnSS",
+      "rol": "operador",
+      "activo": 1,
+      "operador_id": 1779326879666
+    },
+    {
+      "id": 1779327304324,
+      "created_at": "2026-05-21T01:35:04.198Z",
+      "nombre": "ALEJANDRO",
+      "empresa": "MaquiControl Operaciones",
+      "email": "alejo1@gmail.com",
+      "password_hash": "$2a$10$A1I0J5ZXh5mEU1uUIgVZSuu5zoCCNAPUaddaSoyT5baQGFXcY/TSu",
+      "rol": "operador",
+      "activo": 1,
+      "operador_id": 1779327304131
+    },
+    {
+      "id": 1779328434371,
+      "created_at": "2026-05-21T01:53:54.147Z",
+      "nombre": "ALEJANDRO",
+      "empresa": "MaquiControl Operaciones",
+      "email": "operador@gmail.com",
+      "password_hash": "$2a$10$foeZxSUEo7wJYuzEpe6xquWm7UTk18WaMzjeyHqP.rJ4JzRdf2hUS",
+      "rol": "operador",
+      "activo": 1,
+      "operador_id": 1779328434897
+    },
+    {
+      "id": 1779330884938,
+      "created_at": "2026-05-21T02:34:44.427Z",
+      "nombre": "CARLOS",
+      "empresa": "MaquiControl Operaciones",
+      "email": "carlos@gmail.com",
+      "password_hash": "$2a$10$sYvcHIXHk1pXs.LvSeehPu9xkoZ3ALqOX2VydgyRp4.akRDKGYc6m",
+      "rol": "operador",
+      "activo": 1,
+      "operador_id": 1779330884994
     }
   ],
-  "maquinaria": [],
-  "gastos": [],
-  "ingresos": [],
+  "maquinaria": [
+    {
+      "id": 1779328659259,
+      "created_at": "2026-05-21T01:57:38.267Z",
+      "nombre": "ELEFANTE",
+      "tipo": "Bulldozer",
+      "placa": "000",
+      "estado": "Activa",
+      "horometroActual": 11,
+      "valorHoraOperador": "35000",
+      "valorHoraMaquina": "240000",
+      "operadorNombre": "ALEJANDRO"
+    },
+    {
+      "id": 1779330662461,
+      "created_at": "2026-05-21T02:31:02.033Z",
+      "nombre": "TIGRE",
+      "tipo": "Bulldozer",
+      "placa": "0000",
+      "estado": "Activa",
+      "horometroActual": 31.5,
+      "valorHoraOperador": "35000",
+      "valorHoraMaquina": "240000",
+      "operadorNombre": "CARLOS"
+    }
+  ],
+  "gastos": [
+    {
+      "id": 1779328849829,
+      "created_at": "2026-05-21T02:00:49.613Z",
+      "maquinaNombre": "ELEFANTE",
+      "descripcion": null,
+      "categoria": "Combustible",
+      "monto": "500000",
+      "fecha": "2026-05-21"
+    },
+    {
+      "id": 1779331024118,
+      "created_at": "2026-05-21T02:37:03.926Z",
+      "maquinaNombre": "ELEFANTE",
+      "descripcion": "Mantenimiento Preventivo",
+      "categoria": "Mantenimiento",
+      "monto": 500000,
+      "fecha": "2026-05-21"
+    }
+  ],
+  "ingresos": [
+    {
+      "id": 1779328695032,
+      "created_at": "2026-05-21T01:58:14.891Z",
+      "maquinaNombre": "ELEFANTE",
+      "tipoTrabajo": "Horas",
+      "cantidad": 11,
+      "valorUnitario": "240000",
+      "total": 2640000,
+      "fecha": "2026-05-21",
+      "descripcion": "Horas ALEJANDRO - ELEFANTE"
+    },
+    {
+      "id": 1779330724256,
+      "created_at": "2026-05-21T02:32:04.165Z",
+      "maquinaNombre": "TIGRE",
+      "tipoTrabajo": "Horas",
+      "cantidad": 10,
+      "valorUnitario": 240000,
+      "total": 2400000,
+      "fecha": "2026-05-21",
+      "descripcion": "Horas – TIGRE"
+    },
+    {
+      "id": 1779330938190,
+      "created_at": "2026-05-21T02:35:37.746Z",
+      "maquinaNombre": "TIGRE",
+      "tipoTrabajo": "Horas",
+      "cantidad": 11,
+      "valorUnitario": "240000",
+      "total": 2640000,
+      "fecha": "2026-05-21",
+      "descripcion": "Horas CARLOS - TIGRE"
+    },
+    {
+      "id": 1779331201186,
+      "created_at": "2026-05-21T02:40:00.745Z",
+      "maquinaNombre": "TIGRE",
+      "tipoTrabajo": "Horas",
+      "cantidad": 10.5,
+      "valorUnitario": "240000",
+      "total": 2520000,
+      "fecha": "2026-05-21",
+      "descripcion": "Horas CARLOS - TIGRE"
+    }
+  ],
   "salarios": [],
-  "horas": [],
-  "mantenimientos": [],
-  "combustible": [],
+  "horas": [
+    {
+      "id": 1779328695822,
+      "created_at": "2026-05-21T01:58:14.880Z",
+      "operador_id": 1779328434897,
+      "maquina_id": null,
+      "operadorNombre": "ALEJANDRO",
+      "maquinaNombre": "ELEFANTE",
+      "horas": 11,
+      "fecha": "2026-05-21",
+      "valorHora": "35000",
+      "horometroInicio": 0,
+      "horometroFin": 11
+    },
+    {
+      "id": 1779330938248,
+      "created_at": "2026-05-21T02:35:37.732Z",
+      "operador_id": 1779330884994,
+      "maquina_id": null,
+      "operadorNombre": "CARLOS",
+      "maquinaNombre": "TIGRE",
+      "horas": 11,
+      "fecha": "2026-05-21",
+      "valorHora": "35000",
+      "horometroInicio": 10,
+      "horometroFin": 21
+    },
+    {
+      "id": 1779331201447,
+      "created_at": "2026-05-21T02:40:00.739Z",
+      "operador_id": 1779330884994,
+      "maquina_id": null,
+      "operadorNombre": "CARLOS",
+      "maquinaNombre": "TIGRE",
+      "horas": 10.5,
+      "fecha": "2026-05-21",
+      "valorHora": "35000",
+      "horometroInicio": 21,
+      "horometroFin": 31.5
+    }
+  ],
+  "mantenimientos": [
+    {
+      "id": 1779331024898,
+      "created_at": "2026-05-21T02:37:03.919Z",
+      "maquina_id": null,
+      "descripcion": null,
+      "costo": "500000",
+      "tipo": "Preventivo",
+      "estado": "Completado",
+      "fecha": "2026-05-21"
+    }
+  ],
+  "combustible": [
+    {
+      "id": 1779331095444,
+      "created_at": "2026-05-21T02:38:14.699Z",
+      "maquina_id": null,
+      "litros": 0,
+      "costo": 0,
+      "fecha": "2026-05-21"
+    }
+  ],
   "pagos": [],
   "operadores": [
     {
@@ -106,6 +310,86 @@
       "telefono": null,
       "email": "gerson@gmail.com",
       "observaciones": null
+    },
+    {
+      "id": 1779319988157,
+      "created_at": "2026-05-20T23:33:07.159Z",
+      "nombre": "ALEJANDRO",
+      "cedula": null,
+      "telefono": null,
+      "email": "alejandro@gmail.com",
+      "observaciones": null,
+      "activo": 0
+    },
+    {
+      "id": 1779326263167,
+      "created_at": "2026-05-21T01:17:42.437Z",
+      "nombre": "Prueba Codex Operador",
+      "cedula": "999",
+      "telefono": "3000000000",
+      "email": "prueba.codex@test.com",
+      "observaciones": "prueba temporal",
+      "activo": 0
+    },
+    {
+      "id": 1779326817864,
+      "created_at": "2026-05-21T01:26:57.843Z",
+      "nombre": "Prueba Codex",
+      "cedula": "999",
+      "telefono": "300",
+      "email": "prueba.codex@mail.com",
+      "observaciones": "test",
+      "activo": 0
+    },
+    {
+      "id": 1779326842179,
+      "created_at": "2026-05-21T01:27:21.426Z",
+      "nombre": "ALEJANDRO",
+      "cedula": null,
+      "telefono": null,
+      "email": null,
+      "observaciones": null,
+      "activo": 0
+    },
+    {
+      "id": 1779326879666,
+      "created_at": "2026-05-21T01:27:58.883Z",
+      "nombre": "ALEJANDRO",
+      "cedula": null,
+      "telefono": null,
+      "email": "alejo@gmail.com",
+      "observaciones": null,
+      "activo": 0
+    },
+    {
+      "id": 1779327304131,
+      "created_at": "2026-05-21T01:35:04.045Z",
+      "nombre": "ALEJANDRO",
+      "cedula": "1110233245",
+      "telefono": "3228989393",
+      "email": "alejo1@gmail.com",
+      "observaciones": "",
+      "activo": 0
+    },
+    {
+      "id": 1779328434897,
+      "created_at": "2026-05-21T01:53:53.996Z",
+      "nombre": "ALEJANDRO",
+      "cedula": null,
+      "telefono": null,
+      "email": "operador@gmail.com",
+      "observaciones": null,
+      "activo": 1
+    },
+    {
+      "id": 1779330884994,
+      "created_at": "2026-05-21T02:34:44.340Z",
+      "nombre": "CARLOS",
+      "cedula": null,
+      "telefono": null,
+      "email": "carlos@gmail.com",
+      "observaciones": null,
+      "activo": 1
     }
   ],
   "periodos": [
@@ -136,6 +420,101 @@
       "salario_bruto": null,
       "salario_neto": null,
       "nota": null
+    },
+    {
+      "id": 1779320002456,
+      "created_at": "2026-05-20T23:33:22.418Z",
+      "operador_id": "1779319988157",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-20",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779320003202,
+      "created_at": "2026-05-20T23:33:22.420Z",
+      "operador_id": "1779319988157",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-20",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779326894309,
+      "created_at": "2026-05-21T01:28:13.697Z",
+      "operador_id": "1779326879666",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779326894447,
+      "created_at": "2026-05-21T01:28:13.733Z",
+      "operador_id": "1779326879666",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779327348794,
+      "created_at": "2026-05-21T01:35:47.954Z",
+      "operador_id": "1779327304131",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779327348667,
+      "created_at": "2026-05-21T01:35:47.957Z",
+      "operador_id": "1779327304131",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779328450071,
+      "created_at": "2026-05-21T01:54:09.975Z",
+      "operador_id": "1779328434897",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779328450541,
+      "created_at": "2026-05-21T01:54:09.978Z",
+      "operador_id": "1779328434897",
+      "estado": "activo",
+      "anticipos": 100000,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null,
+      "fecha_fin": null,
+      "horas_total": null,
+      "salario_bruto": null,
+      "salario_neto": null,
+      "nota": null
+    },
+    {
+      "id": 1779330906294,
+      "created_at": "2026-05-21T02:35:05.750Z",
+      "operador_id": "1779330884994",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
+    },
+    {
+      "id": 1779330906557,
+      "created_at": "2026-05-21T02:35:05.753Z",
+      "operador_id": "1779330884994",
+      "estado": "activo",
+      "anticipos": 0,
+      "fecha_inicio": "2026-05-21",
+      "desde_hora_id": null
     }
   ]
 }
