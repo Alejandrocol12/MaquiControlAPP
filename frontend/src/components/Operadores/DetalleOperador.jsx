@@ -32,6 +32,7 @@ import {
     Gauge,
     Pencil,
 } from 'lucide-react';
+import MoneyInput from '../../utils/MoneyInput';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 
@@ -117,7 +118,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                 if (!periodosActuales.some((p) => p.estado === 'activo')) {
                     await createPeriodoAPI(operador.id, {
-                        fecha_inicio: hoy(),
+                        fechaInicio: hoy(),
                         estado: 'activo',
                         anticipos: 0,
                     });
@@ -140,6 +141,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         (operador.id && String(m.operador_id) === String(operador.id))
     ) || null;
     const valorHora = maqAsignada?.valorHoraOperador || 0;
+
+    useEffect(() => {
+        if (maqAsignada) {
+            setHoraForm(prev => ({
+                ...prev,
+                maquinaNombre: maqAsignada.nombre,
+                horometroInicio: maqAsignada.horometroActual || ''
+            }));
+        }
+    }, [maqAsignada?.nombre]);
     const valorHoraMaquina = maqAsignada?.valorHoraMaquina || 0;
 
     const horasPeriodo = periodoActivo
@@ -225,12 +236,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         updatePeriodoAPI(periodoActivo.id, {
             estado: periodoActivo.estado,
             anticipos: (periodoActivo.anticipos || 0) + val,
-            fecha_fin: periodoActivo.fechaFin || null,
-            horas_total: periodoActivo.horasTotal,
-            salario_bruto: periodoActivo.salarioBruto,
-            salario_neto: periodoActivo.salarioNeto,
+            fechaFin: periodoActivo.fechaFin || null,
+            horasTotal: periodoActivo.horasTotal,
+            salarioBruto: periodoActivo.salarioBruto,
+            salarioNeto: periodoActivo.salarioNeto,
             nota: periodoActivo.nota || null,
-            desde_hora_id: periodoActivo.desdeHoraId,
+            desdeHoraId: periodoActivo.desdeHoraId,
         }).then(() => refrescarPeriodos())
             .then(() => {
                 toast(`Anticipo de ${fmt(val)} registrado`);
@@ -267,17 +278,17 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         })).then(() => updatePeriodoAPI(periodoActivo.id, {
             estado: 'cerrado',
             anticipos: anticTot,
-            fecha_fin: hoy(),
-            horas_total: horasPeriodo,
-            salario_bruto: bruto,
-            salario_neto: neto,
+            fechaFin: hoy(),
+            horasTotal: horasPeriodo,
+            salarioBruto: bruto,
+            salarioNeto: neto,
             nota: notaDescanso || null,
-            desde_hora_id: periodoActivo.desdeHoraId,
+            desdeHoraId: periodoActivo.desdeHoraId,
         })).then(() => createPeriodoAPI(operador.id, {
-            fecha_inicio: hoy(),
+            fechaInicio: hoy(),
             estado: 'activo',
             anticipos: 0,
-            desde_hora_id: ultimaHoraId,
+            desdeHoraId: ultimaHoraId,
         })).then(() => refrescarPeriodos())
             .then(() => {
                 setMostrarDescanso(false);
@@ -405,7 +416,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                             {mostrarAnticipoForm && (
                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
-                                    <input className="fi" type="number" style={{ margin: 0, maxWidth: '180px' }} placeholder="Monto anticipo ($)" value={anticipoInput} onChange={(e) => setAnticipoInput(e.target.value)} />
+                                    <MoneyInput className="fi" style={{ margin: 0, maxWidth: '180px' }} placeholder="Monto anticipo ($)" value={anticipoInput} onChange={(e) => setAnticipoInput(e.target.value)} />
                                     <button className="bp" onClick={registrarAnticipo}>Guardar</button>
                                     <button className="bs" onClick={() => { setMostrarAnticipoForm(false); setAnticipoInput(''); }}>Cancelar</button>
                                 </div>
@@ -426,7 +437,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <div className="fg2">
                                         <div>
                                             <label className="fl">Anticipo adicional al cierre ($)</label>
-                                            <input className="fi" type="number" value={anticipoExtra} onChange={(e) => setAnticipoExtra(e.target.value)} placeholder="0" />
+                                            <MoneyInput className="fi" value={anticipoExtra} onChange={(e) => setAnticipoExtra(e.target.value)} placeholder="0" />
                                         </div>
                                         <div>
                                             <label className="fl">Nota (opcional)</label>
@@ -476,14 +487,13 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             <p className="fd">Las horas se acumulan en el periodo activo y actualizan el horometro de la maquina.</p>
                             <div className="fg2">
                                 <div>
-                                    <label className="fl">Maquina *</label>
-                                    <select className="fsel" value={horaForm.maquinaNombre} onChange={(e) => {
-                                        const maquina = maquinas.find((x) => x.nombre === e.target.value);
-                                        setHoraForm({ ...horaForm, maquinaNombre: e.target.value, horometroInicio: maquina?.horometroActual || '' });
-                                    }}>
-                                        <option value="">Selecciona...</option>
-                                        {maquinas.map((m) => <option key={m.id}>{m.nombre}</option>)}
-                                    </select>
+                                    <label className="fl">Máquina asignada</label>
+                                    <input
+                                        className="fi"
+                                        value={horaForm.maquinaNombre || 'Sin máquina asignada'}
+                                        readOnly
+                                        style={{ background: '#f0f4f8', cursor: 'not-allowed', color: '#4a5568' }}
+                                    />
                                 </div>
                                 <div>
                                     <label className="fl">Fecha</label>

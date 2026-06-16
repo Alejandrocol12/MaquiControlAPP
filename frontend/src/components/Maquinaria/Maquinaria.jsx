@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { getMaquinas, createMaquina, updateMaquina, deleteMaquina, getIngresos, getGastos, createIngreso, createGasto, createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible, createHora, getOperadoresAPI } from '../../api';
+import { getMaquinas, createMaquina, updateMaquina, deleteMaquina, getIngresos, getGastos, createIngreso, createGasto, updateGasto, createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible, createHora, getOperadoresAPI } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList, TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box } from 'lucide-react';
+import MoneyInput from '../../utils/MoneyInput';
+import { Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList, TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
+import { guardarFactura, obtenerFactura, eliminarFactura, listarIdsConFactura, abrirFactura } from '../../utils/facturaDB';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -105,12 +107,12 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                                 ))}
                             </select>
                         </div>
-                        <div><label className="fl">Valor hora operador ($)</label><input className="fi" type="number" name="valorHoraOperador" value={form.valorHoraOperador} onChange={hc} placeholder="Ej: 15000" /></div>
+                        <div><label className="fl">Valor hora operador ($)</label><MoneyInput className="fi" name="valorHoraOperador" value={form.valorHoraOperador} onChange={hc} placeholder="Ej: 15.000" /></div>
                     </div>
                     <div className="fg2">
                         <div>
                             <label className="fl">Valor hora máquina al cliente ($)</label>
-                            <input className="fi" type="number" name="valorHoraMaquina" value={form.valorHoraMaquina} onChange={hc} placeholder="Ej: 180000" />
+                            <MoneyInput className="fi" name="valorHoraMaquina" value={form.valorHoraMaquina} onChange={hc} placeholder="Ej: 180.000" />
                             <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Lo que cobra la máquina por hora trabajada</span>
                         </div>
                         <div>
@@ -187,16 +189,39 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [gastos, setGastos] = useState([]);
     const [combustibles, setCombustibles] = useState([]);
     const [maq, setMaq] = useState(maquina);
+    const [operadoresAPI, setOperadoresAPI] = useState([]);
+
+    useEffect(() => {
+        getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
+    }, []);
 
     // Registro trabajo
     const [tipoTrabajo, setTipoTrabajo] = useState('Horas');
+    useEffect(() => {
+    if (tipoTrabajo === 'Horas') {
+        setValorUnitario(String(maq.valorHoraMaquina || ''));
+    } else {
+        setValorUnitario('');
+    }
+    }, [tipoTrabajo]);
     const [cantidad, setCantidad] = useState('');
-    const [valorUnitario, setValorUnitario] = useState('');
+    const [valorUnitario, setValorUnitario] = useState(String(maq.valorHoraMaquina || ''));
     const [fechaTrabajo, setFechaTrabajo] = useState(new Date().toISOString().split('T')[0]);
     const [descTrabajo, setDescTrabajo] = useState('');
 
     // Gastos
-    const [gastoForm, setGastoForm] = useState({ descripcion: '', monto: '', categoria: 'Reparación', fecha: new Date().toISOString().split('T')[0] });
+    const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: new Date().toISOString().split('T')[0] };
+    const [gastoForm, setGastoForm] = useState(GASTO_VACIO);
+    const [gastoFactura, setGastoFactura] = useState(null);
+    const [facturasIds, setFacturasIds] = useState(new Set());
+    const [editandoGastoId, setEditandoGastoId] = useState(null);
+
+    const editarGasto = (g) => {
+        setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha });
+        setEditandoGastoId(g.id);
+        setGastoFactura(null);
+    };
+    const cancelarEditar = () => { setEditandoGastoId(null); setGastoForm(GASTO_VACIO); setGastoFactura(null); };
 
     // Combustible
     const [galones, setGalones] = useState('');
@@ -204,7 +229,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [fechaComb, setFechaComb] = useState(new Date().toISOString().split('T')[0]);
     const [horoComb, setHoroComb] = useState(maq.horometroActual || 0);
 
-    useEffect(() => { cargarDatos(); }, []);
+    const cargarFacturas = () => listarIdsConFactura().then(setFacturasIds).catch(() => {});
+
+    useEffect(() => { cargarDatos(); cargarFacturas(); }, []);
 
     const cargarDatos = () => {
         getIngresos().then(r => setIngresos(r.data.filter(i => i.maquinaNombre === maq.nombre))).catch(console.error);
@@ -239,8 +266,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     })
                 );
                 if (maq.operadorNombre) {
+                    const operadorobjetivo = operadoresAPI.find(o => o.nombre === maq.operadorNombre);
                     promises.push(
                         createHora({
+                            operador_id:     operadorobjetivo?.id || null,
                             operadorNombre:  maq.operadorNombre,
                             maquinaNombre:   maq.nombre,
                             fecha:           fechaTrabajo,
@@ -282,7 +311,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     const eliminarIngreso = async (id) => { if (await confirm('¿Eliminar este ingreso?')) deleteIngreso(id).then(cargarDatos).catch(console.error); };
-    const eliminarGasto   = async (id) => { if (await confirm('¿Eliminar este gasto?'))   deleteGasto(id).then(cargarDatos).catch(console.error); };
+    const eliminarGasto = async (id) => {
+        if (await confirm('¿Eliminar este gasto?')) {
+            await deleteGasto(id).catch(console.error);
+            await eliminarFactura(id).catch(() => {});
+            setFacturasIds(prev => { const s = new Set(prev); s.delete(String(id)); return s; });
+            cargarDatos();
+        }
+    };
     const eliminarComb    = async (id) => { if (await confirm('¿Eliminar esta carga?'))    deleteCombustible(id).then(cargarDatos).catch(console.error); };
 
     const TABS = [
@@ -373,7 +409,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                             <div className="fg2">
                                 <div><label className="fl">Cantidad ({tipoTrabajo})</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
-                                <div><label className="fl">Valor unitario ($)</label><input className="fi" type="number" value={valorUnitario} onChange={e => setValorUnitario(e.target.value)} placeholder="Ej: 120000" /></div>
+                                <div><label className="fl">Valor unitario ($)</label><MoneyInput className="fi" value={valorUnitario} onChange={e => setValorUnitario(e.target.value)} placeholder="Ej: 120.000" /></div>
                             </div>
                             <div className="fg2">
                                 <div><label className="fl">Fecha</label><input className="fi" type="date" value={fechaTrabajo} onChange={e => setFechaTrabajo(e.target.value)} /></div>
@@ -433,27 +469,93 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {tab === 3 && (
                     <>
                         <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><TrendingDown size={18} /> Registrar gasto</h3>
-                            <p className="fd">El gasto queda asociado a {maq.nombre}</p>
+                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
+                            </h3>
+                            <p className="fd">{editandoGastoId ? 'Modifica los datos del gasto' : `El gasto queda asociado a ${maq.nombre}`}</p>
                             <div className="fg2">
                                 <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
                                 <div>
                                     <label className="fl">Categoría</label>
                                     <select className="fsel" value={gastoForm.categoria} onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}>
-                                        <option>Reparación</option><option>Repuestos</option><option>Lubricantes</option><option>Combustible</option><option>Otros</option>
+                                        <option>Otros</option><option>Repuestos</option><option>Lubricantes</option><option>Combustible</option><option>Reparación</option>
                                     </select>
                                 </div>
                             </div>
                             <div className="fg2">
-                                <div><label className="fl">Monto ($) *</label><input className="fi" type="number" value={gastoForm.monto} onChange={e => setGastoForm({ ...gastoForm, monto: e.target.value })} placeholder="Ej: 250000" /></div>
+                                <div><label className="fl">Monto ($) *</label><MoneyInput className="fi" value={gastoForm.monto} onChange={e => setGastoForm({ ...gastoForm, monto: e.target.value })} placeholder="Ej: 250.000" /></div>
                                 <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
                             </div>
-                            <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} onClick={() => {
-                                if (!gastoForm.descripcion || !gastoForm.monto) return toast('Completa descripción y monto', 'e');
-                                createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) })
-                                    .then(() => { cargarDatos(); setGastoForm({ descripcion: '', monto: '', categoria: 'Reparación', fecha: new Date().toISOString().split('T')[0] }); toast('Gasto registrado'); })
-                                    .catch(console.error);
-                            }}>✅ Registrar Gasto</button>
+                            <div>
+                                <label className="fl">Factura (PDF)</label>
+                                {editandoGastoId && facturasIds.has(String(editandoGastoId)) && !gastoFactura ? (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <div className="fi" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                            <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
+                                            <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
+                                            <button type="button" className="icon-btn" title="Ver factura"
+                                                onClick={async () => { const f = await obtenerFactura(editandoGastoId); if (f) abrirFactura(f); }}>
+                                                <FileText size={13} style={{ color: '#e74c3c' }} />
+                                            </button>
+                                        </div>
+                                        <label className="bs" style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }} title="Cambiar PDF">
+                                            <Paperclip size={13} /> Cambiar
+                                            <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                                onChange={e => setGastoFactura(e.target.files[0] || null)} />
+                                        </label>
+                                        <button className="bs" style={{ padding: '6px 10px', fontSize: '12px', color: '#e74c3c', whiteSpace: 'nowrap' }}
+                                            onClick={async () => { await eliminarFactura(editandoGastoId).catch(() => {}); setFacturasIds(prev => { const s = new Set(prev); s.delete(String(editandoGastoId)); return s; }); }}>
+                                            × Quitar
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
+                                        <span style={{ color: gastoFactura ? '#1a1a2e' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                            {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
+                                        </span>
+                                        {gastoFactura && (
+                                            <span style={{ color: '#e74c3c', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
+                                                onClick={e => { e.preventDefault(); setGastoFactura(null); }}>×</span>
+                                        )}
+                                        <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                            onChange={e => setGastoFactura(e.target.files[0] || null)} />
+                                    </label>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
+                                    if (!gastoForm.descripcion || !gastoForm.monto) return toast('Completa descripción y monto', 'e');
+                                    if (editandoGastoId) {
+                                        const res = await updateGasto(editandoGastoId, { ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).catch(console.error);
+                                        if (!res) return;
+                                        if (gastoFactura) {
+                                            await guardarFactura(editandoGastoId, gastoFactura).catch(console.error);
+                                            setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]));
+                                        }
+                                        cancelarEditar();
+                                        cargarDatos();
+                                        toast('Gasto actualizado');
+                                    } else {
+                                        const res = await createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).catch(console.error);
+                                        if (!res) return;
+                                        if (gastoFactura && res.data?.id) {
+                                            await guardarFactura(res.data.id, gastoFactura).catch(console.error);
+                                            setFacturasIds(prev => new Set([...prev, String(res.data.id)]));
+                                        }
+                                        setGastoForm(GASTO_VACIO);
+                                        setGastoFactura(null);
+                                        cargarDatos();
+                                        toast('Gasto registrado');
+                                    }
+                                }}>
+                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
+                                    {editandoGastoId ? 'Guardar cambios' : 'Registrar Gasto'}
+                                </button>
+                                {editandoGastoId && (
+                                    <button className="bs" onClick={cancelarEditar}>Cancelar</button>
+                                )}
+                            </div>
                         </div>
                         <div className="tbl">
                             <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {maq.nombre}</strong></div>
@@ -463,7 +565,35 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
                                     <span>{g.categoria}</span>
                                     <span className="neg">{fmt(g.monto)}</span>
-                                    <span><button className="icon-btn" onClick={() => eliminarGasto(g.id)}><Trash2 size={14} /></button></span>
+                                    <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                        {facturasIds.has(String(g.id)) && (
+                                            <button className="icon-btn" title="Ver factura" onClick={async () => { const f = await obtenerFactura(g.id); if (f) abrirFactura(f); }}>
+                                                <FileText size={14} style={{ color: '#e74c3c' }} />
+                                            </button>
+                                        )}
+                                        <label className="icon-btn" title={facturasIds.has(String(g.id)) ? 'Cambiar factura PDF' : 'Adjuntar factura PDF'}
+                                            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Paperclip size={14} style={{ color: facturasIds.has(String(g.id)) ? '#e67e22' : '#9aa5b4' }} />
+                                            <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                                onChange={async e => {
+                                                    if (e.target.files[0]) {
+                                                        await guardarFactura(g.id, e.target.files[0]).catch(console.error);
+                                                        setFacturasIds(prev => new Set([...prev, String(g.id)]));
+                                                        toast('Factura actualizada');
+                                                    }
+                                                }} />
+                                        </label>
+                                        {facturasIds.has(String(g.id)) && (
+                                            <button className="icon-btn" title="Quitar factura" onClick={async () => {
+                                                await eliminarFactura(g.id).catch(() => {});
+                                                setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
+                                            }}>
+                                                <X size={14} style={{ color: '#9aa5b4' }} />
+                                            </button>
+                                        )}
+                                        <button className="icon-btn" title="Editar gasto" onClick={() => editarGasto(g)}><Pencil size={14} /></button>
+                                        <button className="icon-btn" onClick={() => eliminarGasto(g.id)}><Trash2 size={14} /></button>
+                                    </span>
                                 </div>
                             ))}
                             {gastos.length === 0 && <p className="vacio">Sin gastos para esta máquina</p>}
@@ -479,7 +609,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <p className="fd">El gasto se crea automáticamente en Finanzas</p>
                             <div className="fg3">
                                 <div><label className="fl">Galones</label><input className="fi" type="number" value={galones} onChange={e => setGalones(e.target.value)} placeholder="Ej: 50" /></div>
-                                <div><label className="fl">Precio/galón ($)</label><input className="fi" type="number" value={precioPorGalon} onChange={e => setPrecioPorGalon(e.target.value)} placeholder="Ej: 12500" /></div>
+                                <div><label className="fl">Precio/galón ($)</label><MoneyInput className="fi" value={precioPorGalon} onChange={e => setPrecioPorGalon(e.target.value)} placeholder="Ej: 12.500" /></div>
                                 <div><label className="fl">Horómetro al cargar</label><input className="fi" type="number" value={horoComb} onChange={e => setHoroComb(e.target.value)} /></div>
                             </div>
                             <div className="fg2">

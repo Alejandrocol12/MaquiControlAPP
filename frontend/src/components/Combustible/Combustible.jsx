@@ -5,6 +5,7 @@ import { useConfirm } from '../../utils/ConfirmModal';
 import { Fuel, Droplets, ClipboardList, Plus, Trash2, Tractor, TrendingDown } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
+import MoneyInput from '../../utils/MoneyInput';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -96,7 +97,7 @@ function Combustible() {
                         </div>
                         <div className="fg3">
                             <div><label className="fl">Galones *</label><input className="fi" type="number" value={form.galones} onChange={e => setForm({ ...form, galones: e.target.value })} placeholder="Ej: 50" /></div>
-                            <div><label className="fl">Precio/galón ($) *</label><input className="fi" type="number" value={form.precioPorGalon} onChange={e => setForm({ ...form, precioPorGalon: e.target.value })} placeholder="Ej: 12500" /></div>
+                            <div><label className="fl">Precio/galón ($) *</label><MoneyInput className="fi" value={form.precioPorGalon} onChange={e => setForm({ ...form, precioPorGalon: e.target.value })} placeholder="Ej: 12.500" /></div>
                             <div><label className="fl">Horómetro al cargar</label><input className="fi" type="number" value={form.horometro} onChange={e => setForm({ ...form, horometro: e.target.value })} /></div>
                         </div>
                         {form.galones && form.precioPorGalon && (

@@ -8,7 +8,9 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, CheckCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, CheckCircle, FileText, Paperclip, X } from 'lucide-react';
+import MoneyInput from '../../utils/MoneyInput';
+import { guardarFactura, obtenerFactura, eliminarFactura, listarIdsConFactura, abrirFactura } from '../../utils/facturaDB';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -43,13 +45,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
+    const [gastoFactura, setGastoFactura] = useState(null);
+    const [facturasIds, setFacturasIds]   = useState(new Set());
 
     const [formIng, setFormIng] = useState(FORM_ING);
     const [formGas, setFormGas] = useState(FORM_GAS);
     const [formSal, setFormSal] = useState(FORM_SAL);
     const [formPag, setFormPag] = useState(FORM_PAG);
 
-    useEffect(() => { cargarTodo(); }, []);
+    useEffect(() => { cargarTodo(); listarIdsConFactura().then(setFacturasIds).catch(() => {}); }, []);
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
 
     const cargarTodo = () => {
@@ -75,20 +79,38 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         setMostrarForm(true);
     };
 
-    const guardar = () => {
+    const guardar = async () => {
         const esEditar = editandoId !== null;
         let op;
         if (tab === 'ingresos') op = esEditar ? updateIngreso(editandoId, formIng) : createIngreso(formIng);
         if (tab === 'gastos')   op = esEditar ? updateGasto(editandoId, formGas)   : createGasto(formGas);
         if (tab === 'salarios') op = esEditar ? updateSalario(editandoId, formSal) : createSalario(formSal);
         if (tab === 'pagos')    op = esEditar ? updatePago(editandoId, formPag)    : createPago(formPag);
-        op.then(() => { cargarTodo(); setMostrarForm(false); setEditandoId(null); toast(editandoId ? 'Registro actualizado' : 'Registro guardado'); }).catch(console.error);
+        const res = await op.catch(console.error);
+        if (!res) return;
+        if (tab === 'gastos' && gastoFactura) {
+            const targetId = esEditar ? editandoId : res.data?.id;
+            if (targetId) {
+                await guardarFactura(targetId, gastoFactura).catch(console.error);
+                setFacturasIds(prev => new Set([...prev, String(targetId)]));
+            }
+            setGastoFactura(null);
+        }
+        cargarTodo();
+        setMostrarForm(false);
+        setEditandoId(null);
+        toast(esEditar ? 'Registro actualizado' : 'Registro guardado');
     };
 
     const eliminar = async (tabNombre, id) => {
         if (!await confirm('¿Eliminar este registro?')) return;
         const ops = { ingresos: deleteIngreso, gastos: deleteGasto, salarios: deleteSalario, pagos: deletePago };
-        ops[tabNombre](id).then(cargarTodo).catch(console.error);
+        await ops[tabNombre](id).catch(console.error);
+        if (tabNombre === 'gastos') {
+            await eliminarFactura(id).catch(() => {});
+            setFacturasIds(prev => { const s = new Set(prev); s.delete(String(id)); return s; });
+        }
+        cargarTodo();
     };
 
     const totalIngresos  = ingresos.reduce((a, i) => a + (Number(i.total) || 0), 0);
@@ -166,7 +188,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         </div>
                         <div className="fg3">
                             <div><label className="fl">Cantidad</label><input className="fi" type="number" value={formIng.cantidad} onChange={e => setFormIng({ ...formIng, cantidad: e.target.value })} /></div>
-                            <div><label className="fl">Valor unitario ($)</label><input className="fi" type="number" value={formIng.valorUnitario} onChange={e => setFormIng({ ...formIng, valorUnitario: e.target.value })} /></div>
+                            <div><label className="fl">Valor unitario ($)</label><MoneyInput className="fi" value={formIng.valorUnitario} onChange={e => setFormIng({ ...formIng, valorUnitario: e.target.value })} /></div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={formIng.fecha} onChange={e => setFormIng({ ...formIng, fecha: e.target.value })} /></div>
                         </div>
                         <div><label className="fl">Descripción</label><input className="fi" value={formIng.descripcion} onChange={e => setFormIng({ ...formIng, descripcion: e.target.value })} placeholder="Ej: Obra Av. 30" /></div>
@@ -191,13 +213,50 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
                         </div>
                         <div className="fg2">
-                            <div><label className="fl">Monto ($)</label><input className="fi" type="number" value={formGas.monto} onChange={e => setFormGas({ ...formGas, monto: e.target.value })} /></div>
+                            <div><label className="fl">Monto ($)</label><MoneyInput className="fi" value={formGas.monto} onChange={e => setFormGas({ ...formGas, monto: e.target.value })} /></div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={formGas.fecha} onChange={e => setFormGas({ ...formGas, fecha: e.target.value })} /></div>
                         </div>
                         <div><label className="fl">Descripción</label><input className="fi" value={formGas.descripcion} onChange={e => setFormGas({ ...formGas, descripcion: e.target.value })} placeholder="Ej: Mantenimiento preventivo" /></div>
+                        <div>
+                            <label className="fl">Factura (PDF)</label>
+                            {editandoId && facturasIds.has(String(editandoId)) && !gastoFactura ? (
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <div className="fi" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                        <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
+                                        <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
+                                        <button type="button" className="icon-btn" title="Ver factura"
+                                            onClick={async () => { const f = await obtenerFactura(editandoId); if (f) abrirFactura(f); }}>
+                                            <FileText size={13} style={{ color: '#e74c3c' }} />
+                                        </button>
+                                    </div>
+                                    <label className="bs" style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                        <Paperclip size={13} /> Cambiar
+                                        <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                            onChange={e => setGastoFactura(e.target.files[0] || null)} />
+                                    </label>
+                                    <button className="bs" style={{ padding: '6px 10px', fontSize: '12px', color: '#e74c3c', whiteSpace: 'nowrap' }}
+                                        onClick={async () => { await eliminarFactura(editandoId).catch(() => {}); setFacturasIds(prev => { const s = new Set(prev); s.delete(String(editandoId)); return s; }); }}>
+                                        × Quitar
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
+                                    <span style={{ color: gastoFactura ? '#1a1a2e' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                        {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
+                                    </span>
+                                    {gastoFactura && (
+                                        <span style={{ color: '#e74c3c', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
+                                            onClick={e => { e.preventDefault(); setGastoFactura(null); }}>×</span>
+                                    )}
+                                    <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                        onChange={e => setGastoFactura(e.target.files[0] || null)} />
+                                </label>
+                            )}
+                        </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button className="bp" onClick={guardar}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {editandoId ? 'Actualizar' : 'Guardar'}</button>
-                            <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
+                            <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); setGastoFactura(null); }}>Cancelar</button>
                         </div>
                     </div>
                 )}
@@ -215,8 +274,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         </div>
                         <div className="fg3">
                             <div><label className="fl">Horas trabajadas</label><input className="fi" type="number" value={formSal.horasTrabajadas} onChange={e => setFormSal({ ...formSal, horasTrabajadas: e.target.value })} /></div>
-                            <div><label className="fl">Valor por hora ($)</label><input className="fi" type="number" value={formSal.valorHora} onChange={e => setFormSal({ ...formSal, valorHora: e.target.value })} /></div>
-                            <div><label className="fl">Anticipos ($)</label><input className="fi" type="number" value={formSal.anticipos} onChange={e => setFormSal({ ...formSal, anticipos: e.target.value })} /></div>
+                            <div><label className="fl">Valor por hora ($)</label><MoneyInput className="fi" value={formSal.valorHora} onChange={e => setFormSal({ ...formSal, valorHora: e.target.value })} /></div>
+                            <div><label className="fl">Anticipos ($)</label><MoneyInput className="fi" value={formSal.anticipos} onChange={e => setFormSal({ ...formSal, anticipos: e.target.value })} /></div>
                         </div>
                         <div className="fg2">
                             <div><label className="fl">Estado</label>
@@ -243,8 +302,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         </div>
                         <div><label className="fl">Descripción</label><input className="fi" value={formPag.descripcion} onChange={e => setFormPag({ ...formPag, descripcion: e.target.value })} placeholder="Ej: Obra Avenida 30" /></div>
                         <div className="fg3">
-                            <div><label className="fl">Valor total ($)</label><input className="fi" type="number" value={formPag.valorTotal} onChange={e => setFormPag({ ...formPag, valorTotal: e.target.value })} /></div>
-                            <div><label className="fl">Valor pagado ($)</label><input className="fi" type="number" value={formPag.valorPagado} onChange={e => setFormPag({ ...formPag, valorPagado: e.target.value })} /></div>
+                            <div><label className="fl">Valor total ($)</label><MoneyInput className="fi" value={formPag.valorTotal} onChange={e => setFormPag({ ...formPag, valorTotal: e.target.value })} /></div>
+                            <div><label className="fl">Valor pagado ($)</label><MoneyInput className="fi" value={formPag.valorPagado} onChange={e => setFormPag({ ...formPag, valorPagado: e.target.value })} /></div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={formPag.fecha} onChange={e => setFormPag({ ...formPag, fecha: e.target.value })} /></div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
@@ -284,7 +343,31 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div className="tr" key={g.id}>
                                 <span>{g.fecha}</span><span className="w2">{g.descripcion}</span><span>{g.categoria}</span><span>{g.maquinaNombre}</span>
                                 <span className="neg">{fmt(g.monto)}</span>
-                                <span style={{ display: 'flex', gap: '4px' }}>
+                                <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                    {facturasIds.has(String(g.id)) && (
+                                        <button className="icon-btn" title="Ver factura" onClick={async () => { const f = await obtenerFactura(g.id); if (f) abrirFactura(f); }}>
+                                            <FileText size={14} style={{ color: '#e74c3c' }} />
+                                        </button>
+                                    )}
+                                    <label className="icon-btn" title={facturasIds.has(String(g.id)) ? 'Cambiar factura PDF' : 'Adjuntar factura PDF'}
+                                        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Paperclip size={14} style={{ color: facturasIds.has(String(g.id)) ? '#e67e22' : '#9aa5b4' }} />
+                                        <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                            onChange={async e => {
+                                                if (e.target.files[0]) {
+                                                    await guardarFactura(g.id, e.target.files[0]).catch(console.error);
+                                                    setFacturasIds(prev => new Set([...prev, String(g.id)]));
+                                                }
+                                            }} />
+                                    </label>
+                                    {facturasIds.has(String(g.id)) && (
+                                        <button className="icon-btn" title="Quitar factura" onClick={async () => {
+                                            await eliminarFactura(g.id).catch(() => {});
+                                            setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
+                                        }}>
+                                            <X size={14} style={{ color: '#9aa5b4' }} />
+                                        </button>
+                                    )}
                                     <button className="icon-btn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>
                                     <button className="icon-btn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>
                                 </span>

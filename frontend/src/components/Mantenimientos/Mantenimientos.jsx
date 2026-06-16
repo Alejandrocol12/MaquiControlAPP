@@ -3,6 +3,7 @@ import { getMaquinas, getMantenimientos, createMantenimiento, updateMantenimient
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { Wrench, Clock, TrendingDown, Plus, Check, Pencil, Trash2, Search, AlertCircle } from 'lucide-react';
+import MoneyInput from '../../utils/MoneyInput';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -139,7 +140,7 @@ function Mantenimientos() {
                             </div>
                         </div>
                         <div className="fg3">
-                            <div><label className="fl">Costo ($)</label><input className="fi" type="number" name="costo" value={form.costo} onChange={hc} /></div>
+                            <div><label className="fl">Costo ($)</label><MoneyInput className="fi" name="costo" value={form.costo} onChange={hc} /></div>
                             <div><label className="fl">Horómetro (hrs)</label><input className="fi" type="number" name="horometro" value={form.horometro} onChange={hc} /></div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" name="fecha" value={form.fecha} onChange={hc} /></div>
                         </div>

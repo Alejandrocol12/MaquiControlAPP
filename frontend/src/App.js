@@ -25,6 +25,9 @@ import {
     UserPlus,
     ArrowRight,
     KeyRound,
+    ChevronLeft,
+    ChevronRight,
+    Menu,
 } from 'lucide-react';
 import './App.css';
 
@@ -208,6 +211,11 @@ function App() {
     const [finTab, setFinTab] = useState('ingresos');
     const [maqVista, setMaqVista] = useState('lista');
     const [user, setUser] = useState(null);
+    const [sbCol, setSbCol] = useState(false);
+    const [sbMob, setSbMob] = useState(false);
+
+    const ir = (mod) => { setModulo(mod); setSbMob(false); };
+    const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
 
     useEffect(() => {
         setUser(getStoredSession());
@@ -279,12 +287,32 @@ function App() {
                 <PortalOperador user={user} onLogout={logout} />
             ) : (
                 <div className="app">
-                    <div className="sb">
+                    <button className="hamburger" onClick={() => setSbMob(true)}><Menu size={18} /></button>
+                    <div className={`sb-overlay${sbMob ? ' show' : ''}`} onClick={() => setSbMob(false)} />
+                    <div className={`sb${sbCol ? ' col' : ''}${sbMob ? ' mob-open' : ''}`}>
                         <div className="sb-head">
-                            <div>
-                                <div className="logo">Maqui<span>Control</span></div>
-                                <div className="sb-badge">{user.rol || 'Administrador'}</div>
-                            </div>
+                            {sbCol ? (
+                                <>
+                                    <div className="sb-monogram">M<span>C</span></div>
+                                    <button className="col-btn" onClick={() => setSbCol(false)} title="Expandir">
+                                        <ChevronRight size={13} />
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <div className="logo">Maqui<span>Control</span></div>
+                                        <div className="sb-badge">{user.rol || 'Admin'}</div>
+                                    </div>
+                                    <button className="col-btn" onClick={() => setSbCol(true)} title="Colapsar">
+                                        <ChevronLeft size={13} />
+                                    </button>
+                                </>
+                            )}
+                            {/* Botón cerrar solo en móvil */}
+                            <button className="sb-close-mob" onClick={() => setSbMob(false)} title="Cerrar">
+                                <ChevronLeft size={15} />
+                            </button>
                         </div>
 
                         <div className="sb-user">
@@ -297,39 +325,39 @@ function App() {
 
                         <nav className="nav">
                             <div className="ns">Principal</div>
-                            <div className={`ni ${modulo === 'dashboard' ? 'active' : ''}`} onClick={() => setModulo('dashboard')}>
+                            <div className={`ni ${modulo === 'dashboard' ? 'active' : ''}`} onClick={() => ir('dashboard')}>
                                 <span className="ico"><BarChart2 size={18} /></span><span className="sb-label">Dashboard</span>
                             </div>
 
                             <div className="ns">Gestión</div>
-                            <div className={`ni ${modulo === 'maquinaria' ? 'active' : ''}`} onClick={irMaquinaria}>
+                            <div className={`ni ${modulo === 'maquinaria' ? 'active' : ''}`} onClick={() => { irMaquinaria(); setSbMob(false); }}>
                                 <span className="ico"><Tractor size={18} /></span><span className="sb-label">Maquinaria</span>
                             </div>
 
                             <div
                                 className={`ni ${modulo === 'finanzas' ? 'active' : ''} ${finOpen ? 'exp' : ''}`}
-                                onClick={() => { setModulo('finanzas'); setFinOpen(!finOpen); }}
+                                onClick={() => { ir('finanzas'); setFinOpen(!finOpen); }}
                             >
                                 <span className="ico"><DollarSign size={18} /></span><span className="sb-label">Finanzas</span>
                                 <span className="arr">›</span>
                             </div>
                             <div className={`ng ${finOpen ? 'open' : ''}`}>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'ingresos' ? 'active' : ''}`} onClick={() => navFin('ingresos')}>› Ingresos</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'gastos' ? 'active' : ''}`} onClick={() => navFin('gastos')}>› Gastos</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'salarios' ? 'active' : ''}`} onClick={() => navFin('salarios')}>› Salarios</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'pagos' ? 'active' : ''}`} onClick={() => navFin('pagos')}>› Pagos Clientes</div>
+                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'ingresos' ? 'active' : ''}`} onClick={() => navFin2('ingresos')}>› Ingresos</div>
+                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'gastos' ? 'active' : ''}`} onClick={() => navFin2('gastos')}>› Gastos</div>
+                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'salarios' ? 'active' : ''}`} onClick={() => navFin2('salarios')}>› Salarios</div>
+                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'pagos' ? 'active' : ''}`} onClick={() => navFin2('pagos')}>› Pagos Clientes</div>
                             </div>
 
-                            <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} onClick={() => setModulo('operadores')}>
+                            <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} onClick={() => ir('operadores')}>
                                 <span className="ico"><HardHat size={18} /></span><span className="sb-label">Operadores</span>
                             </div>
-                            <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} onClick={() => setModulo('mantenimientos')}>
+                            <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} onClick={() => ir('mantenimientos')}>
                                 <span className="ico"><Wrench size={18} /></span><span className="sb-label">Mantenimientos</span>
                             </div>
-                            <div className={`ni ${modulo === 'reportes' ? 'active' : ''}`} onClick={() => setModulo('reportes')}>
+                            <div className={`ni ${modulo === 'reportes' ? 'active' : ''}`} onClick={() => ir('reportes')}>
                                 <span className="ico"><FileText size={18} /></span><span className="sb-label">Reportes</span>
                             </div>
-                            <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => setModulo('combustible')}>
+                            <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => ir('combustible')}>
                                 <span className="ico"><Fuel size={18} /></span><span className="sb-label">Combustible</span>
                             </div>
                         </nav>

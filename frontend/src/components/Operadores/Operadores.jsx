@@ -156,7 +156,7 @@ function Operadores() {
     // Enriquecer cada operador con datos de la API
     const ops = operadores.map(op => {
         const maq        = maquinas.find(m => m.operadorNombre === op.nombre);
-        const horasOp    = todasHoras.filter(h => h.operadorNombre === op.nombre);
+        const horasOp    = todasHoras.filter(h =>  (h.operadorNombre || '').toLowerCase() === (op.nombre || '').toLowerCase());
         const totalHoras = horasOp.reduce((a, h) => a + (h.horas || 0), 0);
         const valorHora  = maq?.valorHoraOperador || 0;
 
