@@ -10,7 +10,7 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, CheckCircle, FileText, Paperclip, X } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
-import { guardarFactura, obtenerFactura, eliminarFactura, listarIdsConFactura, abrirFactura } from '../../utils/facturaDB';
+import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -53,13 +53,13 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [formSal, setFormSal] = useState(FORM_SAL);
     const [formPag, setFormPag] = useState(FORM_PAG);
 
-    useEffect(() => { cargarTodo(); listarIdsConFactura().then(setFacturasIds).catch(() => {}); }, []);
+    useEffect(() => { cargarTodo(); }, []);
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
 
     const cargarTodo = () => {
         getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
         getIngresos().then(r => setIngresos(r.data)).catch(console.error);
-        getGastos().then(r => setGastos(r.data)).catch(console.error);
+        getGastos().then(r => { setGastos(r.data); setFacturasIds(new Set((r.data || []).filter(g => g.tieneFactura).map(g => String(g.id)))); }).catch(console.error);
         getSalarios().then(r => setSalarios(r.data)).catch(console.error);
         getPagos().then(r => setPagos((r.data || []).map(normalizarPago))).catch(console.error);
     };
@@ -225,7 +225,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
                                         <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
                                         <button type="button" className="icon-btn" title="Ver factura"
-                                            onClick={async () => { const f = await obtenerFactura(editandoId); if (f) abrirFactura(f); }}>
+                                            onClick={() => abrirFactura(editandoId)}>
                                             <FileText size={13} style={{ color: '#e74c3c' }} />
                                         </button>
                                     </div>
@@ -345,7 +345,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <span className="neg">{fmt(g.monto)}</span>
                                 <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                     {facturasIds.has(String(g.id)) && (
-                                        <button className="icon-btn" title="Ver factura" onClick={async () => { const f = await obtenerFactura(g.id); if (f) abrirFactura(f); }}>
+                                        <button className="icon-btn" title="Ver factura" onClick={() => abrirFactura(g.id)}>
                                             <FileText size={14} style={{ color: '#e74c3c' }} />
                                         </button>
                                     )}

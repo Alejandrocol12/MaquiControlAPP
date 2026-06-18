@@ -45,6 +45,9 @@ export const getGastos    = ()         => API.get('/gastos');
 export const createGasto  = (data)     => API.post('/gastos', data);
 export const updateGasto  = (id, data) => API.put(`/gastos/${id}`, data);
 export const deleteGasto  = (id)       => API.delete(`/gastos/${id}`);
+export const subirFacturaGasto  = (id, formData) => API.post(`/gastos/${id}/factura`, formData);
+export const getFacturaGasto    = (id)            => API.get(`/gastos/${id}/factura`, { responseType: 'blob' });
+export const deleteFacturaGasto = (id)            => API.delete(`/gastos/${id}/factura`);
 
 // Ingresos
 export const getIngresos    = ()         => API.get('/ingresos');

@@ -6,7 +6,7 @@ import MoneyInput from '../../utils/MoneyInput';
 import { Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList, TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
-import { guardarFactura, obtenerFactura, eliminarFactura, listarIdsConFactura, abrirFactura } from '../../utils/facturaDB';
+import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -229,13 +229,15 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [fechaComb, setFechaComb] = useState(new Date().toISOString().split('T')[0]);
     const [horoComb, setHoroComb] = useState(maq.horometroActual || 0);
 
-    const cargarFacturas = () => listarIdsConFactura().then(setFacturasIds).catch(() => {});
-
-    useEffect(() => { cargarDatos(); cargarFacturas(); }, []);
+    useEffect(() => { cargarDatos(); }, []);
 
     const cargarDatos = () => {
         getIngresos().then(r => setIngresos(r.data.filter(i => i.maquinaNombre === maq.nombre))).catch(console.error);
-        getGastos().then(r => setGastos(r.data.filter(g => g.maquinaNombre === maq.nombre))).catch(console.error);
+        getGastos().then(r => {
+            const filtrados = r.data.filter(g => g.maquinaNombre === maq.nombre);
+            setGastos(filtrados);
+            setFacturasIds(new Set(filtrados.filter(g => g.tieneFactura).map(g => String(g.id))));
+        }).catch(console.error);
         getCombustible().then(r => setCombustibles(r.data.filter(c => c.maquinaNombre === maq.nombre))).catch(console.error);
     };
 
@@ -494,7 +496,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
                                             <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
                                             <button type="button" className="icon-btn" title="Ver factura"
-                                                onClick={async () => { const f = await obtenerFactura(editandoGastoId); if (f) abrirFactura(f); }}>
+                                                onClick={() => abrirFactura(editandoGastoId)}>
                                                 <FileText size={13} style={{ color: '#e74c3c' }} />
                                             </button>
                                         </div>
@@ -567,7 +569,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <span className="neg">{fmt(g.monto)}</span>
                                     <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                         {facturasIds.has(String(g.id)) && (
-                                            <button className="icon-btn" title="Ver factura" onClick={async () => { const f = await obtenerFactura(g.id); if (f) abrirFactura(f); }}>
+                                            <button className="icon-btn" title="Ver factura" onClick={() => abrirFactura(g.id)}>
                                                 <FileText size={14} style={{ color: '#e74c3c' }} />
                                             </button>
                                         )}
