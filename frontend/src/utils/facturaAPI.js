@@ -11,8 +11,26 @@ export async function eliminarFactura(gastoId) {
 }
 
 export async function abrirFactura(gastoId) {
-    const res = await getFacturaGasto(gastoId);
-    const url = URL.createObjectURL(res.data);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    // iOS Safari bloquea window.open() después de un await.
+    // Abrimos el tab ANTES de la petición para que cuente como gesto directo del usuario.
+    const tab = window.open('about:blank', '_blank');
+    try {
+        const res = await getFacturaGasto(gastoId);
+        const url = URL.createObjectURL(res.data);
+        if (tab) {
+            tab.location.href = url;
+        } else {
+            // Popup bloqueado → forzar descarga
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'factura.pdf';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+    } catch (e) {
+        if (tab) tab.close();
+        console.error(e);
+    }
 }
