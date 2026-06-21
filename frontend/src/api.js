@@ -97,6 +97,15 @@ export const createPeriodoAPI     = (opId, data) => API.post(`/operadores/${opId
 export const updatePeriodoAPI     = (id, data)   => API.put(`/operadores/periodos/${id}`, data);
 export const deletePeriodoAPI     = (id)         => API.delete(`/operadores/periodos/${id}`);
 
+// Faenas
+export const getFaenas             = ()              => API.get('/faenas');
+export const getFaena              = (id)            => API.get(`/faenas/${id}`);
+export const getFaenaActiva        = (maquinaNombre) => API.get(`/faenas/maquina/${encodeURIComponent(maquinaNombre)}/activa`);
+export const createFaena           = (data)          => API.post('/faenas', data);
+export const updateFaena           = (id, data)      => API.put(`/faenas/${id}`, data);
+export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/cerrar`);
+export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
+
 // Usuarios (solo admin)
 export const getUsuarios         = ()         => API.get('/usuarios');
 export const createUsuario       = (data)     => API.post('/usuarios', data);

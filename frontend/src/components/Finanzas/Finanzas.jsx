@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     getMaquinas,
     getIngresos, createIngreso, updateIngreso, deleteIngreso,
@@ -8,8 +9,9 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, CheckCircle, FileText, Paperclip, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, CheckCircle, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
@@ -43,10 +45,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [salarios, setSalarios] = useState([]);
     const [pagos, setPagos]       = useState([]);
 
+    const [cargando, setCargando] = useState(true);
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds]   = useState(new Set());
+    const [buscar, setBuscar]             = useState('');
+    const [periodoFiltro, setPeriodoFiltro] = useState('todo');
+    const [fechaDesde, setFechaDesde]     = useState('');
+    const [fechaHasta, setFechaHasta]     = useState('');
 
     const [formIng, setFormIng] = useState(FORM_ING);
     const [formGas, setFormGas] = useState(FORM_GAS);
@@ -57,11 +64,21 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
 
     const cargarTodo = () => {
-        getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
-        getIngresos().then(r => setIngresos(r.data)).catch(console.error);
-        getGastos().then(r => { setGastos(r.data); setFacturasIds(new Set((r.data || []).filter(g => g.tieneFactura).map(g => String(g.id)))); }).catch(console.error);
-        getSalarios().then(r => setSalarios(r.data)).catch(console.error);
-        getPagos().then(r => setPagos((r.data || []).map(normalizarPago))).catch(console.error);
+        setCargando(true);
+        Promise.all([
+            getMaquinas(),
+            getIngresos(),
+            getGastos(),
+            getSalarios(),
+            getPagos(),
+        ]).then(([maqR, ingR, gasR, salR, pagR]) => {
+            setMaquinas(maqR.data);
+            setIngresos(ingR.data);
+            setGastos(gasR.data);
+            setFacturasIds(new Set((gasR.data || []).filter(g => g.tieneFactura).map(g => String(g.id))));
+            setSalarios(salR.data);
+            setPagos((pagR.data || []).map(normalizarPago));
+        }).catch(console.error).finally(() => setCargando(false));
     };
 
     const abrirNuevo = () => {
@@ -113,13 +130,48 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         cargarTodo();
     };
 
-    const totalIngresos  = ingresos.reduce((a, i) => a + (Number(i.total) || 0), 0);
-    const totalGastos    = gastos.reduce((a, g) => a + (Number(g.monto) || 0), 0);
-    const utilidad       = totalIngresos - totalGastos;
+    const nomsMaquinas = maquinas.map(m => m.nombre);
+
+    const porFecha = (arr, campo) => {
+        if (periodoFiltro === 'todo') return arr;
+        if (periodoFiltro === 'rango') {
+            return arr.filter(x => {
+                const f = x[campo] || '';
+                if (fechaDesde && f < fechaDesde) return false;
+                if (fechaHasta && f > fechaHasta) return false;
+                return true;
+            });
+        }
+        const hoyD = new Date();
+        let prefix;
+        if (periodoFiltro === 'mes')    prefix = hoyD.toISOString().slice(0, 7);
+        else if (periodoFiltro === 'ultimo') { const d = new Date(hoyD); d.setMonth(d.getMonth() - 1); prefix = d.toISOString().slice(0, 7); }
+        else if (periodoFiltro === 'anio')   prefix = String(hoyD.getFullYear());
+        return prefix ? arr.filter(x => x[campo]?.startsWith(prefix)) : arr;
+    };
+
+    const q = buscar.toLowerCase();
+    const ingFiltrados = porFecha([...ingresos].reverse(), 'fecha').filter(i => !q || i.descripcion?.toLowerCase().includes(q) || i.maquinaNombre?.toLowerCase().includes(q) || i.tipoTrabajo?.toLowerCase().includes(q));
+    const gasFiltrados = porFecha([...gastos].reverse(), 'fecha').filter(g =>
+        g.categoria !== 'Salario' &&
+        (!q || g.descripcion?.toLowerCase().includes(q) || g.maquinaNombre?.toLowerCase().includes(q) || g.categoria?.toLowerCase().includes(q))
+    );
+    const salFiltrados = porFecha([...salarios].reverse(), 'fecha').filter(s => !q || s.operadorNombre?.toLowerCase().includes(q) || s.maquinaNombre?.toLowerCase().includes(q));
+    const pagFiltrados = porFecha([...pagos].reverse(), 'fecha').filter(p => !q || p.cliente?.toLowerCase().includes(q) || p.maquinaNombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
+
+    // totales respetan el filtro de período activo
+    const totalIngresos  = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
+    const totalGastos    = gasFiltrados.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const totalSalarios  = salFiltrados.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+    const totalEgresos   = totalGastos + totalSalarios;
+    const utilidad       = totalIngresos - totalEgresos;
     const totalPorCobrar = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
     const totalCobrado   = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
 
-    const nomsMaquinas = maquinas.map(m => m.nombre);
+    const pagIng  = usePaginacion(ingFiltrados);
+    const pagGas  = usePaginacion(gasFiltrados);
+    const pagSal  = usePaginacion(salFiltrados);
+    const pagPag  = usePaginacion(pagFiltrados);
 
     const TABS = [
         { key: 'ingresos', label: <><TrendingUp size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Ingresos</> },
@@ -145,6 +197,28 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         );
     };
 
+    if (cargando) return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div className="topbar"><div><h1>Finanzas</h1><p>Cargando...</p></div></div>
+            <div className="content"><div className="pad">
+                <div className="g3" style={{ marginBottom: '20px' }}>
+                    {[1,2,3].map(i => (
+                        <div className="skel-card" key={i}>
+                            <div className="skel skel-line" style={{ width: '40%' }} />
+                            <div className="skel skel-val" />
+                            <div className="skel skel-sub" />
+                        </div>
+                    ))}
+                </div>
+                <div className="skel-card">
+                    <div className="skel skel-line" style={{ width: '60%', marginBottom: '10px' }} />
+                    <div className="skel skel-line" style={{ width: '80%', marginBottom: '6px' }} />
+                    <div className="skel skel-line" style={{ width: '70%' }} />
+                </div>
+            </div></div>
+        </div>
+    );
+
     return (
         <>{ConfirmUI}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -160,15 +234,48 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 {/* RESUMEN */}
                 <div className="g3">
                     <div className="card green"><span className="ci"><TrendingUp size={22} /></span><div className="cl">Ingresos</div><div className="cv">{fmt(totalIngresos)}</div><div className="cs">total acumulado</div></div>
-                    <div className="card red"><span className="ci"><TrendingDown size={22} /></span><div className="cl">Gastos</div><div className="cv">{fmt(totalGastos)}</div><div className="cs">total acumulado</div></div>
-                    <div className="card gold"><span className="ci"><BarChart2 size={22} /></span><div className="cl">Utilidad</div><div className="cv" style={{ color: utilidad >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(utilidad)}</div><div className="cs">ingresos − gastos</div></div>
+                    <div className="card red"><span className="ci"><TrendingDown size={22} /></span><div className="cl">Egresos</div><div className="cv">{fmt(totalEgresos)}</div><div className="cs">gastos + salarios</div></div>
+                    <div className="card gold"><span className="ci"><BarChart2 size={22} /></span><div className="cl">Utilidad</div><div className="cv" style={{ color: utilidad >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(utilidad)}</div><div className="cs">ingresos − egresos</div></div>
+                </div>
+
+                {/* FILTRO PERÍODO */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {[
+                        { key: 'todo',   label: 'Todo' },
+                        { key: 'mes',    label: 'Este mes' },
+                        { key: 'ultimo', label: 'Mes anterior' },
+                        { key: 'anio',   label: 'Este año' },
+                        { key: 'rango',  label: 'Personalizado' },
+                    ].map(f => (
+                        <button key={f.key}
+                            onClick={() => setPeriodoFiltro(f.key)}
+                            style={{
+                                padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', border: 'none',
+                                background: periodoFiltro === f.key ? '#1a2d42' : '#f0f2f5',
+                                color: periodoFiltro === f.key ? '#fff' : '#6b7a8d',
+                                transition: 'all .15s',
+                            }}>
+                            {f.label}
+                        </button>
+                    ))}
+                    {periodoFiltro === 'rango' && (
+                        <>
+                            <input type="date" className="fi"
+                                style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
+                                value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                            <span style={{ fontSize: '12px', color: '#6b7a8d' }}>→</span>
+                            <input type="date" className="fi"
+                                style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
+                                value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                        </>
+                    )}
                 </div>
 
                 {/* TABS */}
                 <div className="tabs">
                     {TABS.map(t => (
                         <button key={t.key} className={`tab ${tab === t.key ? 'on' : ''}`}
-                            onClick={() => { setTab(t.key); setMostrarForm(false); setEditandoId(null); }}>
+                            onClick={() => { setTab(t.key); setMostrarForm(false); setEditandoId(null); setBuscar(''); }}>
                             {t.label}
                         </button>
                     ))}
@@ -187,7 +294,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
                         </div>
                         <div className="fg3">
-                            <div><label className="fl">Cantidad</label><input className="fi" type="number" value={formIng.cantidad} onChange={e => setFormIng({ ...formIng, cantidad: e.target.value })} /></div>
+                            <div><label className="fl">Cantidad</label><input className="fi" type="number" inputMode="decimal" value={formIng.cantidad} onChange={e => setFormIng({ ...formIng, cantidad: e.target.value })} /></div>
                             <div><label className="fl">Valor unitario ($)</label><MoneyInput className="fi" value={formIng.valorUnitario} onChange={e => setFormIng({ ...formIng, valorUnitario: e.target.value })} /></div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={formIng.fecha} onChange={e => setFormIng({ ...formIng, fecha: e.target.value })} /></div>
                         </div>
@@ -273,7 +380,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div><label className="fl">Máquina</label><SelectMaquina value={formSal.maquinaNombre} onChange={e => setFormSal({ ...formSal, maquinaNombre: e.target.value })} /></div>
                         </div>
                         <div className="fg3">
-                            <div><label className="fl">Horas trabajadas</label><input className="fi" type="number" value={formSal.horasTrabajadas} onChange={e => setFormSal({ ...formSal, horasTrabajadas: e.target.value })} /></div>
+                            <div><label className="fl">Horas trabajadas</label><input className="fi" type="number" inputMode="decimal" value={formSal.horasTrabajadas} onChange={e => setFormSal({ ...formSal, horasTrabajadas: e.target.value })} /></div>
                             <div><label className="fl">Valor por hora ($)</label><MoneyInput className="fi" value={formSal.valorHora} onChange={e => setFormSal({ ...formSal, valorHora: e.target.value })} /></div>
                             <div><label className="fl">Anticipos ($)</label><MoneyInput className="fi" value={formSal.anticipos} onChange={e => setFormSal({ ...formSal, anticipos: e.target.value })} /></div>
                         </div>
@@ -316,12 +423,16 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 {/* ── TABLA INGRESOS ── */}
                 {tab === 'ingresos' && (
                     <div className="tbl">
-                        <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos</strong><a onClick={abrirNuevo}>+ Agregar</a></div>
+                        <div className="th">
+                            <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos</strong>
+                            <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                            <a onClick={abrirNuevo}>+ Agregar</a>
+                        </div>
                         <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Máquina</span><span>Tipo</span><span>Total</span><span>Acc.</span></div>
-                        {ingresos.length === 0 && <p className="vacio">Sin registros</p>}
-                        {ingresos.map(i => (
+                        {ingFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
+                        {pagIng.paginados.map(i => (
                             <div className="tr" key={i.id}>
-                                <span>{i.fecha}</span><span className="w2">{i.descripcion}</span><span>{i.maquinaNombre}</span>
+                                <span>{fmtFecha(i.fecha)}</span><span className="w2">{i.descripcion}</span><span>{i.maquinaNombre}</span>
                                 <span><span className="b hrs">{i.tipoTrabajo}</span></span>
                                 <span className="pos">{fmt(i.total)}</span>
                                 <span style={{ display: 'flex', gap: '4px' }}>
@@ -330,18 +441,44 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </span>
                             </div>
                         ))}
+                        <Paginacion pagina={pagIng.pagina} total={pagIng.total} ir={pagIng.ir} totalItems={ingFiltrados.length} porPagina={25} />
                     </div>
                 )}
 
                 {/* ── TABLA GASTOS ── */}
                 {tab === 'gastos' && (
                     <div className="tbl">
-                        <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos</strong><a onClick={abrirNuevo}>+ Agregar</a></div>
+                        <div className="th">
+                            <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos</strong>
+                            <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                            <a onClick={abrirNuevo}>+ Agregar</a>
+                        </div>
                         <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Categoría</span><span>Máquina</span><span>Monto</span><span>Acc.</span></div>
-                        {gastos.length === 0 && <p className="vacio">Sin registros</p>}
-                        {gastos.map(g => (
+                        {gasFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
+                        {pagGas.paginados.map(g => {
+                            const esCombAuto = g.descripcion?.includes('Combustible —');
+                            const esSalAuto  = g.categoria === 'Salario' && g.descripcion?.startsWith('Salario —');
+                            const esMantAuto = g.categoria === 'Mantenimiento' && g.descripcion?.startsWith('Mantenimiento —');
+                            const autoIcon   = esCombAuto
+                                ? <Fuel size={10} />
+                                : esSalAuto ? <HardHat size={10} />
+                                : esMantAuto ? <Wrench size={10} /> : null;
+                            const autoTip    = esCombAuto ? 'Auto desde Combustible'
+                                : esSalAuto ? 'Auto desde Salarios'
+                                : esMantAuto ? 'Auto desde Mantenimientos' : '';
+                            return (
                             <div className="tr" key={g.id}>
-                                <span>{g.fecha}</span><span className="w2">{g.descripcion}</span><span>{g.categoria}</span><span>{g.maquinaNombre}</span>
+                                <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {g.categoria}
+                                    {autoIcon && (
+                                        <span title={autoTip}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', background: '#fff3e0', border: '1px solid #e67e22', borderRadius: '4px', padding: '1px 5px', fontSize: '10px', color: '#e67e22', fontWeight: '700', lineHeight: 1.4 }}>
+                                            {autoIcon} Auto
+                                        </span>
+                                    )}
+                                </span>
+                                <span>{g.maquinaNombre}</span>
                                 <span className="neg">{fmt(g.monto)}</span>
                                 <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                     {facturasIds.has(String(g.id)) && (
@@ -372,17 +509,31 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                     <button className="icon-btn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>
                                 </span>
                             </div>
-                        ))}
+                            );
+                        })}
+                        <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasFiltrados.length} porPagina={25} />
                     </div>
                 )}
 
                 {/* ── TABLA SALARIOS ── */}
                 {tab === 'salarios' && (
+                    <div className="ale" style={{ background: '#f0f7ff', borderColor: '#2980b9', marginBottom: '8px' }}>
+                        <Info size={16} style={{ color: '#2980b9', flexShrink: 0 }} />
+                        <div>
+                            <p style={{ color: '#1a2d42', margin: 0 }}>Cada salario genera automáticamente un Gasto — así se incluye en el P&L. Los <strong>anticipos</strong> se descuentan del neto, pero si fueron pagados en una fecha distinta deberías registrarlos también como un Gasto separado con la fecha real.</p>
+                        </div>
+                    </div>
+                )}
+                {tab === 'salarios' && (
                     <div className="tbl">
-                        <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><HardHat size={14} /> Salarios</strong><a onClick={abrirNuevo}>+ Registrar Pago</a></div>
+                        <div className="th">
+                            <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><HardHat size={14} /> Salarios</strong>
+                            <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                            <a onClick={abrirNuevo}>+ Registrar Pago</a>
+                        </div>
                         <div className="tr hdr"><span className="w2">Operador</span><span>Horas</span><span>$/Hora</span><span>Bruto</span><span>Anticipos</span><span>Neto</span><span>Estado</span><span>Acc.</span></div>
-                        {salarios.length === 0 && <p className="vacio">Sin registros</p>}
-                        {salarios.map(s => (
+                        {salFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
+                        {pagSal.paginados.map(s => (
                             <div className="tr" key={s.id}>
                                 <span className="w2">{s.operadorNombre}</span><span>{s.horasTrabajadas} hrs</span>
                                 <span>{fmt(s.valorHora)}</span><span className="pos">{fmt(s.totalBruto)}</span>
@@ -394,23 +545,45 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </span>
                             </div>
                         ))}
+                        <Paginacion pagina={pagSal.pagina} total={pagSal.total} ir={pagSal.ir} totalItems={salFiltrados.length} porPagina={25} />
                     </div>
                 )}
 
                 {/* ── TABLA PAGOS ── */}
                 {tab === 'pagos' && (
                     <>
+                        <div className="ale" style={{ background: '#f0f7ff', borderColor: '#2980b9', marginBottom: '8px' }}>
+                            <Info size={16} style={{ color: '#2980b9', flexShrink: 0 }} />
+                            <div>
+                                <p style={{ color: '#1a2d42', margin: 0 }}>Los pagos de clientes son seguimiento de cobros — <strong>no se suman al total de Ingresos</strong>. Registra el trabajo en la pestaña Ingresos y usa esta pestaña para rastrear cuánto te han pagado.</p>
+                            </div>
+                        </div>
                         <div className="g2" style={{ marginBottom: '14px' }}>
                             <div className="dbox"><div style={{ fontSize: '12px', fontWeight: '700', color: '#e74c3c', display:'flex', alignItems:'center', gap:'4px' }}><TrendingDown size={13} /> Por cobrar</div><div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '24px', fontWeight: '800', color: '#e74c3c' }}>{fmt(totalPorCobrar)}</div></div>
                             <div className="cbox"><div style={{ fontSize: '12px', fontWeight: '700', color: '#27ae60', display:'flex', alignItems:'center', gap:'4px' }}><CheckCircle size={13} /> Cobrado</div><div style={{ fontFamily: "'Barlow Condensed',sans-serif", fontSize: '24px', fontWeight: '800', color: '#27ae60' }}>{fmt(totalCobrado)}</div></div>
                         </div>
                         <div className="tbl">
-                            <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><CreditCard size={14} /> Pagos de Clientes</strong><a onClick={abrirNuevo}>+ Nuevo</a></div>
+                            <div className="th">
+                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><CreditCard size={14} /> Pagos de Clientes</strong>
+                                <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                                <a onClick={abrirNuevo}>+ Nuevo</a>
+                            </div>
                             <div className="tr hdr"><span>Fecha</span><span className="w2">Cliente</span><span>Máquina</span><span>Total</span><span>Pagado</span><span>Saldo</span><span>Estado</span><span>Acc.</span></div>
-                            {pagos.length === 0 && <p className="vacio">Sin registros</p>}
-                            {pagos.map(p => (
-                                <div className="tr" key={p.id}>
-                                    <span>{p.fecha}</span><span className="w2">{p.cliente}</span><span>{p.maquinaNombre}</span>
+                            {pagFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
+                            {pagPag.paginados.map(p => {
+                                // #11: advertir si lo cobrado en pagos supera los ingresos registrados para esa máquina
+                                const ingMaq = ingresos.filter(i => i.maquinaNombre === p.maquinaNombre)
+                                    .reduce((a, i) => a + (Number(i.total) || 0), 0);
+                                const pagMaq = pagos.filter(x => x.maquinaNombre === p.maquinaNombre)
+                                    .reduce((a, x) => a + (Number(x.valorPagado) || 0), 0);
+                                const sobrecobro = pagMaq > ingMaq && ingMaq > 0;
+                                return (
+                                <div className="tr" key={p.id} style={sobrecobro ? { background: '#fff8e7' } : {}}>
+                                    <span>{fmtFecha(p.fecha)}</span><span className="w2">{p.cliente}</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        {p.maquinaNombre}
+                                        {sobrecobro && <span title={`Cobrado total (${fmt(pagMaq)}) supera ingresos registrados (${fmt(ingMaq)}) para esta máquina`} style={{ color: '#e67e22', cursor: 'help' }}><AlertTriangle size={12} /></span>}
+                                    </span>
                                     <span>{fmt(p.valorTotal)}</span><span className="pos">{fmt(p.valorPagado)}</span><span className="neg">{fmt(p.saldoPendiente)}</span>
                                     <span><span className={`b ${p.estado === 'Pagado' ? 'pag' : p.estado === 'Parcial' ? 'par' : 'deu'}`}>{p.estado}</span></span>
                                     <span style={{ display: 'flex', gap: '4px' }}>
@@ -418,7 +591,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <button className="icon-btn" onClick={() => eliminar('pagos', p.id)}><Trash2 size={14} /></button>
                                     </span>
                                 </div>
-                            ))}
+                                );
+                            })}
+                            <Paginacion pagina={pagPag.pagina} total={pagPag.total} ir={pagPag.ir} totalItems={pagFiltrados.length} porPagina={25} />
                         </div>
                     </>
                 )}

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import { getMaquinas, getCombustible, createCombustible, deleteCombustible } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { Fuel, Droplets, ClipboardList, Plus, Trash2, Tractor, TrendingDown } from 'lucide-react';
+import { Fuel, Droplets, ClipboardList, Plus, Trash2, Tractor, TrendingDown, Search } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import MoneyInput from '../../utils/MoneyInput';
@@ -22,6 +23,7 @@ function Combustible() {
     const [maquinas, setMaquinas]       = useState([]);
     const [registros, setRegistros]     = useState([]);
     const [mostrarForm, setMostrarForm] = useState(false);
+    const [buscar, setBuscar] = useState('');
     const [form, setForm] = useState({ maquinaNombre: '', galones: '', precioPorGalon: '', horometro: '', fecha: hoy() });
 
     useEffect(() => { cargar(); }, []);
@@ -47,18 +49,26 @@ function Combustible() {
         if (await confirm('¿Eliminar esta carga de combustible?')) deleteCombustible(id).then(cargar).catch(console.error);
     };
 
+    const registrosFiltrados = [...registros].reverse().filter(r => !buscar || r.maquinaNombre?.toLowerCase().includes(buscar.toLowerCase()));
+    const pagComb = usePaginacion(registrosFiltrados);
+
     const totalGasto   = registros.reduce((a, r) => a + (r.total || r.galones * r.precioPorGalon || 0), 0);
     const totalGalones = registros.reduce((a, r) => a + (r.galones || 0), 0);
     const totalCargas  = registros.length;
     const total = (r) => r.total || (r.galones * r.precioPorGalon) || 0;
 
     // Agrupar por máquina
+    // #5: gal/hora basado en rango de horómetro registrado en cargas, no en horómetro total de la máquina
     const porMaquina = maquinas.map(m => {
         const regs = registros.filter(r => r.maquinaNombre === m.nombre);
         const galones = regs.reduce((a, r) => a + (r.galones || 0), 0);
         const gasto   = regs.reduce((a, r) => a + total(r), 0);
-        const horas   = m.horometroActual || 1;
-        return { ...m, galones, gasto, galPorHora: galones > 0 ? (galones / horas).toFixed(1) : 0, cargas: regs };
+        const conHoro = regs.filter(r => r.horometro > 0).map(r => r.horometro);
+        const horasRango = conHoro.length >= 2
+            ? Math.max(...conHoro) - Math.min(...conHoro)
+            : (m.horometroActual || 1);
+        const galPorHora = galones > 0 && horasRango > 0 ? (galones / horasRango).toFixed(2) : '—';
+        return { ...m, galones, gasto, galPorHora, cargas: regs };
     }).filter(m => m.galones > 0 || maquinas.length <= 5);
 
     const maxGalones = Math.max(...porMaquina.map(m => m.galones), 1);
@@ -134,10 +144,13 @@ function Combustible() {
                 {/* HISTORIAL */}
                 <div className="st" style={{ marginTop: '20px' }}>Historial de cargas</div>
                 <div className="tbl">
-                    <div className="th"><strong>Todas las cargas</strong></div>
+                    <div className="th">
+                        <strong>Todas las cargas</strong>
+                        <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar máquina..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                    </div>
                     <div className="tr hdr"><span>Fecha</span><span className="w2">Máquina</span><span>Galones</span><span>$/Galón</span><span>Horómetro</span><span>Total</span><span>Acc.</span></div>
                     {registros.length === 0 && <p className="vacio">Sin cargas registradas</p>}
-                    {registros.map(r => (
+                    {pagComb.paginados.map(r => (
                         <div className="tr" key={r.id}>
                             <span>{r.fecha}</span>
                             <span className="w2">{r.maquinaNombre}</span>
@@ -148,6 +161,7 @@ function Combustible() {
                             <span><button className="icon-btn" onClick={() => eliminar(r.id)}><Trash2 size={14} /></button></span>
                         </div>
                     ))}
+                    <Paginacion pagina={pagComb.pagina} total={pagComb.total} ir={pagComb.ir} totalItems={registrosFiltrados.length} porPagina={25} />
                 </div>
 
             </div></div>

@@ -168,7 +168,7 @@ function Operadores() {
                     ? Number(h.id) > Number(periodoActivo.desde_hora_id ?? periodoActivo.desdeHoraId)
                     : h.fecha >= (periodoActivo.fecha_inicio ?? periodoActivo.fechaInicio))
                 .reduce((a, h) => a + (h.horas || 0), 0)
-            : totalHoras;
+            : 0;
 
         const salarioBruto  = horasPeriodo * valorHora;
         const anticipos     = periodoActivo?.anticipos || 0;
@@ -183,7 +183,7 @@ function Operadores() {
     });
 
     // Stats globales
-    const totalHorasGlobal = ops.reduce((a, o) => a + o.totalHoras, 0);
+    const totalHorasGlobal = ops.reduce((a, o) => a + o.horasPeriodo, 0);
     const pendientes       = ops.filter(o => o.hayPendiente).length;
     const sinMaquina       = ops.filter(o => !o.maq).length;
 
@@ -209,9 +209,9 @@ function Operadores() {
                     </div>
                     <div className="card blue">
                         <span className="ci"><Clock size={22} /></span>
-                        <div className="cl">Horas acumuladas</div>
+                        <div className="cl">Horas periodo actual</div>
                         <div className="cv">{totalHorasGlobal.toLocaleString('es-CO')}</div>
-                        <div className="cs">entre todos los operadores</div>
+                        <div className="cs">suma de periodos activos</div>
                     </div>
                     <div className="card red">
                         <span className="ci"><TrendingDown size={22} /></span>

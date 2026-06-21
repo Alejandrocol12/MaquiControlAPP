@@ -4,9 +4,9 @@ import autoTable from 'jspdf-autotable';
 import { useToast } from '../../utils/toast';
 import {
     getMaquinas, getIngresos, getGastos, getSalarios,
-    getHoras, getMantenimientos, getCombustible, getPagos
+    getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
 } from '../../api';
-import { BarChart2, Tractor, HardHat, Wrench, CreditCard, Fuel, Loader, Clock } from 'lucide-react';
+import { BarChart2, Tractor, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase } from 'lucide-react';
 
 // ── helpers ────────────────────────────────────────────────────
 const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
@@ -425,6 +425,216 @@ function pdfCombustible(combustibles) {
     doc.save('reporte-combustible.pdf');
 }
 
+// ══════════════════════════════════════════════════════════════
+// 7. RESUMEN COMPARATIVO POR MÁQUINAS
+// ══════════════════════════════════════════════════════════════
+function pdfResumenMaquinas(maquinas, ingresos, gastos, combustibles, mantenimientos) {
+    const filas = maquinas.map(m => {
+        const ing  = ingresos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.total || 0), 0);
+        const gas  = gastos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.monto || 0), 0);
+        const comb = combustibles.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.total || 0), 0);
+        const mant = mantenimientos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.costo || 0), 0);
+        const totalGas = gas + comb + mant;
+        const utilidad = ing - totalGas;
+        return { nombre: m.nombre, tipo: m.tipo || '—', ing, gas, comb, mant, totalGas, utilidad };
+    }).sort((a, b) => b.utilidad - a.utilidad);
+
+    const totIng = filas.reduce((a, f) => a + f.ing, 0);
+    const totGas = filas.reduce((a, f) => a + f.totalGas, 0);
+    const totUtil = totIng - totGas;
+
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Resumen por Máquina', 'Ingresos, gastos y utilidad comparativa de toda la flota');
+
+    y = cajaResumen(doc, y, [
+        { label: 'Máquinas',       valor: String(maquinas.length) },
+        { label: 'Total ingresos', valor: fmt(totIng) },
+        { label: 'Total gastos',   valor: fmt(totGas) },
+        { label: 'Utilidad total', valor: fmt(totUtil) },
+    ]);
+
+    y = seccion(doc, y, 'COMPARATIVO POR MÁQUINA (ordenado por utilidad)');
+    y = tabla(doc, y,
+        ['Máquina', 'Tipo', 'Ingresos', 'Gastos', 'Combustible', 'Mant.', 'Utilidad'],
+        filas.map(f => [
+            f.nombre, f.tipo, fmt(f.ing), fmt(f.gas), fmt(f.comb), fmt(f.mant),
+            fmt(f.utilidad)
+        ]),
+        { 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } }
+    );
+
+    pie(doc, 'Resumen por Máquina');
+    doc.save('reporte-maquinas-comparativo.pdf');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 8. REPORTE DE PERIODOS
+// ══════════════════════════════════════════════════════════════
+function pdfPeriodos(faenas) {
+    const cerradas = faenas.filter(f => f.estado === 'cerrada');
+    const activas  = faenas.filter(f => f.estado === 'activa');
+
+    const totIng  = cerradas.reduce((a, f) => a + (f.totalIngresos || 0), 0);
+    const totGas  = cerradas.reduce((a, f) => a + (f.totalGastos || 0), 0);
+    const totUtil = cerradas.reduce((a, f) => a + (f.utilidadNeta || 0), 0);
+
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Reporte de Periodos', 'Historial de periodos de trabajo por máquina');
+
+    y = cajaResumen(doc, y, [
+        { label: 'Periodos cerrados', valor: String(cerradas.length) },
+        { label: 'En campo',          valor: String(activas.length) },
+        { label: 'Ingresos totales',  valor: fmt(totIng) },
+        { label: 'Utilidad acum.',    valor: fmt(totUtil) },
+    ]);
+
+    if (activas.length) {
+        y = seccion(doc, y, `PERIODOS ACTIVOS (${activas.length})`);
+        y = tabla(doc, y,
+            ['Máquina', 'Obra', 'Cliente', 'Inicio'],
+            activas.map(f => [f.maquinaNombre || '—', f.nombreObra || '—', f.cliente || '—', f.fechaInicio || '—']),
+            {}
+        );
+    }
+
+    if (cerradas.length) {
+        y = seccion(doc, y, `PERIODOS CERRADOS (${cerradas.length})`);
+        y = tabla(doc, y,
+            ['Máquina', 'Obra', 'Cliente', 'Inicio', 'Cierre', 'Ingresos', 'Gastos', 'Utilidad'],
+            cerradas.map(f => [
+                f.maquinaNombre || '—', f.nombreObra || '—', f.cliente || '—',
+                f.fechaInicio || '—', f.fechaFin || '—',
+                fmt(f.totalIngresos), fmt(f.totalGastos), fmt(f.utilidadNeta)
+            ]),
+            { 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } }
+        );
+    }
+
+    if (!faenas.length) {
+        doc.setFontSize(9); doc.setTextColor(...GRIS);
+        doc.text('No hay periodos registrados', 14, y + 8);
+    }
+
+    pie(doc, 'Reporte de Periodos');
+    doc.save('reporte-periodos.pdf');
+}
+
+// ══════════════════════════════════════════════════════════════
+// 9. GASTOS POR MÁQUINA DESGLOSADO POR PERIODOS
+// ══════════════════════════════════════════════════════════════
+function pdfGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const sinPeriodo  = filtrando ? [] : gasMaq.filter(x => !x.faenaId);
+    const totalGastos = filtrando
+        ? gasMaq.filter(x => String(x.faenaId) === String(faenaIdFiltro)).reduce((a, x) => a + (x.monto || 0), 0)
+        : gasMaq.reduce((a, x) => a + (x.monto || 0), 0);
+
+    const periodoLabel = filtrando ? (faenasMaq[0]?.nombreObra || 'Periodo') : 'Todos los periodos';
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Gastos por Periodos', `Máquina: ${maqNombre}  ·  Periodo: ${periodoLabel}`);
+
+    y = cajaResumen(doc, y, [
+        { label: 'Máquina',      valor: maqNombre },
+        { label: 'Periodo(s)',   valor: String(faenasMaq.length) },
+        { label: 'Total gastos', valor: fmt(totalGastos) },
+        { label: filtrando ? 'Estado' : 'Sin periodo',
+          valor: filtrando ? (faenasMaq[0]?.estado || '—') : fmt(sinPeriodo.reduce((a, x) => a + (x.monto || 0), 0)) },
+    ]);
+
+    faenasMaq.forEach((f, idx) => {
+        const gasF    = gasMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subTotal = gasF.reduce((a, x) => a + (x.monto || 0), 0);
+        const estado  = f.estado === 'activa' ? '● ACTIVO' : 'Cerrado';
+        const rango   = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        y = seccion(doc, y, `PERIODO ${faenasMaq.length - idx}: ${f.nombreObra || '—'} · ${rango} · ${estado}`);
+        if (f.cliente) { doc.setFontSize(7); doc.setTextColor(...GRIS); doc.text(`Cliente: ${f.cliente}`, 17, y + 3); y += 6; }
+        if (gasF.length) {
+            y = tabla(doc, y, ['Fecha', 'Descripción', 'Categoría', 'Monto'],
+                gasF.map(x => [x.fecha || '—', x.descripcion || '—', x.categoria || '—', fmt(x.monto)]),
+                { 3: { halign: 'right' } });
+            doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...AZUL);
+            doc.text(`Subtotal: ${fmt(subTotal)}`, 182, y - 2, { align: 'right' }); y += 4;
+        } else { doc.setFontSize(8); doc.setTextColor(...GRIS); doc.text('Sin gastos en este periodo', 17, y + 4); y += 10; }
+    });
+
+    if (!filtrando && sinPeriodo.length) {
+        y = seccion(doc, y, `SIN PERIODO ASIGNADO (${sinPeriodo.length})`);
+        y = tabla(doc, y, ['Fecha', 'Descripción', 'Categoría', 'Monto'],
+            sinPeriodo.map(x => [x.fecha || '—', x.descripcion || '—', x.categoria || '—', fmt(x.monto)]),
+            { 3: { halign: 'right' } });
+    }
+
+    const sufijo = filtrando ? `-p${faenaIdFiltro}` : '';
+    pie(doc, `Gastos por Periodos — ${maqNombre}`);
+    doc.save(`gastos-periodos-${maqNombre.replace(/\s+/g, '-')}${sufijo}.pdf`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 10. INGRESOS POR MÁQUINA DESGLOSADO POR PERIODOS
+// ══════════════════════════════════════════════════════════════
+function pdfIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
+    const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const sinPeriodo = filtrando ? [] : ingMaq.filter(x => !x.faenaId);
+    const totalIng   = filtrando
+        ? ingMaq.filter(x => String(x.faenaId) === String(faenaIdFiltro)).reduce((a, x) => a + (x.total || 0), 0)
+        : ingMaq.reduce((a, x) => a + (x.total || 0), 0);
+
+    const periodoLabel = filtrando ? (faenasMaq[0]?.nombreObra || 'Periodo') : 'Todos los periodos';
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Ingresos por Periodos', `Máquina: ${maqNombre}  ·  Periodo: ${periodoLabel}`);
+
+    y = cajaResumen(doc, y, [
+        { label: 'Máquina',         valor: maqNombre },
+        { label: 'Periodo(s)',       valor: String(faenasMaq.length) },
+        { label: 'Total ingresos',   valor: fmt(totalIng) },
+        { label: filtrando ? 'Estado' : 'Sin periodo',
+          valor: filtrando ? (faenasMaq[0]?.estado || '—') : String(sinPeriodo.length) },
+    ]);
+
+    faenasMaq.forEach((f, idx) => {
+        const ingF    = ingMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subTotal = ingF.reduce((a, x) => a + (x.total || 0), 0);
+        const estado  = f.estado === 'activa' ? '● ACTIVO' : 'Cerrado';
+        const rango   = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        y = seccion(doc, y, `PERIODO ${faenasMaq.length - idx}: ${f.nombreObra || '—'} · ${rango} · ${estado}`);
+        if (f.cliente) { doc.setFontSize(7); doc.setTextColor(...GRIS); doc.text(`Cliente: ${f.cliente}`, 17, y + 3); y += 6; }
+        if (ingF.length) {
+            y = tabla(doc, y, ['Fecha', 'Descripción', 'Tipo', 'Cantidad', 'Valor unit.', 'Total'],
+                ingF.map(x => [x.fecha || '—', x.descripcion || '—', x.tipoTrabajo || '—',
+                    fmtNum(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+                { 5: { halign: 'right' } });
+            doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(39, 174, 96);
+            doc.text(`Subtotal: ${fmt(subTotal)}`, 182, y - 2, { align: 'right' }); y += 4;
+        } else { doc.setFontSize(8); doc.setTextColor(...GRIS); doc.text('Sin ingresos en este periodo', 17, y + 4); y += 10; }
+    });
+
+    if (!filtrando && sinPeriodo.length) {
+        y = seccion(doc, y, `SIN PERIODO ASIGNADO (${sinPeriodo.length})`);
+        y = tabla(doc, y, ['Fecha', 'Descripción', 'Tipo', 'Cantidad', 'Valor unit.', 'Total'],
+            sinPeriodo.map(x => [x.fecha || '—', x.descripcion || '—', x.tipoTrabajo || '—',
+                fmtNum(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+            { 5: { halign: 'right' } });
+    }
+
+    const sufijo = filtrando ? `-p${faenaIdFiltro}` : '';
+    pie(doc, `Ingresos por Periodos — ${maqNombre}`);
+    doc.save(`ingresos-periodos-${maqNombre.replace(/\s+/g, '-')}${sufijo}.pdf`);
+}
+
 // ── pie de página ──────────────────────────────────────────────
 function pie(doc, texto) {
     const pages = doc.internal.getNumberOfPages();
@@ -454,11 +664,16 @@ function Reportes() {
     const [mantenimientos, setMantenimientos] = useState([]);
     const [combustibles,   setCombustibles]   = useState([]);
     const [pagos,          setPagos]          = useState([]);
+    const [faenas,         setFaenas]         = useState([]);
     const [cargando,       setCargando]       = useState(true);
     const [generando,      setGenerando]      = useState(null);
 
-    const [mesSel, setMesSel] = useState('');
-    const [maqSel, setMaqSel] = useState('');
+    const [mesSel,             setMesSel]             = useState('');
+    const [maqSel,             setMaqSel]             = useState('');
+    const [maqSelGastos,       setMaqSelGastos]       = useState('');
+    const [maqSelIngresos,     setMaqSelIngresos]     = useState('');
+    const [periodoSelGastos,   setPeriodoSelGastos]   = useState('');
+    const [periodoSelIngresos, setPeriodoSelIngresos] = useState('');
 
     useEffect(() => {
         const now = new Date();
@@ -466,8 +681,8 @@ function Reportes() {
 
         Promise.all([
             getMaquinas(), getIngresos(), getGastos(), getSalarios(),
-            getHoras(), getMantenimientos(), getCombustible(), getPagos()
-        ]).then(([maq, ing, gas, sal, hrs, mant, comb, pag]) => {
+            getHoras(), getMantenimientos(), getCombustible(), getPagos(), getFaenas()
+        ]).then(([maq, ing, gas, sal, hrs, mant, comb, pag, fae]) => {
             setMaquinas(maq.data);
             setIngresos(ing.data);
             setGastos(gas.data);
@@ -476,7 +691,12 @@ function Reportes() {
             setMantenimientos(mant.data);
             setCombustibles(comb.data);
             setPagos(pag.data);
-            if (maq.data.length) setMaqSel(maq.data[0].nombre);
+            setFaenas(fae.data || []);
+            if (maq.data.length) {
+                setMaqSel(maq.data[0].nombre);
+                setMaqSelGastos(maq.data[0].nombre);
+                setMaqSelIngresos(maq.data[0].nombre);
+            }
         }).catch(console.error).finally(() => setCargando(false));
     }, []);
 
@@ -524,28 +744,56 @@ function Reportes() {
             },
         },
         {
-            id: 'operadores', ico: <HardHat size={22} />, color: 'g',
-            titulo: 'Reporte de Operadores',
-            desc: 'Horas trabajadas, valor por hora, salarios y liquidaciones',
-            accion: () => pdfOperadores(horas, salarios, maquinas),
+            id: 'gastos-periodos', ico: <BarChart2 size={22} />, color: 'b',
+            titulo: 'Gastos por Periodos',
+            desc: 'Gastos de una máquina desglosados por periodo — elige uno específico o todos',
+            control: (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
+                        value={maqSelGastos}
+                        onChange={e => { setMaqSelGastos(e.target.value); setPeriodoSelGastos(''); }}>
+                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                    </select>
+                    <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
+                        value={periodoSelGastos} onChange={e => setPeriodoSelGastos(e.target.value)}>
+                        <option value=''>Todos los periodos</option>
+                        {faenas.filter(f => f.maquinaNombre === maqSelGastos)
+                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
+                            .map((f, i, arr) => (
+                                <option key={f.id} value={f.id}>
+                                    {`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}
+                                </option>
+                            ))}
+                    </select>
+                </div>
+            ),
+            accion: () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
         },
         {
-            id: 'mantenimientos', ico: <Wrench size={22} />, color: 'r',
-            titulo: 'Reporte de Mantenimientos',
-            desc: 'Historial completo y costos de mantenimiento por máquina',
-            accion: () => pdfMantenimientos(mantenimientos),
-        },
-        {
-            id: 'pagos', ico: <CreditCard size={22} />, color: 'b',
-            titulo: 'Reporte de Pagos Clientes',
-            desc: 'Cobros realizados, pendientes y deudas por cliente',
-            accion: () => pdfPagos(pagos),
-        },
-        {
-            id: 'combustible', ico: <Fuel size={22} />, color: 'o',
-            titulo: 'Reporte de Combustible',
-            desc: 'Consumo total, gasto y resumen por máquina',
-            accion: () => pdfCombustible(combustibles),
+            id: 'ingresos-periodos', ico: <Tractor size={22} />, color: 'r',
+            titulo: 'Ingresos por Periodos',
+            desc: 'Ingresos de una máquina desglosados por periodo — elige uno específico o todos',
+            control: (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                    <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
+                        value={maqSelIngresos}
+                        onChange={e => { setMaqSelIngresos(e.target.value); setPeriodoSelIngresos(''); }}>
+                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                    </select>
+                    <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
+                        value={periodoSelIngresos} onChange={e => setPeriodoSelIngresos(e.target.value)}>
+                        <option value=''>Todos los periodos</option>
+                        {faenas.filter(f => f.maquinaNombre === maqSelIngresos)
+                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
+                            .map((f, i, arr) => (
+                                <option key={f.id} value={f.id}>
+                                    {`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}
+                                </option>
+                            ))}
+                    </select>
+                </div>
+            ),
+            accion: () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
         },
     ];
 

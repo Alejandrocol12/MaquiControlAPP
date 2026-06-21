@@ -7,6 +7,7 @@ import PortalOperador from './components/Operadores/PortalOperador';
 import Mantenimientos from './components/Mantenimientos/Mantenimientos';
 import Combustible from './components/Combustible/Combustible';
 import Reportes from './components/Reportes/Reportes';
+import Faenas from './components/Faenas/Faenas';
 import { apiLogin, apiRegister } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -28,6 +29,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Menu,
+    Briefcase,
 } from 'lucide-react';
 import './App.css';
 
@@ -275,7 +277,8 @@ function App() {
             case 'mantenimientos': return <Mantenimientos />;
             case 'combustible': return <Combustible />;
             case 'reportes': return <Reportes />;
-            default: return <Dashboard />;
+            case 'faenas': return <Faenas />;
+            default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
 
@@ -346,6 +349,10 @@ function App() {
                                 <div className={`nsub ${modulo === 'finanzas' && finTab === 'gastos' ? 'active' : ''}`} onClick={() => navFin2('gastos')}>› Gastos</div>
                                 <div className={`nsub ${modulo === 'finanzas' && finTab === 'salarios' ? 'active' : ''}`} onClick={() => navFin2('salarios')}>› Salarios</div>
                                 <div className={`nsub ${modulo === 'finanzas' && finTab === 'pagos' ? 'active' : ''}`} onClick={() => navFin2('pagos')}>› Pagos Clientes</div>
+                            </div>
+
+                            <div className={`ni ${modulo === 'faenas' ? 'active' : ''}`} onClick={() => ir('faenas')}>
+                                <span className="ico"><Briefcase size={18} /></span><span className="sb-label">Periodos</span>
                             </div>
 
                             <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} onClick={() => ir('operadores')}>

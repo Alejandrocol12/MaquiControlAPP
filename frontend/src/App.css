@@ -255,10 +255,28 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
 .rep p{font-size:12px;color:#6b7a8d;margin-top:2px;}
 .rbtn{margin-left:auto;padding:7px 13px;background:#0d1b2a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px;font-family:'Barlow',sans-serif;white-space:nowrap;flex-shrink:0;}
 
+/* ── ZEBRA STRIPING ── */
+.tr:not(.hdr):nth-child(even){background:#fafbfc;}
+.tr:not(.hdr):nth-child(even):hover{background:#f0f4f8;}
+
+/* ── SKELETON LOADER ── */
+.skel{display:inline-block;border-radius:6px;background:linear-gradient(90deg,#e8ecf1 25%,#d8dfe8 50%,#e8ecf1 75%);background-size:200% 100%;animation:skelShimmer 1.4s ease-in-out infinite;}
+@keyframes skelShimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.skel-card{background:#fff;border-radius:12px;padding:18px 20px;border-top:3px solid #e8ecf1;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:0;}
+.skel-line{height:12px;border-radius:4px;margin-bottom:8px;}
+.skel-val{height:28px;border-radius:6px;width:60%;margin-bottom:6px;}
+.skel-sub{height:10px;border-radius:4px;width:80%;}
+.skel-row{display:flex;padding:10px 16px;gap:8px;border-bottom:1px solid #dde4ed;}
+.skel-row .skel-line{flex:1;margin-bottom:0;}
+
 /* ── MISC ── */
 .vacio{color:#6b7a8d;font-size:13px;text-align:center;padding:20px;}
-.icon-btn{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;transition:background .15s;}
+.icon-btn{background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;transition:background .15s;min-width:28px;min-height:28px;display:inline-flex;align-items:center;justify-content:center;}
 .icon-btn:hover{background:#f0f4f8;}
+
+/* ── CARD HOVER INTERACTIVO ── */
+.card.clickable{cursor:pointer;transition:all .2s;}
+.card.clickable:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.08);}
 
 /* AUTH */
 .auth-shell{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(380px,.85fr);background:
