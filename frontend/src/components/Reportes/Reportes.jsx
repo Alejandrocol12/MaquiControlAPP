@@ -21,11 +21,14 @@ function cabecera(doc, titulo, subtitulo) {
     doc.setFillColor(...AZUL);
     doc.rect(0, 0, 210, 22, 'F');
 
-    // nombre app
-    doc.setTextColor(245, 166, 35);
+    // nombre app — "Maqui" amarillo, "Control" blanco
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('MaquiControl', 14, 14);
+    doc.setTextColor(245, 166, 35);
+    doc.text('Maqui', 14, 14);
+    const maquiW = doc.getTextWidth('Maqui');
+    doc.setTextColor(255, 255, 255);
+    doc.text('Control', 14 + maquiW, 14);
 
     // fecha generación
     doc.setTextColor(200, 200, 200);
@@ -57,11 +60,11 @@ function cabecera(doc, titulo, subtitulo) {
 
 // ── caja resumen ───────────────────────────────────────────────
 function cajaResumen(doc, y, items) {
-    const col = 60;
+    const col = 46;
     doc.setFillColor(248, 249, 250);
     doc.roundedRect(14, y, 182, 18, 2, 2, 'F');
     items.forEach((item, i) => {
-        const x = 20 + i * col;
+        const x = 18 + i * col;
         doc.setFontSize(7);
         doc.setTextColor(...GRIS);
         doc.setFont('helvetica', 'normal');
@@ -94,7 +97,7 @@ function tabla(doc, y, head, body, colStyles) {
         theme: 'grid',
         headStyles: { fillColor: DORADO, textColor: AZUL, fontStyle: 'bold', fontSize: 8 },
         bodyStyles: { fontSize: 8, textColor: [40, 40, 40] },
-        alternateRowStyles: { fillColor: [250, 250, 250] },
+        alternateRowStyles: { fillColor: [235, 242, 252] },
         margin: { left: 14, right: 14 },
         columnStyles: colStyles || {},
     });
@@ -551,7 +554,7 @@ function pdfGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
     faenasMaq.forEach((f, idx) => {
         const gasF    = gasMaq.filter(x => String(x.faenaId) === String(f.id));
         const subTotal = gasF.reduce((a, x) => a + (x.monto || 0), 0);
-        const estado  = f.estado === 'activa' ? '● ACTIVO' : 'Cerrado';
+        const estado  = f.estado === 'activa' ? '[ACTIVO]' : 'Cerrado';
         const rango   = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
         y = seccion(doc, y, `PERIODO ${faenasMaq.length - idx}: ${f.nombreObra || '—'} · ${rango} · ${estado}`);
         if (f.cliente) { doc.setFontSize(7); doc.setTextColor(...GRIS); doc.text(`Cliente: ${f.cliente}`, 17, y + 3); y += 6; }
@@ -608,7 +611,7 @@ function pdfIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
     faenasMaq.forEach((f, idx) => {
         const ingF    = ingMaq.filter(x => String(x.faenaId) === String(f.id));
         const subTotal = ingF.reduce((a, x) => a + (x.total || 0), 0);
-        const estado  = f.estado === 'activa' ? '● ACTIVO' : 'Cerrado';
+        const estado  = f.estado === 'activa' ? '[ACTIVO]' : 'Cerrado';
         const rango   = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
         y = seccion(doc, y, `PERIODO ${faenasMaq.length - idx}: ${f.nombreObra || '—'} · ${rango} · ${estado}`);
         if (f.cliente) { doc.setFontSize(7); doc.setTextColor(...GRIS); doc.text(`Cliente: ${f.cliente}`, 17, y + 3); y += 6; }
