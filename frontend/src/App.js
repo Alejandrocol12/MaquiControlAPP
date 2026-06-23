@@ -22,7 +22,6 @@ import {
     CheckCircle,
     XCircle,
     Info,
-    ShieldCheck,
     UserPlus,
     ArrowRight,
     KeyRound,
@@ -31,6 +30,7 @@ import {
     Menu,
     Briefcase,
 } from 'lucide-react';
+import { GiBulldozer } from 'react-icons/gi';
 import './App.css';
 
 const AUTH_USER_KEY = 'mc_auth_user';
@@ -48,160 +48,97 @@ const getStoredSession = () => {
 
 function AuthScreen({ onLogin, onRegister }) {
     const [vista, setVista] = useState('login');
-    const [loginForm, setLoginForm] = useState({ email: 'dueño@mail.com', password: '123456' });
+    const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [registerForm, setRegisterForm] = useState({
-        nombre: '',
-        empresa: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
+        nombre: '', empresa: '', email: '', password: '', confirmPassword: '',
     });
+    const [activeLabel, setActiveLabel] = useState(null);
+    const [animKey, setAnimKey] = useState(0);
+
+    const focus = (label) => { setActiveLabel(label); setAnimKey(k => k + 1); };
 
     return (
         <div className="auth-shell">
-            <section className="auth-hero">
-                <div className="auth-brand">Maqui<span>Control</span></div>
-                <div className="auth-kicker">Control operativo para maquinaria pesada</div>
-                <h1>Administra maquinas, costos, personal y reportes desde una sola cabina.</h1>
-                <p>
-
-                </p>
-
-                <div className="auth-feature-list">
-                    <div className="auth-feature">
-                        <ShieldCheck size={18} />
-                        <span>Acceso privado por cuenta</span>
-                    </div>
-                    <div className="auth-feature">
-                        <BarChart2 size={18} />
-                        <span>Vista ejecutiva y financiera centralizada</span>
-                    </div>
-                    <div className="auth-feature">
-                        <Tractor size={18} />
-                        <span>Operacion conectada con maquinaria y operadores</span>
-                    </div>
-                    <div className="auth-feature">
-                        <HardHat size={18} />
-                        <span>Vista separada para administrador y operador</span>
-                    </div>
+            <div className="auth-top">
+                <div className="auth-brand-big">
+                    <span className="am">Maqui</span><span className="ac">Control</span>
                 </div>
-
-                <div className="auth-demo">
-
-                </div>
-            </section>
-
-            <section className="auth-panel">
-                <div className="auth-tabs">
-                    <button
-                        className={`auth-tab ${vista === 'login' ? 'active' : ''}`}
-                        onClick={() => setVista('login')}
-                    >
-                        <KeyRound size={15} /> Iniciar sesion
-                    </button>
-                    <button
-                        className={`auth-tab ${vista === 'register' ? 'active' : ''}`}
-                        onClick={() => setVista('register')}
-                    >
-                        <UserPlus size={15} /> Crear cuenta
-                    </button>
-                </div>
-
-                {vista === 'login' ? (
-                    <form className="auth-card" onSubmit={(e) => { e.preventDefault(); onLogin(loginForm); }}>
-                        <div className="auth-copy">
-                            <h2>Bienvenido de nuevo</h2>
-                            <p>Entra y retoma el control de tu operacion.</p>
+                <div className="auth-anim">
+                    {activeLabel && (
+                        <div className="auth-dozer-row" key={animKey}>
+                            <GiBulldozer size={34} color="#f5a623" />
+                            <span className="auth-dozer-label">{activeLabel}</span>
                         </div>
+                    )}
+                </div>
+            </div>
 
+            <div className="auth-card-wrap">
+                {vista === 'login' ? (
+                    <form onSubmit={e => { e.preventDefault(); onLogin(loginForm); }}>
                         <label className="fl">Correo</label>
-                        <input
-                            className="fi auth-input"
-                            type="email"
+                        <input className="fi" type="email"
                             value={loginForm.email}
-                            onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                            placeholder="dueno@mail.com"
-                        />
-
-                        <label className="fl">Contrasena</label>
-                        <input
-                            className="fi auth-input"
-                            type="password"
+                            onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                            onFocus={() => focus('Correo')}
+                            placeholder="dueno@mail.com" />
+                        <label className="fl">Contraseña</label>
+                        <input className="fi" type="password"
                             value={loginForm.password}
-                            onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                            placeholder="Minimo 6 caracteres"
-                        />
-
+                            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                            onFocus={() => focus('Contraseña')}
+                            placeholder="••••••" />
                         <button className="auth-submit" type="submit">
                             Entrar <ArrowRight size={15} />
                         </button>
                     </form>
                 ) : (
-                    <form className="auth-card" onSubmit={(e) => { e.preventDefault(); onRegister(registerForm); }}>
-                        <div className="auth-copy">
-                            <h2>Crear cuenta</h2>
-                            <p>Lista una base de autenticacion para mostrar el producto.</p>
-                        </div>
-
-                        <div className="fg2 auth-grid">
-                            <div>
-                                <label className="fl">Nombre</label>
-                                <input
-                                    className="fi auth-input"
-                                    value={registerForm.nombre}
-                                    onChange={(e) => setRegisterForm({ ...registerForm, nombre: e.target.value })}
-                                    placeholder="Alejandro Ruiz"
-                                />
-                            </div>
-                            <div>
-                                <label className="fl">Empresa</label>
-                                <input
-                                    className="fi auth-input"
-                                    value={registerForm.empresa}
-                                    onChange={(e) => setRegisterForm({ ...registerForm, empresa: e.target.value })}
-                                    placeholder="MaquiControl SAS"
-                                />
-                            </div>
-                        </div>
-
+                    <form onSubmit={e => { e.preventDefault(); onRegister(registerForm); }}>
+                        <label className="fl">Nombre</label>
+                        <input className="fi"
+                            value={registerForm.nombre}
+                            onChange={e => setRegisterForm({ ...registerForm, nombre: e.target.value })}
+                            onFocus={() => focus('Nombre')}
+                            placeholder="Alejandro Ruiz" />
+                        <label className="fl">Empresa</label>
+                        <input className="fi"
+                            value={registerForm.empresa}
+                            onChange={e => setRegisterForm({ ...registerForm, empresa: e.target.value })}
+                            onFocus={() => focus('Empresa')}
+                            placeholder="MaquiControl SAS" />
                         <label className="fl">Correo</label>
-                        <input
-                            className="fi auth-input"
-                            type="email"
+                        <input className="fi" type="email"
                             value={registerForm.email}
-                            onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                            placeholder="correo@empresa.com"
-                        />
-
-                        <div className="fg2 auth-grid">
-                            <div>
-                                <label className="fl">Contrasena</label>
-                                <input
-                                    className="fi auth-input"
-                                    type="password"
-                                    value={registerForm.password}
-                                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                                    placeholder="Minimo 6 caracteres"
-                                />
-                            </div>
-                            <div>
-                                <label className="fl">Confirmar</label>
-                                <input
-                                    className="fi auth-input"
-                                    type="password"
-                                    value={registerForm.confirmPassword}
-                                    onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                                    placeholder="Repite la contrasena"
-                                />
-                            </div>
-                        </div>
-
+                            onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
+                            onFocus={() => focus('Correo')}
+                            placeholder="correo@empresa.com" />
+                        <label className="fl">Contraseña</label>
+                        <input className="fi" type="password"
+                            value={registerForm.password}
+                            onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
+                            onFocus={() => focus('Contraseña')}
+                            placeholder="Mínimo 6 caracteres" />
+                        <label className="fl">Confirmar</label>
+                        <input className="fi" type="password"
+                            value={registerForm.confirmPassword}
+                            onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                            onFocus={() => focus('Confirmar')}
+                            placeholder="Repite la contraseña" />
                         <button className="auth-submit" type="submit">
                             Crear cuenta <ArrowRight size={15} />
                         </button>
                     </form>
                 )}
-            </section>
+
+                <div className="auth-toggle">
+                    <button className={vista === 'login' ? 'on' : ''} onClick={() => setVista('login')}>
+                        <KeyRound size={14} /> Iniciar sesión
+                    </button>
+                    <button className={vista === 'register' ? 'on' : ''} onClick={() => setVista('register')}>
+                        <UserPlus size={14} /> Crear cuenta
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
