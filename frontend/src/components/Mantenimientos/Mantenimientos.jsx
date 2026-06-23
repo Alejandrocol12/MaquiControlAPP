@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { getMaquinas, getMantenimientos, createMantenimiento, updateMantenimiento, deleteMantenimiento, createGasto, deleteGasto, getGastos } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
+import { useSortable } from '../../utils/useSortable';
+import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { Wrench, Clock, TrendingDown, Plus, Check, Pencil, Trash2, Search, AlertCircle } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 
@@ -83,9 +85,11 @@ function Mantenimientos() {
         } catch (e) { console.error(e); }
     };
 
-    const lista = mantenimientos.filter(m =>
+    const porTexto = mantenimientos.filter(m =>
         !buscar || m.maquinaNombre?.toLowerCase().includes(buscar.toLowerCase()) || m.tipo?.toLowerCase().includes(buscar.toLowerCase())
     );
+    const { filtrado: porRango, desde, setDesde, hasta, setHasta } = useDateRange(porTexto, 'fecha');
+    const { sorted: lista, Th } = useSortable(porRango, 'fecha', 'desc');
 
     const pendientes = mantenimientos.filter(m => m.estado === 'Pendiente');
     const totalCosto = mantenimientos.reduce((a, m) => a + (Number(m.costo) || 0), 0);
@@ -165,9 +169,18 @@ function Mantenimientos() {
                     <div className="th">
                         <strong>Historial completo</strong>
                         <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                        <DateRangePicker desde={desde} setDesde={setDesde} hasta={hasta} setHasta={setHasta} />
                         <a onClick={abrirNuevo}>+ Registrar</a>
                     </div>
-                    <div className="tr hdr"><span>Fecha</span><span className="w2">Máquina</span><span>Tipo</span><span className="w2">Descripción</span><span>Costo</span><span>Estado</span><span>Acc.</span></div>
+                    <div className="tr hdr">
+                        <Th campo="fecha">Fecha</Th>
+                        <Th campo="maquinaNombre" className="w2">Máquina</Th>
+                        <Th campo="tipo">Tipo</Th>
+                        <span className="w2">Descripción</span>
+                        <Th campo="costo">Costo</Th>
+                        <Th campo="estado">Estado</Th>
+                        <span>Acc.</span>
+                    </div>
                     {lista.length === 0 && <p className="vacio">Sin registros</p>}
                     {lista.map(m => (
                         <div className="tr" key={m.id}>

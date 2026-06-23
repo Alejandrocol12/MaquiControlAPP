@@ -17,6 +17,7 @@ import {
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
+import { useSortable } from '../../utils/useSortable';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -275,16 +276,18 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const totalIngresos = ingFaena.reduce((a, i) => a + (i.total || 0), 0);
     const totalGastos   = gasFaena.reduce((a, g) => a + (g.monto || 0), 0);
 
-    // Ordenar más reciente primero
-    const ingOrdenados  = [...ingFaena].reverse().filter(i =>
+    const ingFiltrados  = ingFaena.filter(i =>
         !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
     );
-    const gasOrdenados  = [...gasFaena].reverse().filter(g =>
+    const gasFiltrados  = gasFaena.filter(g =>
         !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
     );
-    const combOrdenados = [...combFaena].reverse().filter(c =>
+    const combFiltrados = combFaena.filter(c =>
         !buscarComb || String(c.galones).includes(buscarComb) || c.fecha?.includes(buscarComb)
     );
+    const { sorted: ingOrdenados,  Th: ThIng  } = useSortable(ingFiltrados,  'fecha', 'desc');
+    const { sorted: gasOrdenados,  Th: ThGas  } = useSortable(gasFiltrados,  'fecha', 'desc');
+    const { sorted: combOrdenados, Th: ThComb } = useSortable(combFiltrados, 'fecha', 'desc');
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
     const totalTrabajo = parseFloat(cantidad || 0) * parseFloat(valorUnitario || 0);
@@ -525,7 +528,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         </div>
                         <div className="tbl">
                             <div className="th"><strong>Trabajos en este periodo</strong></div>
-                            <div className="tr hdr"><span>Fecha</span><span>Tipo</span><span>Cantidad</span><span>Total</span><span>Acc.</span></div>
+                            <div className="tr hdr">
+                                <ThIng campo="fecha">Fecha</ThIng>
+                                <ThIng campo="tipoTrabajo">Tipo</ThIng>
+                                <ThIng campo="cantidad">Cantidad</ThIng>
+                                <ThIng campo="total">Total</ThIng>
+                                <span>Acc.</span>
+                            </div>
                             {ingOrdenados.map(i => (
                                 <div className="tr" key={i.id}>
                                     <span>{i.fecha}</span>
@@ -547,7 +556,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
                         </div>
-                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Tipo</span><span>Total</span><span>Acc.</span></div>
+                        <div className="tr hdr">
+                            <ThIng campo="fecha">Fecha</ThIng>
+                            <ThIng campo="descripcion" className="w2">Descripción</ThIng>
+                            <ThIng campo="tipoTrabajo">Tipo</ThIng>
+                            <ThIng campo="total">Total</ThIng>
+                            <span>Acc.</span>
+                        </div>
                         {ingOrdenados.map(i => (
                             <div className="tr" key={i.id}>
                                 <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
@@ -646,7 +661,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
                             </div>
-                            <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Categoría</span><span>Total</span><span>Acc.</span></div>
+                            <div className="tr hdr">
+                                <ThGas campo="fecha">Fecha</ThGas>
+                                <ThGas campo="descripcion" className="w2">Descripción</ThGas>
+                                <ThGas campo="categoria">Categoría</ThGas>
+                                <ThGas campo="monto">Total</ThGas>
+                                <span>Acc.</span>
+                            </div>
                             {gasOrdenados.map(g => (
                                 <div className="tr" key={g.id}>
                                     <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
@@ -712,7 +733,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <strong>Combustible — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarComb} onChange={e => setBuscarComb(e.target.value)} /></div>
                             </div>
-                            <div className="tr hdr"><span>Fecha</span><span>Galones</span><span>$/Galón</span><span>Horómetro</span><span>Total</span><span>Acc.</span></div>
+                            <div className="tr hdr">
+                                <ThComb campo="fecha">Fecha</ThComb>
+                                <ThComb campo="galones">Galones</ThComb>
+                                <ThComb campo="precioPorGalon">$/Galón</ThComb>
+                                <span>Horómetro</span>
+                                <ThComb campo="total">Total</ThComb>
+                                <span>Acc.</span>
+                            </div>
                             {combOrdenados.map(c => (
                                 <div className="tr" key={c.id}>
                                     <span>{c.fecha}</span><span>{c.galones} gal</span>

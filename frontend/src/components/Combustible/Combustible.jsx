@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
+import { useSortable } from '../../utils/useSortable';
+import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { getMaquinas, getCombustible, createCombustible, deleteCombustible } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -49,7 +51,9 @@ function Combustible() {
         if (await confirm('¿Eliminar esta carga de combustible?')) deleteCombustible(id).then(cargar).catch(console.error);
     };
 
-    const registrosFiltrados = [...registros].reverse().filter(r => !buscar || r.maquinaNombre?.toLowerCase().includes(buscar.toLowerCase()));
+    const porTexto = registros.filter(r => !buscar || r.maquinaNombre?.toLowerCase().includes(buscar.toLowerCase()));
+    const { filtrado: porRango, desde, setDesde, hasta, setHasta } = useDateRange(porTexto, 'fecha');
+    const { sorted: registrosFiltrados, Th } = useSortable(porRango, 'fecha', 'desc');
     const pagComb = usePaginacion(registrosFiltrados);
 
     const totalGasto   = registros.reduce((a, r) => a + (r.total || r.galones * r.precioPorGalon || 0), 0);
@@ -147,8 +151,17 @@ function Combustible() {
                     <div className="th">
                         <strong>Todas las cargas</strong>
                         <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar máquina..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
+                        <DateRangePicker desde={desde} setDesde={setDesde} hasta={hasta} setHasta={setHasta} />
                     </div>
-                    <div className="tr hdr"><span>Fecha</span><span className="w2">Máquina</span><span>Galones</span><span>$/Galón</span><span>Horómetro</span><span>Total</span><span>Acc.</span></div>
+                    <div className="tr hdr">
+                        <Th campo="fecha">Fecha</Th>
+                        <Th campo="maquinaNombre" className="w2">Máquina</Th>
+                        <Th campo="galones">Galones</Th>
+                        <Th campo="precioPorGalon">$/Galón</Th>
+                        <span>Horómetro</span>
+                        <span>Total</span>
+                        <span>Acc.</span>
+                    </div>
                     {registros.length === 0 && <p className="vacio">Sin cargas registradas</p>}
                     {pagComb.paginados.map(r => (
                         <div className="tr" key={r.id}>

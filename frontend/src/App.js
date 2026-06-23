@@ -8,6 +8,7 @@ import Mantenimientos from './components/Mantenimientos/Mantenimientos';
 import Combustible from './components/Combustible/Combustible';
 import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
+import Perfil from './components/Perfil/Perfil';
 import { apiLogin, apiRegister } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -258,6 +259,7 @@ function App() {
             case 'combustible': return <Combustible />;
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
+            case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} />;
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
@@ -300,7 +302,7 @@ function App() {
                             </button>
                         </div>
 
-                        <div className="sb-user">
+                        <div className="sb-user" onClick={() => { ir('perfil'); }} style={{ cursor: 'pointer' }} title="Ver perfil">
                             <div className="av">{user.nombre?.charAt(0)?.toUpperCase() || 'U'}</div>
                             <div className="sb-uinfo">
                                 <p>{user.nombre || 'Usuario'}</p>

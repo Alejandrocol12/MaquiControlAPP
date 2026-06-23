@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getHoras, getSalarios, getMaquinas, deleteHora, deleteSalario, createOperadorAPI, deleteOperadorAPI, createUsuario, getOperadoresAPI, getPeriodoActivoAPI, getUsuarios } from '../../api';
+import { useSortable } from '../../utils/useSortable';
 import DetalleOperador from './DetalleOperador';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -187,6 +188,8 @@ function Operadores() {
     const pendientes       = ops.filter(o => o.hayPendiente).length;
     const sinMaquina       = ops.filter(o => !o.maq).length;
 
+    const { sorted: salOrdenados, Th: ThSal } = useSortable(salarios, 'operadorNombre', 'asc');
+
     if (opSel) return <DetalleOperador operador={opSel} onVolver={() => { cargar(); setOpSel(null); }} />;
 
     return (
@@ -341,15 +344,15 @@ function Operadores() {
                         <div className="tbl">
                             <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><Briefcase size={14} /> Liquidaciones registradas</strong></div>
                             <div className="tr hdr">
-                                <span className="w2">Operador</span>
-                                <span>Máquina</span>
-                                <span>Horas</span>
-                                <span>Bruto</span>
-                                <span>Descuentos</span>
-                                <span>Neto</span>
-                                <span>Estado</span>
+                                <ThSal campo="operadorNombre" className="w2">Operador</ThSal>
+                                <ThSal campo="maquinaNombre">Máquina</ThSal>
+                                <ThSal campo="horasTrabajadas">Horas</ThSal>
+                                <ThSal campo="totalBruto">Bruto</ThSal>
+                                <ThSal campo="descuentos">Descuentos</ThSal>
+                                <ThSal campo="totalNeto">Neto</ThSal>
+                                <ThSal campo="estado">Estado</ThSal>
                             </div>
-                            {salarios.map(s => (
+                            {salOrdenados.map(s => (
                                 <div className="tr" key={s.id}>
                                     <span className="w2">{s.operadorNombre}</span>
                                     <span>{s.maquinaNombre}</span>

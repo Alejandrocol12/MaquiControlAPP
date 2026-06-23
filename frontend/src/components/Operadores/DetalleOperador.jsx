@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { useSortable } from '../../utils/useSortable';
+import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 
@@ -190,6 +192,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const anticipos = periodoActivo?.anticipos || 0;
     const salarioNeto = salarioBruto - anticipos;
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
+
+    const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
+    const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
 
     const calcularHoras = (entrada, salida) => {
         if (!entrada || !salida) return 0;
@@ -509,12 +514,18 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             <div className="th">
                                 <strong>Historial completo de horas - {operador.nombre}</strong>
                                 <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Total: {totalHorasAcumuladas} hrs · {fmt(totalHorasAcumuladas * valorHora)}</span>
+                                <DateRangePicker desde={hrDesde} setDesde={setHrDesde} hasta={hrHasta} setHasta={setHrHasta} />
                             </div>
                             <div className="tr hdr">
-                                <span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>$/Hora</span><span>Valor</span><span>Acc.</span>
+                                <ThHora campo="fecha">Fecha</ThHora>
+                                <ThHora campo="maquinaNombre" className="w2">Máquina</ThHora>
+                                <ThHora campo="horas">Horas</ThHora>
+                                <ThHora campo="valorHora">$/Hora</ThHora>
+                                <span>Valor</span>
+                                <span>Acc.</span>
                             </div>
-                            {horas.length === 0 && <p className="vacio">Sin horas registradas</p>}
-                            {horas.map((h) => (
+                            {horasOrdenadas.length === 0 && <p className="vacio">Sin horas registradas</p>}
+                            {horasOrdenadas.map((h) => (
                                 <div className="tr" key={h.id}>
                                     <span>{fmtFecha(h.fecha)}</span>
                                     <span className="w2">{h.maquinaNombre}</span>
