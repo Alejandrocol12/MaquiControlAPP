@@ -29,6 +29,9 @@ import {
     ChevronRight,
     Menu,
     Briefcase,
+    Moon,
+    Sun,
+    WifiOff,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import './App.css';
@@ -46,7 +49,28 @@ const getStoredSession = () => {
     }
 };
 
-function AuthScreen({ onLogin, onRegister }) {
+function OfflinePage({ onReintentar }) {
+    return (
+        <div className="offline-shell">
+            <div className="offline-anim">
+                <div className="offline-road" />
+                <div className="offline-dozer">
+                    <GiBulldozer size={52} color="#f5a623" />
+                </div>
+            </div>
+            <div className="offline-brand">
+                <span style={{ color: '#f5a623' }}>Maqui</span><span style={{ color: '#fff' }}>Control</span>
+            </div>
+            <h2 className="offline-title">Sin conexión</h2>
+            <p className="offline-sub">No se pudo conectar con el servidor.<br />Verifica tu internet e intenta de nuevo.</p>
+            <button className="auth-submit" style={{ maxWidth: '220px', marginTop: '24px' }} onClick={onReintentar}>
+                <WifiOff size={15} /> Reintentar
+            </button>
+        </div>
+    );
+}
+
+function AuthScreen({ onLogin, onRegister, darkMode, toggleDark }) {
     const [vista, setVista] = useState('login');
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [registerForm, setRegisterForm] = useState({
@@ -59,6 +83,9 @@ function AuthScreen({ onLogin, onRegister }) {
 
     return (
         <div className="auth-shell">
+            <button className="dark-toggle-float" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
+                {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <div className="auth-top">
                 <div className="auth-brand-big">
                     <span className="am">Maqui</span><span className="ac">Control</span>
@@ -152,12 +179,28 @@ function App() {
     const [user, setUser] = useState(null);
     const [sbCol, setSbCol] = useState(false);
     const [sbMob, setSbMob] = useState(false);
+    const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mc_dark') === '1');
+    const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
 
     const ir = (mod) => { setModulo(mod); setSbMob(false); };
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
+    const toggleDark = () => setDarkMode(d => !d);
 
     useEffect(() => {
         setUser(getStoredSession());
+    }, []);
+
+    useEffect(() => {
+        document.body.classList.toggle('dark', darkMode);
+        localStorage.setItem('mc_dark', darkMode ? '1' : '0');
+    }, [darkMode]);
+
+    useEffect(() => {
+        const goOff = () => setIsOffline(true);
+        const goOn  = () => setIsOffline(false);
+        window.addEventListener('offline', goOff);
+        window.addEventListener('online', goOn);
+        return () => { window.removeEventListener('offline', goOff); window.removeEventListener('online', goOn); };
     }, []);
 
     const navFin = (tab) => { setModulo('finanzas'); setFinOpen(true); setFinTab(tab); };
@@ -221,8 +264,10 @@ function App() {
 
     return (
         <ToastContext.Provider value={toast}>
-            {!user ? (
-                <AuthScreen onLogin={login} onRegister={register} />
+            {isOffline ? (
+                <OfflinePage onReintentar={() => { if (window.navigator.onLine) setIsOffline(false); else toast('Sigue sin conexión', 'e'); }} />
+            ) : !user ? (
+                <AuthScreen onLogin={login} onRegister={register} darkMode={darkMode} toggleDark={toggleDark} />
             ) : isOperatorRole(user.rol) ? (
                 <PortalOperador user={user} onLogout={logout} />
             ) : (
@@ -306,6 +351,10 @@ function App() {
                             </div>
                         </nav>
 
+                        <button className="dark-btn" onClick={toggleDark}>
+                            <span className="ico">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</span>
+                            <span className="sb-label">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
+                        </button>
                         <button className="btn-exit" onClick={logout}>
                             <span><LogOut size={16} /></span><span className="sb-label">Cerrar sesión</span>
                         </button>

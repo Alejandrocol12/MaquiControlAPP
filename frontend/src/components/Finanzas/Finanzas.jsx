@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
+import { useSortable } from '../../utils/useSortable';
 import {
     getMaquinas,
     getIngresos, createIngreso, updateIngreso, deleteIngreso,
@@ -168,10 +169,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const totalPorCobrar = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
     const totalCobrado   = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
 
-    const pagIng  = usePaginacion(ingFiltrados);
-    const pagGas  = usePaginacion(gasFiltrados);
-    const pagSal  = usePaginacion(salFiltrados);
-    const pagPag  = usePaginacion(pagFiltrados);
+    const { sorted: ingSorted, Th: ThIng } = useSortable(ingFiltrados, 'fecha');
+    const { sorted: gasSorted, Th: ThGas } = useSortable(gasFiltrados, 'fecha');
+    const { sorted: salSorted, Th: ThSal } = useSortable(salFiltrados, 'fecha');
+    const { sorted: pagSorted, Th: ThPag } = useSortable(pagFiltrados, 'fecha');
+
+    const pagIng  = usePaginacion(ingSorted);
+    const pagGas  = usePaginacion(gasSorted);
+    const pagSal  = usePaginacion(salSorted);
+    const pagPag  = usePaginacion(pagSorted);
 
     const TABS = [
         { key: 'ingresos', label: <><TrendingUp size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Ingresos</> },
@@ -428,7 +434,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
                             <a onClick={abrirNuevo}>+ Agregar</a>
                         </div>
-                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Máquina</span><span>Tipo</span><span>Total</span><span>Acc.</span></div>
+                        <div className="tr hdr"><ThIng campo="fecha">Fecha</ThIng><ThIng campo="descripcion" className="w2">Descripción</ThIng><ThIng campo="maquinaNombre">Máquina</ThIng><ThIng campo="tipoTrabajo">Tipo</ThIng><ThIng campo="total">Total</ThIng><span>Acc.</span></div>
                         {ingFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
                         {pagIng.paginados.map(i => (
                             <div className="tr" key={i.id}>
@@ -453,7 +459,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
                             <a onClick={abrirNuevo}>+ Agregar</a>
                         </div>
-                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Categoría</span><span>Máquina</span><span>Monto</span><span>Acc.</span></div>
+                        <div className="tr hdr"><ThGas campo="fecha">Fecha</ThGas><ThGas campo="descripcion" className="w2">Descripción</ThGas><ThGas campo="categoria">Categoría</ThGas><ThGas campo="maquinaNombre">Máquina</ThGas><ThGas campo="monto">Monto</ThGas><span>Acc.</span></div>
                         {gasFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
                         {pagGas.paginados.map(g => {
                             const esCombAuto = g.descripcion?.includes('Combustible —');
@@ -531,7 +537,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
                             <a onClick={abrirNuevo}>+ Registrar Pago</a>
                         </div>
-                        <div className="tr hdr"><span className="w2">Operador</span><span>Horas</span><span>$/Hora</span><span>Bruto</span><span>Anticipos</span><span>Neto</span><span>Estado</span><span>Acc.</span></div>
+                        <div className="tr hdr"><ThSal campo="operadorNombre" className="w2">Operador</ThSal><ThSal campo="horasTrabajadas">Horas</ThSal><span>$/Hora</span><ThSal campo="totalBruto">Bruto</ThSal><span>Anticipos</span><ThSal campo="totalNeto">Neto</ThSal><ThSal campo="estado">Estado</ThSal><span>Acc.</span></div>
                         {salFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
                         {pagSal.paginados.map(s => (
                             <div className="tr" key={s.id}>
@@ -568,7 +574,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
                                 <a onClick={abrirNuevo}>+ Nuevo</a>
                             </div>
-                            <div className="tr hdr"><span>Fecha</span><span className="w2">Cliente</span><span>Máquina</span><span>Total</span><span>Pagado</span><span>Saldo</span><span>Estado</span><span>Acc.</span></div>
+                            <div className="tr hdr"><ThPag campo="fecha">Fecha</ThPag><ThPag campo="cliente" className="w2">Cliente</ThPag><ThPag campo="maquinaNombre">Máquina</ThPag><ThPag campo="valorTotal">Total</ThPag><ThPag campo="valorPagado">Pagado</ThPag><ThPag campo="saldoPendiente">Saldo</ThPag><ThPag campo="estado">Estado</ThPag><span>Acc.</span></div>
                             {pagFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
                             {pagPag.paginados.map(p => {
                                 // #11: advertir si lo cobrado en pagos supera los ingresos registrados para esa máquina
