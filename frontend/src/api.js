@@ -107,8 +107,9 @@ export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/
 export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
 
 // Perfil del usuario autenticado
-export const updateMe       = (data) => API.put('/auth/me', data);
-export const changePassword = (data) => API.put('/auth/password', data);
+export const updateMe            = (data) => API.put('/auth/me', data);
+export const enviarCodigoPassword = ()    => API.post('/auth/enviar-codigo');
+export const changePassword      = (data) => API.put('/auth/password', data);
 
 // Usuarios (solo admin)
 export const getUsuarios         = ()         => API.get('/usuarios');
