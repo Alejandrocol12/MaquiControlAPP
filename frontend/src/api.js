@@ -108,7 +108,8 @@ export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/
 export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
 
 // Ubicación de máquinas
-export const actualizarUbicacion = (id, data) => API.put(`/maquinaria/${id}/ubicacion`, data);
+export const actualizarUbicacion  = (id, data) => API.put(`/maquinaria/${id}/ubicacion`, data);
+export const getMisMaquinasAPI    = ()          => API.get('/maquinaria/mis-maquinas');
 
 // Perfil del usuario autenticado
 export const updateMe            = (data) => API.put('/auth/me', data);

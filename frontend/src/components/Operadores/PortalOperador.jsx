@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HardHat, LogOut, AlertTriangle, ClipboardList, Navigation, MapPin, Loader } from 'lucide-react';
 import DetalleOperador from './DetalleOperador';
-import { getOperadoresAPI, getOperadorByIdAPI, getMaquinas, actualizarUbicacion } from '../../api';
+import { getOperadoresAPI, getOperadorByIdAPI, getMisMaquinasAPI, actualizarUbicacion } from '../../api';
 import { useToast } from '../../utils/toast';
 
 function PortalOperador({ user, onLogout }) {
@@ -42,11 +42,7 @@ function PortalOperador({ user, onLogout }) {
 
     useEffect(() => {
         if (!operador) return;
-        getMaquinas().then(r => {
-            setMisMaquinas(r.data.filter(m =>
-                m.operadorNombre?.toLowerCase() === operador.nombre?.toLowerCase()
-            ));
-        }).catch(() => {});
+        getMisMaquinasAPI().then(r => setMisMaquinas(r.data)).catch(() => {});
     }, [operador]);
 
     const usarGPS = (maq) => {

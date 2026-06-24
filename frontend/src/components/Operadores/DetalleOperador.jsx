@@ -4,6 +4,7 @@ import {
     createHora,
     deleteHora,
     getMaquinas,
+    getMisMaquinasAPI,
     createIngreso,
     getPeriodosAPI,
     createPeriodoAPI,
@@ -95,10 +96,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             .catch(() => toast('No se pudo actualizar el operador', 'e'));
     };
 
+    const fetchMaquinas = modoPortal ? getMisMaquinasAPI : getMaquinas;
+
     const cargar = useCallback(async () => {
         const [horasRes, maquinasRes, periodosRes] = await Promise.all([
             getHorasOperador(operador.id),
-            getMaquinas(),
+            fetchMaquinas(),
             getPeriodosAPI(operador.id),
         ]);
         setHoras(horasRes.data);
@@ -111,7 +114,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             try {
                 const [horasRes, maquinasRes, periodosRes] = await Promise.all([
                     getHorasOperador(operador.id),
-                    getMaquinas(),
+                    fetchMaquinas(),
                     getPeriodosAPI(operador.id),
                 ]);
                 const horasData = horasRes.data;
