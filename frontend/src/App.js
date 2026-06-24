@@ -10,7 +10,7 @@ import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
-import { apiLogin, apiRegister } from './api';
+import { apiLogin, apiRegister, loginPin } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
     BarChart2,
@@ -73,7 +73,73 @@ function OfflinePage({ onReintentar }) {
     );
 }
 
-function AuthScreen({ onLogin, onRegister, darkMode, toggleDark }) {
+function PinKeypad({ onPin, onCancel, email }) {
+    const [digits, setDigits] = useState('');
+    const [error, setError] = useState('');
+    const [cargando, setCargando] = useState(false);
+
+    const presionar = async (d) => {
+        if (cargando) return;
+        const nuevo = digits + d;
+        setDigits(nuevo);
+        setError('');
+        if (nuevo.length === 4) {
+            setCargando(true);
+            const ok = await onPin(email, nuevo);
+            if (!ok) { setError('PIN incorrecto'); setDigits(''); }
+            setCargando(false);
+        }
+    };
+
+    const borrar = () => { setDigits(digits.slice(0, -1)); setError(''); };
+
+    return (
+        <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '13px', color: '#9aa5b4', marginBottom: '4px' }}>Bienvenido de nuevo</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#1a2d42', marginBottom: '20px' }}>{email}</div>
+
+            {/* Indicadores de dígitos */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', marginBottom: '28px' }}>
+                {[0,1,2,3].map(i => (
+                    <div key={i} style={{
+                        width: 14, height: 14, borderRadius: '50%',
+                        background: digits.length > i ? '#f5a623' : '#e2e8f0',
+                        border: '2px solid ' + (digits.length > i ? '#f5a623' : '#c8d6e5'),
+                        transition: 'all .15s',
+                    }} />
+                ))}
+            </div>
+
+            {error && <div style={{ color: '#e74c3c', fontSize: '12px', marginBottom: '12px', fontWeight: '600' }}>{error}</div>}
+
+            {/* Teclado numérico */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', maxWidth: '220px', margin: '0 auto' }}>
+                {[1,2,3,4,5,6,7,8,9].map(n => (
+                    <button key={n} onClick={() => presionar(String(n))} disabled={cargando}
+                        style={{ padding: '16px 0', fontSize: '20px', fontWeight: '600', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', color: '#1a2d42' }}>
+                        {n}
+                    </button>
+                ))}
+                <div /> {/* celda vacía */}
+                <button onClick={() => presionar('0')} disabled={cargando}
+                    style={{ padding: '16px 0', fontSize: '20px', fontWeight: '600', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', color: '#1a2d42' }}>
+                    0
+                </button>
+                <button onClick={borrar} disabled={cargando || digits.length === 0}
+                    style={{ padding: '16px 0', fontSize: '16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', cursor: 'pointer', color: '#6b7a8d' }}>
+                    ⌫
+                </button>
+            </div>
+
+            <button onClick={onCancel}
+                style={{ marginTop: '20px', background: 'none', border: 'none', color: '#9aa5b4', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
+                Usar contraseña
+            </button>
+        </div>
+    );
+}
+
+function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
     const [vista, setVista] = useState('login');
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
     const [registerForm, setRegisterForm] = useState({
@@ -81,6 +147,10 @@ function AuthScreen({ onLogin, onRegister, darkMode, toggleDark }) {
     });
     const [activeLabel, setActiveLabel] = useState(null);
     const [animKey, setAnimKey] = useState(0);
+    const [modoPIN, setModoPIN] = useState(false);
+
+    const pinEmail = localStorage.getItem('mc_pin_email') || '';
+    const hasPIN   = !!pinEmail;
 
     const focus = (label) => { setActiveLabel(label); setAnimKey(k => k + 1); };
 
@@ -94,7 +164,7 @@ function AuthScreen({ onLogin, onRegister, darkMode, toggleDark }) {
                     <span className="am">Maqui</span><span className="ac">Control</span>
                 </div>
                 <div className="auth-anim">
-                    {activeLabel && (
+                    {activeLabel && !modoPIN && (
                         <div className="auth-dozer-row" key={animKey}>
                             <GiBulldozer size={34} color="#f5a623" />
                             <span className="auth-dozer-label">{activeLabel}</span>
@@ -104,70 +174,85 @@ function AuthScreen({ onLogin, onRegister, darkMode, toggleDark }) {
             </div>
 
             <div className="auth-card-wrap">
-                {vista === 'login' ? (
-                    <form onSubmit={e => { e.preventDefault(); onLogin(loginForm); }}>
-                        <label className="fl">Correo</label>
-                        <input className="fi" type="email"
-                            value={loginForm.email}
-                            onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
-                            onFocus={() => focus('Correo')}
-                            placeholder="dueno@mail.com" />
-                        <label className="fl">Contraseña</label>
-                        <input className="fi" type="password"
-                            value={loginForm.password}
-                            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-                            onFocus={() => focus('Contraseña')}
-                            placeholder="••••••" />
-                        <button className="auth-submit" type="submit">
-                            Entrar <ArrowRight size={15} />
-                        </button>
-                    </form>
+                {modoPIN ? (
+                    <PinKeypad
+                        email={pinEmail}
+                        onPin={onLoginPin}
+                        onCancel={() => setModoPIN(false)}
+                    />
+                ) : vista === 'login' ? (
+                    <>
+                        <form onSubmit={e => { e.preventDefault(); onLogin(loginForm); }}>
+                            <label className="fl">Correo</label>
+                            <input className="fi" type="email"
+                                value={loginForm.email}
+                                onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
+                                onFocus={() => focus('Correo')}
+                                placeholder="dueno@mail.com" />
+                            <label className="fl">Contraseña</label>
+                            <input className="fi" type="password"
+                                value={loginForm.password}
+                                onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
+                                onFocus={() => focus('Contraseña')}
+                                placeholder="••••••" />
+                            <button className="auth-submit" type="submit">
+                                Entrar <ArrowRight size={15} />
+                            </button>
+                        </form>
+                        {hasPIN && (
+                            <button onClick={() => setModoPIN(true)}
+                                style={{ width: '100%', marginTop: '10px', padding: '12px', background: '#f0f4f8', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', color: '#1a2d42', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <KeyRound size={15} /> Entrar con PIN
+                            </button>
+                        )}
+                        <div className="auth-toggle">
+                            <button className="on"><KeyRound size={14} /> Iniciar sesión</button>
+                            <button onClick={() => setVista('register')}><UserPlus size={14} /> Crear cuenta</button>
+                        </div>
+                    </>
                 ) : (
-                    <form onSubmit={e => { e.preventDefault(); onRegister(registerForm); }}>
-                        <label className="fl">Nombre</label>
-                        <input className="fi"
-                            value={registerForm.nombre}
-                            onChange={e => setRegisterForm({ ...registerForm, nombre: e.target.value })}
-                            onFocus={() => focus('Nombre')}
-                            placeholder="Alejandro Ruiz" />
-                        <label className="fl">Empresa</label>
-                        <input className="fi"
-                            value={registerForm.empresa}
-                            onChange={e => setRegisterForm({ ...registerForm, empresa: e.target.value })}
-                            onFocus={() => focus('Empresa')}
-                            placeholder="MaquiControl SAS" />
-                        <label className="fl">Correo</label>
-                        <input className="fi" type="email"
-                            value={registerForm.email}
-                            onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
-                            onFocus={() => focus('Correo')}
-                            placeholder="correo@empresa.com" />
-                        <label className="fl">Contraseña</label>
-                        <input className="fi" type="password"
-                            value={registerForm.password}
-                            onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
-                            onFocus={() => focus('Contraseña')}
-                            placeholder="Mínimo 6 caracteres" />
-                        <label className="fl">Confirmar</label>
-                        <input className="fi" type="password"
-                            value={registerForm.confirmPassword}
-                            onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
-                            onFocus={() => focus('Confirmar')}
-                            placeholder="Repite la contraseña" />
-                        <button className="auth-submit" type="submit">
-                            Crear cuenta <ArrowRight size={15} />
-                        </button>
-                    </form>
+                    <>
+                        <form onSubmit={e => { e.preventDefault(); onRegister(registerForm); }}>
+                            <label className="fl">Nombre</label>
+                            <input className="fi"
+                                value={registerForm.nombre}
+                                onChange={e => setRegisterForm({ ...registerForm, nombre: e.target.value })}
+                                onFocus={() => focus('Nombre')}
+                                placeholder="Alejandro Ruiz" />
+                            <label className="fl">Empresa</label>
+                            <input className="fi"
+                                value={registerForm.empresa}
+                                onChange={e => setRegisterForm({ ...registerForm, empresa: e.target.value })}
+                                onFocus={() => focus('Empresa')}
+                                placeholder="MaquiControl SAS" />
+                            <label className="fl">Correo</label>
+                            <input className="fi" type="email"
+                                value={registerForm.email}
+                                onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
+                                onFocus={() => focus('Correo')}
+                                placeholder="correo@empresa.com" />
+                            <label className="fl">Contraseña</label>
+                            <input className="fi" type="password"
+                                value={registerForm.password}
+                                onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
+                                onFocus={() => focus('Contraseña')}
+                                placeholder="Mínimo 6 caracteres" />
+                            <label className="fl">Confirmar</label>
+                            <input className="fi" type="password"
+                                value={registerForm.confirmPassword}
+                                onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                                onFocus={() => focus('Confirmar')}
+                                placeholder="Repite la contraseña" />
+                            <button className="auth-submit" type="submit">
+                                Crear cuenta <ArrowRight size={15} />
+                            </button>
+                        </form>
+                        <div className="auth-toggle">
+                            <button onClick={() => setVista('login')}><KeyRound size={14} /> Iniciar sesión</button>
+                            <button className="on"><UserPlus size={14} /> Crear cuenta</button>
+                        </div>
+                    </>
                 )}
-
-                <div className="auth-toggle">
-                    <button className={vista === 'login' ? 'on' : ''} onClick={() => setVista('login')}>
-                        <KeyRound size={14} /> Iniciar sesión
-                    </button>
-                    <button className={vista === 'register' ? 'on' : ''} onClick={() => setVista('register')}>
-                        <UserPlus size={14} /> Crear cuenta
-                    </button>
-                </div>
             </div>
         </div>
     );
@@ -218,6 +303,18 @@ function App() {
             toast(`Bienvenido, ${data.user.nombre}`, 's');
         } catch (err) {
             toast(err.response?.data?.error || 'Correo o contrasena incorrectos', 'e');
+        }
+    };
+
+    const loginWithPin = async (email, pin) => {
+        try {
+            const { data } = await loginPin({ email, pin });
+            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data));
+            setUser(data.user);
+            toast(`Bienvenido, ${data.user.nombre}`, 's');
+            return true;
+        } catch {
+            return false;
         }
     };
 
@@ -272,7 +369,7 @@ function App() {
             {isOffline ? (
                 <OfflinePage onReintentar={() => { if (window.navigator.onLine) setIsOffline(false); else toast('Sigue sin conexión', 'e'); }} />
             ) : !user ? (
-                <AuthScreen onLogin={login} onRegister={register} darkMode={darkMode} toggleDark={toggleDark} />
+                <AuthScreen onLogin={login} onRegister={register} onLoginPin={loginWithPin} darkMode={darkMode} toggleDark={toggleDark} />
             ) : isOperatorRole(user.rol) ? (
                 <PortalOperador user={user} onLogout={logout} />
             ) : (

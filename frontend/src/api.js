@@ -111,10 +111,16 @@ export const deleteFaena           = (id)            => API.delete(`/faenas/${id
 export const actualizarUbicacion  = (id, data) => API.put(`/maquinaria/${id}/ubicacion`, data);
 export const getMisMaquinasAPI    = ()          => API.get('/maquinaria/mis-maquinas');
 
+
 // Perfil del usuario autenticado
-export const updateMe            = (data) => API.put('/auth/me', data);
-export const enviarCodigoPassword = ()    => API.post('/auth/enviar-codigo');
-export const changePassword      = (data) => API.put('/auth/password', data);
+export const updateMe             = (data) => API.put('/auth/me', data);
+export const enviarCodigoPassword = ()     => API.post('/auth/enviar-codigo');
+export const changePassword       = (data) => API.put('/auth/password', data);
+
+// PIN de acceso rápido
+export const configurarPin = (data) => API.post('/auth/pin/configurar', data);
+export const eliminarPin   = ()     => API.delete('/auth/pin');
+export const loginPin      = (data) => API.post('/auth/pin/login', data);
 
 // Usuarios (solo admin)
 export const getUsuarios         = ()         => API.get('/usuarios');
