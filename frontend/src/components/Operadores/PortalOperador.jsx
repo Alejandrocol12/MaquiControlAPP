@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { HardHat, LogOut, AlertTriangle, ClipboardList, Navigation, MapPin, Loader } from 'lucide-react';
 import DetalleOperador from './DetalleOperador';
-import { getOperadoresAPI, getMaquinas, actualizarUbicacion } from '../../api';
+import { getOperadoresAPI, getOperadorByIdAPI, getMaquinas, actualizarUbicacion } from '../../api';
 import { useToast } from '../../utils/toast';
 
 function PortalOperador({ user, onLogout }) {
@@ -14,16 +14,22 @@ function PortalOperador({ user, onLogout }) {
     useEffect(() => {
         const encontrarOperador = async () => {
             try {
-                const { data } = await getOperadoresAPI();
-                const match = (item) => {
-                    const sameId = user?.operadorId != null && Number(item.id) === Number(user.operadorId);
-                    const sameEmail = user?.email && item.email &&
-                        item.email.toLowerCase() === user.email.toLowerCase();
-                    const sameName = user?.nombre && item.nombre &&
-                        item.nombre.toLowerCase() === user.nombre.toLowerCase();
-                    return sameId || sameEmail || sameName;
-                };
-                setOperador(data.find(match) || null);
+                // Si el usuario tiene operadorId vinculado, buscamos directo por ID
+                if (user?.operadorId) {
+                    const { data } = await getOperadorByIdAPI(user.operadorId);
+                    setOperador(data || null);
+                } else {
+                    // Fallback: buscar por nombre/email entre los operadores del admin
+                    const { data } = await getOperadoresAPI();
+                    const match = (item) => {
+                        const sameEmail = user?.email && item.email &&
+                            item.email.toLowerCase() === user.email.toLowerCase();
+                        const sameName = user?.nombre && item.nombre &&
+                            item.nombre.toLowerCase() === user.nombre.toLowerCase();
+                        return sameEmail || sameName;
+                    };
+                    setOperador(data.find(match) || null);
+                }
             } catch {
                 setOperador(null);
             } finally {

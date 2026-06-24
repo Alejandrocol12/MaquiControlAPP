@@ -86,6 +86,7 @@ export const deletePago  = (id)       => API.delete(`/pagos/${id}`);
 
 // Operadores
 export const getOperadoresAPI   = ()         => API.get('/operadores');
+export const getOperadorByIdAPI = (id)       => API.get(`/operadores/${id}`);
 export const createOperadorAPI  = (data)     => API.post('/operadores', data);
 export const updateOperadorAPI  = (id, data) => API.put(`/operadores/${id}`, data);
 export const deleteOperadorAPI  = (id)       => API.delete(`/operadores/${id}`);
