@@ -275,7 +275,11 @@ function App() {
     const toggleDark = () => setDarkMode(d => !d);
 
     useEffect(() => {
-        setUser(getStoredSession());
+        const stored = getStoredSession();
+        setUser(stored);
+        if (stored?.hasPin && stored?.email) {
+            localStorage.setItem('mc_pin_email', stored.email);
+        }
     }, []);
 
     useEffect(() => {
@@ -299,6 +303,7 @@ function App() {
         try {
             const { data } = await apiLogin({ email, password });
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data));
+            if (data.user.hasPin) localStorage.setItem('mc_pin_email', data.user.email);
             setUser(data.user);
             toast(`Bienvenido, ${data.user.nombre}`, 's');
         } catch (err) {
