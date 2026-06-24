@@ -528,3 +528,5 @@ body.dark .perf-card{background:#1e293b;border-color:#334155;}
 body.dark .perf-name{color:#f1f5f9;}
 body.dark .perf-meta{color:#94a3b8;}
 body.dark .sb-user:hover{background:rgba(245,166,35,.08);border-radius:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+

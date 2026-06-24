@@ -9,6 +9,7 @@ import Combustible from './components/Combustible/Combustible';
 import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
+import Mapa from './components/Mapa/Mapa';
 import { apiLogin, apiRegister } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -33,6 +34,7 @@ import {
     Moon,
     Sun,
     WifiOff,
+    Map,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import './App.css';
@@ -260,6 +262,7 @@ function App() {
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
             case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} />;
+            case 'mapa': return <Mapa />;
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
@@ -350,6 +353,9 @@ function App() {
                             </div>
                             <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => ir('combustible')}>
                                 <span className="ico"><Fuel size={18} /></span><span className="sb-label">Combustible</span>
+                            </div>
+                            <div className={`ni ${modulo === 'mapa' ? 'active' : ''}`} onClick={() => ir('mapa')}>
+                                <span className="ico"><Map size={18} /></span><span className="sb-label">Mapa</span>
                             </div>
                         </nav>
 
