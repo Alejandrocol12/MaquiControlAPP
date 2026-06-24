@@ -309,7 +309,7 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
 .operator-item{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.06);color:#dce7f2;font-size:13px;font-weight:700;}
 .operator-item.active{background:#f5a623;color:#0d1b2a;}
 .operator-copy{font-size:12px;line-height:1.6;color:#8fa4bc;padding:0 2px;}
-.operator-main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;}
+.operator-main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow-y:auto;}
 .operator-main .topbar .bs{display:none;}
 
 /* ── HAMBURGER + OVERLAY (solo móvil) ── */
