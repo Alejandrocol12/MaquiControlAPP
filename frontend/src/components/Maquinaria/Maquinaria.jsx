@@ -251,22 +251,25 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const leerConIA = async (e) => {
         const archivo = e.target.files[0];
         if (!archivo) return;
-        // Guardar el archivo también como factura adjunta
         setGastoFactura(archivo);
         setCargandoIA(true);
         try {
             const fd = new FormData();
             fd.append('file', archivo);
             const { data } = await leerFacturaIA(fd);
-            setGastoForm(prev => ({
-                ...prev,
-                descripcion: data.descripcion || prev.descripcion,
-                monto:       data.monto != null ? String(data.monto) : prev.monto,
-                categoria:   data.categoria || prev.categoria,
-                fecha:       data.fecha || prev.fecha,
-            }));
-            toast('Factura leída con IA', 's');
-        } catch {
+            console.log('IA respuesta:', data);
+            const desc  = data.descripcion ?? '';
+            const monto = data.monto != null ? String(data.monto) : '';
+            const cat   = data.categoria ?? 'Reparación';
+            const fecha = data.fecha ?? hoy();
+            setGastoForm({ descripcion: desc, monto, categoria: cat, fecha });
+            if (desc || monto) {
+                toast(`Formulario llenado con IA — revisa y guarda`, 's');
+            } else {
+                toast('IA no pudo leer el documento. Ingresa los datos manualmente.', 'e');
+            }
+        } catch (err) {
+            console.error('IA error:', err);
             toast('No se pudo leer el documento', 'e');
         } finally {
             setCargandoIA(false);
