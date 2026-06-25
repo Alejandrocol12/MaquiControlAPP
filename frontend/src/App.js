@@ -383,7 +383,7 @@ function App() {
                 <PortalOperador user={user} onLogout={logout} />
             ) : (
                 <div className="app">
-                    <button className="hamburger" onClick={() => setSbMob(true)}><Menu size={18} /></button>
+                    {!sbMob && <button className="hamburger" onClick={() => setSbMob(true)}><Menu size={18} /></button>}
                     <div className={`sb-overlay${sbMob ? ' show' : ''}`} onClick={() => setSbMob(false)} />
                     <div className={`sb${sbCol ? ' col' : ''}${sbMob ? ' mob-open' : ''}`}>
                         <div className="sb-head">

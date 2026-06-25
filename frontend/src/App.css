@@ -311,6 +311,9 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
 .operator-copy{font-size:12px;line-height:1.6;color:#8fa4bc;padding:0 2px;}
 .operator-main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow-y:auto;}
 .operator-main .topbar .bs{display:none;}
+.op-overlay{display:none;}
+.op-hamburger{display:none;}
+.op-close-btn{display:none;}
 
 /* ── HAMBURGER + OVERLAY (solo móvil) ── */
 .hamburger{display:none;}
@@ -332,11 +335,11 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   .main{flex:1;height:auto;min-height:100vh;overflow:visible;}
   .content{height:auto;min-height:0;overflow:visible;}
 
-  /* sidebar como drawer */
+  /* sidebar como drawer — z-index 1100 para superar los controles de Leaflet (z-index:1000) */
   .sb{
     position:fixed;top:0;left:-270px;height:100vh;
     width:260px!important;min-width:260px!important;
-    z-index:600;
+    z-index:1100;
     transition:left .28s cubic-bezier(.4,0,.2,1);
     overflow-y:auto;
   }
@@ -366,11 +369,11 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   }
   .sb-close-mob:hover{background:rgba(255,255,255,.13);color:#fff;}
 
-  /* overlay */
+  /* overlay — justo debajo del sidebar */
   .sb-overlay{
     display:block;position:fixed;inset:0;
     background:rgba(0,0,0,.55);
-    z-index:599;
+    z-index:1099;
     backdrop-filter:blur(2px);
     opacity:0;pointer-events:none;
     transition:opacity .28s;
@@ -429,10 +432,40 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   .fc,.fcard{padding:14px;}
 
 
-/* operator portal */
-  .operator-shell{flex-direction:column;}
-  .operator-side{width:100%;min-width:0;padding:16px 14px;}
-  .operator-main{height:auto;}
+/* operator portal — drawer móvil */
+  .operator-shell{flex-direction:row;}
+  .operator-side{
+    position:fixed;top:0;left:-300px;height:100vh;
+    width:260px;min-width:260px;
+    z-index:1100;
+    overflow-y:auto;
+    transition:left .28s cubic-bezier(.4,0,.2,1);
+  }
+  .operator-side.op-mob-open{left:0;box-shadow:6px 0 28px rgba(0,0,0,.45);}
+  .op-overlay{
+    display:block;position:fixed;inset:0;
+    background:rgba(0,0,0,.55);
+    z-index:1099;
+    backdrop-filter:blur(2px);
+    opacity:0;pointer-events:none;
+    transition:opacity .28s;
+  }
+  .op-overlay.show{opacity:1;pointer-events:all;}
+  .op-hamburger{
+    display:flex;align-items:center;justify-content:center;
+    position:fixed;top:12px;left:12px;z-index:1200;
+    width:40px;height:40px;
+    background:#0d1b2a;border:1px solid rgba(255,255,255,.1);
+    border-radius:10px;cursor:pointer;color:#f5a623;
+    box-shadow:0 2px 10px rgba(0,0,0,.35);
+  }
+  .op-close-btn{
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+    color:#8aa0b8;width:30px;height:30px;border-radius:8px;
+    cursor:pointer;flex-shrink:0;margin-left:auto;
+  }
+  .operator-main{height:auto;padding-top:56px;}
 }
 
 /* ── DARK MODE TOGGLE BTN ── */

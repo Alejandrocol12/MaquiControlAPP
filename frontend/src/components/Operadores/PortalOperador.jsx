@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { HardHat, LogOut, AlertTriangle, ClipboardList, Navigation, MapPin, Loader } from 'lucide-react';
+import { HardHat, LogOut, AlertTriangle, ClipboardList, Navigation, MapPin, Loader, Menu, X } from 'lucide-react';
 import DetalleOperador from './DetalleOperador';
 import { getOperadoresAPI, getOperadorByIdAPI, getMisMaquinasAPI, actualizarUbicacion } from '../../api';
 import { useToast } from '../../utils/toast';
@@ -10,6 +10,7 @@ function PortalOperador({ user, onLogout }) {
     const [cargando, setCargando] = useState(true);
     const [misMaquinas, setMisMaquinas] = useState([]);
     const [gpsActivo, setGpsActivo] = useState(null);
+    const [mobSide, setMobSide] = useState(false);
 
     useEffect(() => {
         const encontrarOperador = async () => {
@@ -161,10 +162,22 @@ function PortalOperador({ user, onLogout }) {
 
     return (
         <div className="operator-shell">
-            <aside className="operator-side">
-                <div>
-                    <div className="logo">Maqui<span>Control</span></div>
-                    <div className="sb-badge">Operador</div>
+            {!mobSide && (
+                <button className="op-hamburger" onClick={() => setMobSide(true)} aria-label="Abrir menú">
+                    <Menu size={18} />
+                </button>
+            )}
+            <div className={`op-overlay${mobSide ? ' show' : ''}`} onClick={() => setMobSide(false)} />
+
+            <aside className={`operator-side${mobSide ? ' op-mob-open' : ''}`}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <div className="logo">Maqui<span>Control</span></div>
+                        <div className="sb-badge">Operador</div>
+                    </div>
+                    <button className="op-close-btn" onClick={() => setMobSide(false)} aria-label="Cerrar menú">
+                        <X size={15} />
+                    </button>
                 </div>
 
                 <div className="operator-user">
