@@ -95,7 +95,16 @@ function PinKeypad({ onPin, onCancel, email }) {
         }
     };
 
-    const borrar = () => { setDigits(digits.slice(0, -1)); setError(''); };
+    const borrar = () => { setDigits(prev => prev.slice(0, -1)); setError(''); };
+
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key >= '0' && e.key <= '9') presionar(e.key);
+            else if (e.key === 'Backspace') borrar();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    });
 
     return (
         <div style={{ textAlign: 'center' }}>
@@ -372,6 +381,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                         </div>
                     </>
                 )}
+
             </div>
         </div>
     );
