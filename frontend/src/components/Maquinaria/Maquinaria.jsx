@@ -5,6 +5,7 @@ import {
     createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible,
     createHora, getOperadoresAPI,
     getFaenaActiva, createFaena, cerrarFaena,
+    crearEnlace, getEnlaces, revocarEnlace,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -12,7 +13,7 @@ import MoneyInput from '../../utils/MoneyInput';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -187,7 +188,7 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     );
 }
 
-// ══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 // DETALLE MÁQUINA
 // ══════════════════════════════════════════════════════════════
 function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
@@ -204,6 +205,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [faenaActiva, setFaenaActiva] = useState(null);
     const [formFaena, setFormFaena] = useState({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
     const [mostrarFormFaena, setMostrarFormFaena] = useState(false);
+
+    // Compartir
+    const [modalCompartir, setModalCompartir] = useState(false);
+    const [enlaces, setEnlaces] = useState([]);
+    const [nombreEnlace, setNombreEnlace] = useState('');
+    const [cargandoEnlaces, setCargandoEnlaces] = useState(false);
 
     // Búsqueda en tablas
     const [buscarIng, setBuscarIng] = useState('');
@@ -263,6 +270,32 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
+
+    const abrirCompartir = () => {
+        setModalCompartir(true);
+        setCargandoEnlaces(true);
+        getEnlaces().then(r => {
+            const propios = (r.data || []).filter(e => e.maquinaNombre === maq.nombre);
+            setEnlaces(propios);
+        }).catch(() => {}).finally(() => setCargandoEnlaces(false));
+    };
+
+    const crearNuevoEnlace = () => {
+        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || `Enlace de ${maq.nombre}` })
+            .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); toast('Enlace creado'); })
+            .catch(() => toast('Error al crear enlace', 'e'));
+    };
+
+    const revocar = (token) => {
+        revocarEnlace(token)
+            .then(() => { setEnlaces(prev => prev.filter(e => e.token !== token)); toast('Enlace revocado'); })
+            .catch(() => toast('Error al revocar', 'e'));
+    };
+
+    const copiarLink = (token) => {
+        const url = `${window.location.origin}${window.location.pathname}?token=${token}`;
+        navigator.clipboard.writeText(url).then(() => toast('Enlace copiado'));
+    };
 
     // Filtrar por faena activa
     const ingFaena  = faenaActiva ? ingresos.filter(i => String(i.faenaId) === String(faenaActiva.id)) : [];
@@ -403,6 +436,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 <div><h1>{maq.nombre}</h1><p>Detalle financiero y operativo</p></div>
                 <div className="tb-r">
                     <button className="bs" onClick={onVolver}>← Volver</button>
+                    <button className="bs" onClick={abrirCompartir}><Share2 size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Compartir</button>
                     <button className="bp" onClick={onEditar}><Pencil size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Editar</button>
                 </div>
             </div>
@@ -876,6 +910,61 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
             </div></div>
         </div>
+
+        {/* Modal Compartir */}
+        {modalCompartir && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+                <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '480px', maxHeight: '80vh', overflowY: 'auto' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '16px', color: '#1a2d42' }}>
+                            <Share2 size={18} /> Compartir vista de solo lectura
+                        </h3>
+                        <button onClick={() => setModalCompartir(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9aa5b4' }}><X size={18} /></button>
+                    </div>
+                    <p style={{ color: '#6b7a8d', fontSize: '13px', marginBottom: '16px' }}>
+                        Genera un enlace que muestra los datos de <strong>{maq.nombre}</strong> en modo solo lectura. Ideal para socios o contadores.
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                        <input
+                            className="fi"
+                            style={{ flex: 1, margin: 0 }}
+                            placeholder="Etiqueta (ej: Para el contador)"
+                            value={nombreEnlace}
+                            onChange={e => setNombreEnlace(e.target.value)}
+                        />
+                        <button className="bp" onClick={crearNuevoEnlace} style={{ whiteSpace: 'nowrap' }}>
+                            <Plus size={14} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> Crear
+                        </button>
+                    </div>
+
+                    {cargandoEnlaces ? (
+                        <p style={{ color: '#9aa5b4', fontSize: '13px', textAlign: 'center' }}>Cargando…</p>
+                    ) : enlaces.length === 0 ? (
+                        <p style={{ color: '#c8d6e5', fontSize: '13px', textAlign: 'center' }}>Sin enlaces activos</p>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {enlaces.map(e => (
+                                <div key={e.token} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
+                                        <div style={{ fontSize: '11px', color: '#9aa5b4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {window.location.origin}/?token={e.token}
+                                        </div>
+                                    </div>
+                                    <button className="bs" onClick={() => copiarLink(e.token)} title="Copiar enlace" style={{ padding: '6px 10px' }}>
+                                        <Copy size={13} />
+                                    </button>
+                                    <button onClick={() => revocar(e.token)} title="Revocar" style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#e74c3c' }}>
+                                        <Trash size={13} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
         </>
     );
 }

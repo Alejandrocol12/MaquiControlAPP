@@ -122,6 +122,14 @@ export const configurarPin = (data) => API.post('/auth/pin/configurar', data);
 export const eliminarPin   = ()     => API.delete('/auth/pin');
 export const loginPin      = (data) => API.post('/auth/pin/login', data);
 
+// Sesión compartida de solo lectura
+export const crearEnlace    = (data)  => API.post('/compartido', data);
+export const getEnlaces     = ()      => API.get('/compartido');
+export const revocarEnlace  = (token) => API.delete(`/compartido/${token}`);
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+export const getDatosPublicos = (token) =>
+    fetch(`${BASE_URL}/publico/${token}`).then(r => { if (!r.ok) throw r; return r.json(); });
+
 // Usuarios (solo admin)
 export const getUsuarios         = ()         => API.get('/usuarios');
 export const createUsuario       = (data)     => API.post('/usuarios', data);

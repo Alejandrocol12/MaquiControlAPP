@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import VistaCompartida from './components/VistaCompartida/VistaCompartida';
 import Dashboard from './components/Dashboard/Dashboard';
 import Maquinaria from './components/Maquinaria/Maquinaria';
 import Finanzas from './components/Finanzas/Finanzas';
@@ -259,6 +260,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 }
 
 function App() {
+    const [sharedToken] = useState(() => new URLSearchParams(window.location.search).get('token'));
     const [modulo, setModulo] = useState('dashboard');
     const { toasts, toast } = useToastState();
     const [finOpen, setFinOpen] = useState(false);
@@ -368,6 +370,8 @@ function App() {
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
+
+    if (sharedToken) return <VistaCompartida token={sharedToken} />;
 
     return (
         <ToastContext.Provider value={toast}>
