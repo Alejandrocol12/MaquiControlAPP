@@ -122,6 +122,9 @@ export const configurarPin = (data) => API.post('/auth/pin/configurar', data);
 export const eliminarPin   = ()     => API.delete('/auth/pin');
 export const loginPin      = (data) => API.post('/auth/pin/login', data);
 
+// IA
+export const leerFacturaIA = (formData) => API.post('/ia/leer-factura', formData);
+
 // Sesión compartida de solo lectura
 export const crearEnlace    = (data)  => API.post('/compartido', data);
 export const getEnlaces     = ()      => API.get('/compartido');

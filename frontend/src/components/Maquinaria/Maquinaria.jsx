@@ -6,6 +6,7 @@ import {
     createHora, getOperadoresAPI,
     getFaenaActiva, createFaena, cerrarFaena,
     crearEnlace, getEnlaces, revocarEnlace,
+    leerFacturaIA,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -13,7 +14,7 @@ import MoneyInput from '../../utils/MoneyInput';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -238,6 +239,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds] = useState(new Set());
     const [editandoGastoId, setEditandoGastoId] = useState(null);
+    const [cargandoIA, setCargandoIA] = useState(false);
 
     const editarGasto = (g) => {
         setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha });
@@ -245,6 +247,32 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         setGastoFactura(null);
     };
     const cancelarEditar = () => { setEditandoGastoId(null); setGastoForm(GASTO_VACIO); setGastoFactura(null); };
+
+    const leerConIA = async (e) => {
+        const archivo = e.target.files[0];
+        if (!archivo) return;
+        // Guardar el archivo también como factura adjunta
+        setGastoFactura(archivo);
+        setCargandoIA(true);
+        try {
+            const fd = new FormData();
+            fd.append('file', archivo);
+            const { data } = await leerFacturaIA(fd);
+            setGastoForm(prev => ({
+                ...prev,
+                descripcion: data.descripcion || prev.descripcion,
+                monto:       data.monto != null ? String(data.monto) : prev.monto,
+                categoria:   data.categoria || prev.categoria,
+                fecha:       data.fecha || prev.fecha,
+            }));
+            toast('Factura leída con IA', 's');
+        } catch {
+            toast('No se pudo leer el documento', 'e');
+        } finally {
+            setCargandoIA(false);
+            e.target.value = '';
+        }
+    };
 
     // Combustible
     const [galones, setGalones] = useState('');
@@ -613,8 +641,16 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {tab === 3 && (
                     <>
                         <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
+                            <h3 style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
+                                <span style={{display:'flex',alignItems:'center',gap:'8px'}}><TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}</span>
+                                <label style={{cursor: cargandoIA ? 'wait' : 'pointer'}}>
+                                    <span className={`bs${cargandoIA ? ' disabled' : ''}`} style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'6px 12px',fontSize:'12px',pointerEvents: cargandoIA ? 'none' : 'auto', background: cargandoIA ? '#f0f4f8' : undefined}}>
+                                        {cargandoIA
+                                            ? <><Loader size={12} style={{animation:'spin 1s linear infinite'}} /> Leyendo...</>
+                                            : <><Sparkles size={12} color="#8e44ad" /> Leer con IA</>}
+                                    </span>
+                                    <input type="file" accept="image/*,application/pdf" style={{display:'none'}} onChange={leerConIA} disabled={cargandoIA} />
+                                </label>
                             </h3>
                             <div className="fg2">
                                 <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
