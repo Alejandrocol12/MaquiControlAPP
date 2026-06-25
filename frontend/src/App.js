@@ -366,7 +366,6 @@ function App() {
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
             case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} />;
-            case 'mapa': return <Mapa />;
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
@@ -475,7 +474,14 @@ function App() {
                     </div>
 
                     <div className="main">
-                        {renderModulo()}
+                        {/* Mapa siempre montado — visibility toggle evita que Leaflet se destruya al cambiar módulo */}
+                        <div style={modulo === 'mapa'
+                            ? { display: 'flex', flexDirection: 'column', height: '100%' }
+                            : { position: 'absolute', top: 0, left: 0, width: '100%', height: '100vh', visibility: 'hidden', pointerEvents: 'none' }
+                        }>
+                            <Mapa />
+                        </div>
+                        {modulo !== 'mapa' && renderModulo()}
                     </div>
                 </div>
             )}
