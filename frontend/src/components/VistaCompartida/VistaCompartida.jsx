@@ -21,6 +21,16 @@ export default function VistaCompartida({ token }) {
     const [buscarGas, setBuscarGas] = useState('');
 
     useEffect(() => {
+        const prev = document.documentElement.style.overflow;
+        document.documentElement.style.overflow = 'auto';
+        document.body.style.overflow = 'auto';
+        return () => {
+            document.documentElement.style.overflow = prev;
+            document.body.style.overflow = '';
+        };
+    }, []);
+
+    useEffect(() => {
         getDatosPublicos(token)
             .then(d => { setDatos(d); setCargando(false); })
             .catch(() => { setError('Enlace inválido o revocado.'); setCargando(false); });
