@@ -270,7 +270,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             }
         } catch (err) {
             console.error('IA error:', err);
-            toast('No se pudo leer el documento', 'e');
+            const msg = err?.response?.data?.error;
+            toast(msg ? `IA: ${msg}` : 'No se pudo leer el documento', 'e');
         } finally {
             setCargandoIA(false);
             e.target.value = '';
