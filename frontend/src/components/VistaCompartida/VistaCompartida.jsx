@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getDatosPublicos } from '../../api';
-import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase } from 'lucide-react';
+import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 
@@ -18,6 +18,7 @@ export default function VistaCompartida({ token }) {
     const [datos, setDatos] = useState(null);
     const [error, setError] = useState(null);
     const [cargando, setCargando] = useState(true);
+    const [buscarGas, setBuscarGas] = useState('');
 
     useEffect(() => {
         getDatosPublicos(token)
@@ -40,7 +41,7 @@ export default function VistaCompartida({ token }) {
         </div>
     );
 
-    const { nombre, maquina, resumen, faenas, mantenimientos } = datos;
+    const { nombre, maquina, resumen, faenas, gastos = [], mantenimientos } = datos;
     const utilPos = resumen.utilidadNeta >= 0;
 
     return (
@@ -139,6 +140,9 @@ export default function VistaCompartida({ token }) {
                     )}
                 </div>
 
+                {/* Historial de gastos */}
+                <GastosSection gastos={gastos} buscar={buscarGas} setBuscar={setBuscarGas} />
+
                 {/* Últimos mantenimientos */}
                 {mantenimientos.length > 0 && (
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
@@ -181,6 +185,89 @@ export default function VistaCompartida({ token }) {
                     Vista de solo lectura generada por MaquiControl · Los datos son confidenciales
                 </p>
             </div>
+        </div>
+    );
+}
+
+const CATEGORIA_COLORS = {
+    'Repuestos':   { bg: '#e8f0fb', color: '#2563eb' },
+    'Lubricantes': { bg: '#f3e8fb', color: '#7c3aed' },
+    'Combustible': { bg: '#fff4e5', color: '#e67e22' },
+    'Reparación':  { bg: '#fdecea', color: '#e74c3c' },
+    'Otros':       { bg: '#f0f4f8', color: '#6b7a8d' },
+};
+
+function GastosSection({ gastos, buscar, setBuscar }) {
+    const q = buscar.toLowerCase();
+    const filtrados = gastos.filter(g =>
+        (g.descripcion || '').toLowerCase().includes(q) ||
+        (g.categoria || '').toLowerCase().includes(q)
+    );
+    const totalFiltrado = filtrados.reduce((s, g) => s + (g.monto || 0), 0);
+
+    return (
+        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Receipt size={16} color="#1a2d42" />
+                    <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Historial de gastos</span>
+                    <span style={{ background: '#f0f4f8', color: '#6b7a8d', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px' }}>
+                        {gastos.length}
+                    </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '200px' }}>
+                    <Search size={13} color="#9aa5b4" />
+                    <input
+                        value={buscar}
+                        onChange={e => setBuscar(e.target.value)}
+                        placeholder="Buscar por descripción o categoría…"
+                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#1a2d42', width: '100%' }}
+                    />
+                </div>
+            </div>
+
+            {gastos.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin gastos registrados</p>
+            ) : filtrados.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin resultados para "{buscar}"</p>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                                {['Fecha', 'Descripción', 'Categoría', 'Monto'].map(h => (
+                                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtrados.map((g, i) => {
+                                const c = CATEGORIA_COLORS[g.categoria] || CATEGORIA_COLORS['Otros'];
+                                return (
+                                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
+                                        <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(g.fecha)}</td>
+                                        <td style={{ padding: '10px 14px', color: '#1a2d42' }}>{g.descripcion || '—'}</td>
+                                        <td style={{ padding: '10px 14px' }}>
+                                            <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600' }}>
+                                                {g.categoria || '—'}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '10px 14px', color: '#e74c3c', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(g.monto)}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                                <td colSpan={3} style={{ padding: '10px 14px', fontWeight: '700', color: '#1a2d42', fontSize: '13px' }}>
+                                    {buscar ? `Total filtrado (${filtrados.length} de ${gastos.length})` : `Total (${gastos.length} gastos)`}
+                                </td>
+                                <td style={{ padding: '10px 14px', fontWeight: '700', color: '#e74c3c', whiteSpace: 'nowrap' }}>{fmt(totalFiltrado)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
