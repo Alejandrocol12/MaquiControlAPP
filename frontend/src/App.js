@@ -11,6 +11,7 @@ import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
+import TourGuiado from './components/TourGuiado/TourGuiado';
 import { apiLogin, apiRegister, loginPin } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -269,6 +270,7 @@ function App() {
     const [user, setUser] = useState(null);
     const [sbCol, setSbCol] = useState(false);
     const [sbMob, setSbMob] = useState(false);
+    const [tourActivo, setTourActivo] = useState(false);
     const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mc_dark') === '1');
     const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
 
@@ -308,6 +310,7 @@ function App() {
             if (data.user.hasPin) localStorage.setItem('mc_pin_email', data.user.email);
             setUser(data.user);
             toast(`Bienvenido, ${data.user.nombre}`, 's');
+            if (!localStorage.getItem('mc_tour_done')) setTourActivo(true);
         } catch (err) {
             toast(err.response?.data?.error || 'Correo o contrasena incorrectos', 'e');
         }
@@ -365,7 +368,7 @@ function App() {
             case 'combustible': return <Combustible />;
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
-            case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} />;
+            case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} />;
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
         }
     };
@@ -374,6 +377,12 @@ function App() {
 
     return (
         <ToastContext.Provider value={toast}>
+            {tourActivo && (
+                <TourGuiado
+                    onCerrar={() => setTourActivo(false)}
+                    onIrModulo={mod => { setModulo(mod); setSbMob(false); }}
+                />
+            )}
             {isOffline ? (
                 <OfflinePage onReintentar={() => { if (window.navigator.onLine) setIsOffline(false); else toast('Sigue sin conexión', 'e'); }} />
             ) : !user ? (

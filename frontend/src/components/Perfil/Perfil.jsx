@@ -1,29 +1,66 @@
 import { useState } from 'react';
 import { useToast } from '../../utils/toast';
 import { updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin } from '../../api';
-import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff } from 'lucide-react';
+import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff, Shield, PlayCircle } from 'lucide-react';
 
-const AUTH_USER_KEY = 'mc_auth_user';
+const AUTH_USER_KEY  = 'mc_auth_user';
+const POLICY_KEY     = 'mc_pass_policy';
+const defaultPolicy  = { minLength: 6, requireUppercase: false, requireNumbers: false, requireSymbols: false };
 
-function Perfil({ user, onUpdate }) {
+const loadPolicy = () => {
+    try { return { ...defaultPolicy, ...JSON.parse(localStorage.getItem(POLICY_KEY)) }; }
+    catch { return { ...defaultPolicy }; }
+};
+
+const savePolicy = (p) => localStorage.setItem(POLICY_KEY, JSON.stringify(p));
+
+const validarContra = (pass, policy) => [
+    { label: `Mínimo ${policy.minLength} caracteres`,     ok: pass.length >= policy.minLength },
+    ...(policy.requireUppercase ? [{ label: 'Al menos una mayúscula',          ok: /[A-Z]/.test(pass) }] : []),
+    ...(policy.requireNumbers   ? [{ label: 'Al menos un número',              ok: /\d/.test(pass) }] : []),
+    ...(policy.requireSymbols   ? [{ label: 'Al menos un símbolo (!@#$...)',   ok: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pass) }] : []),
+];
+
+const Toggle = ({ value, onChange, label }) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
+        <div onClick={() => onChange(!value)} style={{
+            width: '38px', height: '20px', borderRadius: '10px',
+            background: value ? '#f5a623' : '#c8d6e5',
+            position: 'relative', transition: 'background .2s', flexShrink: 0,
+        }}>
+            <div style={{
+                position: 'absolute', top: '2px', left: value ? '20px' : '2px',
+                width: '16px', height: '16px', borderRadius: '50%',
+                background: '#fff', transition: 'left .2s',
+                boxShadow: '0 1px 3px rgba(0,0,0,.2)',
+            }} />
+        </div>
+        <span style={{ fontSize: '13px', color: '#1a2d42' }}>{label}</span>
+    </label>
+);
+
+function Perfil({ user, onUpdate, onIniciarTour }) {
     const toast = useToast();
 
-    // Datos personales
     const [perfForm, setPerfForm] = useState({ nombre: user.nombre || '', empresa: user.empresa || '' });
     const [guardando, setGuardando] = useState(false);
 
-    // PIN
     const [pinForm, setPinForm] = useState('');
     const [guardandoPin, setGuardandoPin] = useState(false);
 
-    // Cambio de contraseña — paso 1: pedir código
     const [codigoEnviado, setCodigoEnviado] = useState(false);
     const [enviando, setEnviando] = useState(false);
     const [countdown, setCountdown] = useState(0);
-
-    // Cambio de contraseña — paso 2: verificar código + nueva clave
     const [passForm, setPassForm] = useState({ codigo: '', nueva: '', confirmar: '' });
     const [cambiando, setCambiando] = useState(false);
+
+    const [policy, setPolicy] = useState(loadPolicy);
+
+    const actualizarPolicy = (campo, valor) => {
+        const nueva = { ...policy, [campo]: valor };
+        setPolicy(nueva);
+        savePolicy(nueva);
+    };
 
     const guardarPerfil = async () => {
         if (!perfForm.nombre.trim()) return toast('El nombre es obligatorio', 'e');
@@ -45,19 +82,20 @@ function Perfil({ user, onUpdate }) {
             await enviarCodigoPassword();
             setCodigoEnviado(true);
             toast('Código enviado — revisa tu correo', 's');
-            // Countdown de 60 s para reenviar
             setCountdown(60);
             const t = setInterval(() => {
                 setCountdown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; });
             }, 1000);
         } catch (err) {
-            toast(err.response?.data?.error || 'No se pudo enviar el correo. Verifica la config de Gmail en Railway.', 'e');
+            toast(err.response?.data?.error || 'No se pudo enviar el correo.', 'e');
         } finally { setEnviando(false); }
     };
 
     const cambiarPass = async () => {
         if (!passForm.codigo.trim()) return toast('Ingresa el código que llegó a tu correo', 'e');
-        if (passForm.nueva.length < 6) return toast('La nueva contraseña debe tener al menos 6 caracteres', 'e');
+        const checks = validarContra(passForm.nueva, policy);
+        const fallido = checks.find(c => !c.ok);
+        if (fallido) return toast(fallido.label, 'e');
         if (passForm.nueva !== passForm.confirmar) return toast('Las contraseñas no coinciden', 'e');
         setCambiando(true);
         try {
@@ -96,7 +134,9 @@ function Perfil({ user, onUpdate }) {
         } finally { setGuardandoPin(false); }
     };
 
-    const inicial = (user.nombre || 'U').charAt(0).toUpperCase();
+    const checks   = validarContra(passForm.nueva, policy);
+    const todoOk   = checks.every(c => c.ok) && passForm.nueva === passForm.confirmar;
+    const inicial  = (user.nombre || 'U').charAt(0).toUpperCase();
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -119,7 +159,7 @@ function Perfil({ user, onUpdate }) {
                     </div>
                 </div>
 
-                {/* Editar datos personales */}
+                {/* Datos personales */}
                 <div className="fc">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><User size={18} /> Datos personales</h3>
                     <div className="fg2">
@@ -148,12 +188,44 @@ function Perfil({ user, onUpdate }) {
                     </button>
                 </div>
 
+                {/* Política de contraseña */}
+                <div className="fc">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={18} /> Política de contraseña</h3>
+                    <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '0 0 14px' }}>
+                        Define los requisitos que debe cumplir tu contraseña al cambiarla.
+                    </p>
+
+                    <div style={{ marginBottom: '14px' }}>
+                        <label className="fl">Longitud mínima</label>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {[6, 8, 10, 12].map(n => (
+                                <button key={n} onClick={() => actualizarPolicy('minLength', n)}
+                                    style={{
+                                        padding: '6px 16px', borderRadius: '8px', border: '1.5px solid',
+                                        borderColor: policy.minLength === n ? '#f5a623' : '#dde4ed',
+                                        background: policy.minLength === n ? '#fff8ee' : '#fff',
+                                        color: policy.minLength === n ? '#f5a623' : '#6b7a8d',
+                                        fontWeight: policy.minLength === n ? '700' : '400',
+                                        cursor: 'pointer', fontSize: '13px',
+                                    }}>
+                                    {n} caracteres
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <Toggle value={policy.requireUppercase} onChange={v => actualizarPolicy('requireUppercase', v)} label="Requerir al menos una mayúscula (A-Z)" />
+                        <Toggle value={policy.requireNumbers}   onChange={v => actualizarPolicy('requireNumbers', v)}   label="Requerir al menos un número (0-9)" />
+                        <Toggle value={policy.requireSymbols}   onChange={v => actualizarPolicy('requireSymbols', v)}   label="Requerir al menos un símbolo (!@#$...)" />
+                    </div>
+                </div>
+
                 {/* Cambiar contraseña */}
                 <div className="fc">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={18} /> Cambiar contraseña</h3>
 
                     {!codigoEnviado ? (
-                        /* PASO 1 — pedir código */
                         <div>
                             <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginBottom: '14px' }}>
                                 <Mail size={18} color="#2980b9" />
@@ -169,7 +241,6 @@ function Perfil({ user, onUpdate }) {
                             </button>
                         </div>
                     ) : (
-                        /* PASO 2 — ingresar código + nueva contraseña */
                         <div>
                             <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
                                 <Check size={18} color="#27ae60" />
@@ -183,9 +254,7 @@ function Perfil({ user, onUpdate }) {
                                 <label className="fl">Código de verificación *</label>
                                 <input className="fi" value={passForm.codigo}
                                     onChange={e => setPassForm({ ...passForm, codigo: e.target.value })}
-                                    placeholder="Ej: 483921"
-                                    maxLength={6}
-                                    inputMode="numeric"
+                                    placeholder="Ej: 483921" maxLength={6} inputMode="numeric"
                                     style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center' }} />
                             </div>
 
@@ -194,7 +263,7 @@ function Perfil({ user, onUpdate }) {
                                     <label className="fl">Nueva contraseña *</label>
                                     <input className="fi" type="password" value={passForm.nueva}
                                         onChange={e => setPassForm({ ...passForm, nueva: e.target.value })}
-                                        placeholder="Mínimo 6 caracteres" />
+                                        placeholder={`Mínimo ${policy.minLength} caracteres`} />
                                 </div>
                                 <div>
                                     <label className="fl">Confirmar nueva *</label>
@@ -204,13 +273,28 @@ function Perfil({ user, onUpdate }) {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-                                <button className="bp" onClick={cambiarPass} disabled={cambiando}>
+                            {/* Checklist en tiempo real */}
+                            {passForm.nueva && (
+                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    {checks.map((c, i) => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: c.ok ? '#27ae60' : '#9aa5b4' }}>
+                                            <span style={{ fontSize: '14px' }}>{c.ok ? '✅' : '⬜'}</span>
+                                            {c.label}
+                                        </div>
+                                    ))}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: (passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : '#9aa5b4' }}>
+                                        <span style={{ fontSize: '14px' }}>{(passForm.confirmar && passForm.nueva === passForm.confirmar) ? '✅' : '⬜'}</span>
+                                        Las contraseñas coinciden
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                <button className="bp" onClick={cambiarPass} disabled={cambiando || !todoOk}>
                                     <Lock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
                                     {cambiando ? 'Cambiando...' : 'Cambiar contraseña'}
                                 </button>
-                                <button className="bs" onClick={pedirCodigo}
-                                    disabled={enviando || countdown > 0}
+                                <button className="bs" onClick={pedirCodigo} disabled={enviando || countdown > 0}
                                     style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <RefreshCw size={13} />
                                     {countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar código'}
@@ -226,7 +310,6 @@ function Perfil({ user, onUpdate }) {
                 {/* PIN de acceso rápido */}
                 <div className="fc">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><KeyRound size={18} /> Acceso con PIN</h3>
-
                     {user.hasPin ? (
                         <div>
                             <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
@@ -260,7 +343,7 @@ function Perfil({ user, onUpdate }) {
                                 <KeyRound size={18} color="#6b7a8d" />
                                 <div>
                                     <p>Sin PIN configurado</p>
-                                    <span className="ale-desc">Configura un PIN de 4 dígitos para entrar más rápido desde tu dispositivo sin escribir email y contraseña.</span>
+                                    <span className="ale-desc">Configura un PIN de 4 dígitos para entrar más rápido desde tu dispositivo.</span>
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -277,6 +360,18 @@ function Perfil({ user, onUpdate }) {
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* Tour guiado */}
+                <div className="fc">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PlayCircle size={18} /> Ayuda y tutorial</h3>
+                    <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '0 0 14px' }}>
+                        Recorre todos los módulos de MaquiControl con una guía paso a paso.
+                    </p>
+                    <button className="bp" onClick={onIniciarTour}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content' }}>
+                        <PlayCircle size={14} /> Iniciar tour guiado
+                    </button>
                 </div>
 
             </div></div>
