@@ -74,6 +74,7 @@ function PortalOperador({ user, onLogout }) {
                     lastUpdateRef.current[maq.id] = now;
 
                     const { latitude: latitud, longitude: longitud } = pos.coords;
+                    if (!isFinite(latitud) || !isFinite(longitud)) return;
                     const ubicacionNombre = `${latitud.toFixed(5)}, ${longitud.toFixed(5)}`;
                     try {
                         await actualizarUbicacion(maq.id, { latitud, longitud, ubicacionNombre });
