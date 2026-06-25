@@ -475,6 +475,10 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
 .dark-toggle-float{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,.1);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;z-index:10;}
 .dark-toggle-float:hover{background:rgba(245,166,35,.3);}
 
+/* ── GPS EN VIVO ── */
+.gps-pulse-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;animation:gpsPulse 1.2s ease-in-out infinite;}
+@keyframes gpsPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.7);}}
+
 /* ── OFFLINE PAGE ── */
 .offline-shell{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#08111b 0%,#0d1b2a 60%,#10263c 100%);padding:32px;text-align:center;}
 .offline-anim{position:relative;width:260px;height:72px;margin-bottom:28px;}

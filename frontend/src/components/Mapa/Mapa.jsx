@@ -31,6 +31,11 @@ function Mapa() {
 
     useEffect(() => {
         getMaquinas().then(r => setMaquinas(r.data)).catch(() => {});
+        // Polling cada 6 s para refrescar posiciones en tiempo real
+        const intervalo = setInterval(() => {
+            getMaquinas().then(r => setMaquinas(r.data)).catch(() => {});
+        }, 6000);
+        return () => clearInterval(intervalo);
     }, []);
 
     const usarGPS = async (maq) => {
