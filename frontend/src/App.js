@@ -37,6 +37,8 @@ import {
     Sun,
     WifiOff,
     Map,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import './App.css';
@@ -141,26 +143,86 @@ function PinKeypad({ onPin, onCancel, email }) {
     );
 }
 
+const calcStrength = (p) => {
+    if (!p) return { score: 0, label: '', color: '' };
+    let s = 0;
+    if (p.length >= 6)  s++;
+    if (p.length >= 10) s++;
+    if (/[A-Z]/.test(p)) s++;
+    if (/\d/.test(p))    s++;
+    if (/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(p)) s++;
+    const map = [
+        { label: '', color: '' },
+        { label: 'Muy débil',  color: '#e74c3c' },
+        { label: 'Débil',      color: '#e67e22' },
+        { label: 'Regular',    color: '#f5a623' },
+        { label: 'Fuerte',     color: '#27ae60' },
+        { label: 'Muy fuerte', color: '#16a085' },
+    ];
+    return { score: s, ...map[Math.min(s, 5)] };
+};
+
+const PassInput = ({ value, onChange, onFocus, placeholder, vis, setVis, error, success }) => (
+    <div style={{ position: 'relative', marginBottom: '2px' }}>
+        <input className="fi" type={vis ? 'text' : 'password'}
+            value={value} onChange={onChange} onFocus={onFocus}
+            placeholder={placeholder}
+            style={{ paddingRight: '40px', borderColor: error ? '#e74c3c' : success ? '#27ae60' : '', marginBottom: 0 }} />
+        <button type="button" onClick={() => setVis(v => !v)}
+            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9aa5b4', display: 'flex', padding: 0 }}>
+            {vis ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+    </div>
+);
+
 function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
     const [vista, setVista] = useState('login');
     const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-    const [registerForm, setRegisterForm] = useState({
-        nombre: '', empresa: '', email: '', password: '', confirmPassword: '',
-    });
+    const [registerForm, setRegisterForm] = useState({ nombre: '', empresa: '', email: '', password: '', confirmPassword: '' });
     const [activeLabel, setActiveLabel] = useState(null);
     const [animKey, setAnimKey] = useState(0);
     const [modoPIN, setModoPIN] = useState(false);
+    const [cargando, setCargando] = useState(false);
+    const [passVis, setPassVis] = useState({ login: false, reg: false, reg2: false });
+    const [errores, setErrores] = useState({});
 
     const pinEmail = localStorage.getItem('mc_pin_email') || '';
     const hasPIN   = !!pinEmail;
+    const strength = calcStrength(registerForm.password);
+    const passMatch = registerForm.confirmPassword && registerForm.password === registerForm.confirmPassword;
 
     const focus = (label) => { setActiveLabel(label); setAnimKey(k => k + 1); };
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setCargando(true);
+        await onLogin(loginForm);
+        setCargando(false);
+    };
+
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        const errs = {};
+        if (!registerForm.nombre.trim())   errs.nombre = 'El nombre es obligatorio';
+        if (!registerForm.empresa.trim())  errs.empresa = 'La empresa es obligatoria';
+        if (!registerForm.email.includes('@')) errs.email = 'Correo no válido';
+        if (registerForm.password.length < 6) errs.password = 'Mínimo 6 caracteres';
+        if (registerForm.password !== registerForm.confirmPassword) errs.confirmPassword = 'No coinciden';
+        setErrores(errs);
+        if (Object.keys(errs).length) return;
+        setCargando(true);
+        await onRegister(registerForm);
+        setCargando(false);
+    };
+
+    const cambiarVista = (v) => { setVista(v); setErrores({}); setCargando(false); };
 
     return (
         <div className="auth-shell">
             <button className="dark-toggle-float" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
                 {darkMode ? <Sun size={17} /> : <Moon size={17} />}
             </button>
+
             <div className="auth-top">
                 <div className="auth-brand-big">
                     <span className="am">Maqui</span><span className="ac">Control</span>
@@ -177,80 +239,135 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
             <div className="auth-card-wrap">
                 {modoPIN ? (
-                    <PinKeypad
-                        email={pinEmail}
-                        onPin={onLoginPin}
-                        onCancel={() => setModoPIN(false)}
-                    />
+                    <PinKeypad email={pinEmail} onPin={onLoginPin} onCancel={() => setModoPIN(false)} />
+
                 ) : vista === 'login' ? (
                     <>
-                        <form onSubmit={e => { e.preventDefault(); onLogin(loginForm); }}>
+                        <form onSubmit={handleLogin}>
                             <label className="fl">Correo</label>
-                            <input className="fi" type="email"
+                            <input className="fi" type="email" autoComplete="email"
                                 value={loginForm.email}
                                 onChange={e => setLoginForm({ ...loginForm, email: e.target.value })}
                                 onFocus={() => focus('Correo')}
                                 placeholder="dueno@mail.com" />
+
                             <label className="fl">Contraseña</label>
-                            <input className="fi" type="password"
+                            <PassInput
                                 value={loginForm.password}
                                 onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
                                 onFocus={() => focus('Contraseña')}
-                                placeholder="••••••" />
-                            <button className="auth-submit" type="submit">
-                                Entrar <ArrowRight size={15} />
+                                placeholder="••••••"
+                                vis={passVis.login}
+                                setVis={v => setPassVis(p => ({ ...p, login: v(p.login) }))}
+                            />
+
+                            <div style={{ textAlign: 'right', margin: '4px 0 14px' }}>
+                                <button type="button" onClick={() => cambiarVista('forgot')}
+                                    style={{ background: 'none', border: 'none', color: '#f5a623', fontSize: '12px', cursor: 'pointer', fontWeight: '600' }}>
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
+
+                            <button className="auth-submit" type="submit" disabled={cargando}>
+                                {cargando
+                                    ? <><span className="auth-spin" /> Entrando…</>
+                                    : <>Entrar <ArrowRight size={15} /></>}
                             </button>
                         </form>
+
                         {hasPIN && (
                             <button onClick={() => setModoPIN(true)}
                                 style={{ width: '100%', marginTop: '10px', padding: '12px', background: '#f0f4f8', border: '1px solid #e2e8f0', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', color: '#1a2d42', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                                 <KeyRound size={15} /> Entrar con PIN
                             </button>
                         )}
+
                         <div className="auth-toggle">
                             <button className="on"><KeyRound size={14} /> Iniciar sesión</button>
-                            <button onClick={() => setVista('register')}><UserPlus size={14} /> Crear cuenta</button>
+                            <button onClick={() => cambiarVista('register')}><UserPlus size={14} /> Crear cuenta</button>
                         </div>
                     </>
+
+                ) : vista === 'forgot' ? (
+                    <>
+                        <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                            <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔑</div>
+                            <div style={{ fontWeight: '700', fontSize: '15px', color: '#1a2d42' }}>Recuperar contraseña</div>
+                            <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '6px 0 0' }}>
+                                Inicia sesión con tu correo y contraseña. Dentro de la app ve a <strong>Perfil → Cambiar contraseña</strong> para generar un código de verificación.
+                            </p>
+                        </div>
+                        <button className="auth-submit" onClick={() => cambiarVista('login')}>
+                            Volver al inicio de sesión
+                        </button>
+                    </>
+
                 ) : (
                     <>
-                        <form onSubmit={e => { e.preventDefault(); onRegister(registerForm); }}>
-                            <label className="fl">Nombre</label>
-                            <input className="fi"
-                                value={registerForm.nombre}
-                                onChange={e => setRegisterForm({ ...registerForm, nombre: e.target.value })}
-                                onFocus={() => focus('Nombre')}
-                                placeholder="Alejandro Ruiz" />
-                            <label className="fl">Empresa</label>
-                            <input className="fi"
-                                value={registerForm.empresa}
-                                onChange={e => setRegisterForm({ ...registerForm, empresa: e.target.value })}
-                                onFocus={() => focus('Empresa')}
-                                placeholder="MaquiControl SAS" />
-                            <label className="fl">Correo</label>
-                            <input className="fi" type="email"
-                                value={registerForm.email}
-                                onChange={e => setRegisterForm({ ...registerForm, email: e.target.value })}
-                                onFocus={() => focus('Correo')}
-                                placeholder="correo@empresa.com" />
+                        <form onSubmit={handleRegister}>
+                            {[
+                                { key: 'nombre',  label: 'Nombre',  placeholder: 'Alejandro Ruiz',      type: 'text'  },
+                                { key: 'empresa', label: 'Empresa', placeholder: 'MaquiControl SAS',    type: 'text'  },
+                                { key: 'email',   label: 'Correo',  placeholder: 'correo@empresa.com',  type: 'email' },
+                            ].map(({ key, label, placeholder, type }) => (
+                                <div key={key}>
+                                    <label className="fl">{label}</label>
+                                    <input className="fi" type={type}
+                                        value={registerForm[key]}
+                                        onChange={e => { setRegisterForm(f => ({ ...f, [key]: e.target.value })); setErrores(er => ({ ...er, [key]: '' })); }}
+                                        onFocus={() => focus(label)}
+                                        placeholder={placeholder}
+                                        style={{ borderColor: errores[key] ? '#e74c3c' : '', marginBottom: errores[key] ? '2px' : '' }} />
+                                    {errores[key] && <span style={{ fontSize: '11px', color: '#e74c3c', display: 'block', marginBottom: '6px' }}>{errores[key]}</span>}
+                                </div>
+                            ))}
+
                             <label className="fl">Contraseña</label>
-                            <input className="fi" type="password"
+                            <PassInput
                                 value={registerForm.password}
-                                onChange={e => setRegisterForm({ ...registerForm, password: e.target.value })}
+                                onChange={e => { setRegisterForm(f => ({ ...f, password: e.target.value })); setErrores(er => ({ ...er, password: '' })); }}
                                 onFocus={() => focus('Contraseña')}
-                                placeholder="Mínimo 6 caracteres" />
-                            <label className="fl">Confirmar</label>
-                            <input className="fi" type="password"
+                                placeholder="Mínimo 6 caracteres"
+                                vis={passVis.reg}
+                                setVis={v => setPassVis(p => ({ ...p, reg: v(p.reg) }))}
+                                error={errores.password}
+                            />
+                            {errores.password && <span style={{ fontSize: '11px', color: '#e74c3c', display: 'block', marginBottom: '4px' }}>{errores.password}</span>}
+
+                            {registerForm.password && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    <div style={{ display: 'flex', gap: '3px', marginBottom: '3px' }}>
+                                        {[1,2,3,4,5].map(i => (
+                                            <div key={i} style={{ flex: 1, height: '3px', borderRadius: '2px', background: i <= strength.score ? strength.color : '#e2e8f0', transition: 'background .25s' }} />
+                                        ))}
+                                    </div>
+                                    <span style={{ fontSize: '11px', color: strength.color, fontWeight: '600' }}>{strength.label}</span>
+                                </div>
+                            )}
+
+                            <label className="fl">Confirmar contraseña</label>
+                            <PassInput
                                 value={registerForm.confirmPassword}
-                                onChange={e => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                                onChange={e => { setRegisterForm(f => ({ ...f, confirmPassword: e.target.value })); setErrores(er => ({ ...er, confirmPassword: '' })); }}
                                 onFocus={() => focus('Confirmar')}
-                                placeholder="Repite la contraseña" />
-                            <button className="auth-submit" type="submit">
-                                Crear cuenta <ArrowRight size={15} />
+                                placeholder="Repite la contraseña"
+                                vis={passVis.reg2}
+                                setVis={v => setPassVis(p => ({ ...p, reg2: v(p.reg2) }))}
+                                error={errores.confirmPassword}
+                                success={passMatch}
+                            />
+                            {errores.confirmPassword && <span style={{ fontSize: '11px', color: '#e74c3c', display: 'block', marginBottom: '4px' }}>{errores.confirmPassword}</span>}
+                            {passMatch && <span style={{ fontSize: '11px', color: '#27ae60', display: 'block', marginBottom: '6px' }}>✅ Contraseñas coinciden</span>}
+
+                            <button className="auth-submit" type="submit" disabled={cargando} style={{ marginTop: '10px' }}>
+                                {cargando
+                                    ? <><span className="auth-spin" /> Creando cuenta…</>
+                                    : <>Crear cuenta <ArrowRight size={15} /></>}
                             </button>
                         </form>
+
                         <div className="auth-toggle">
-                            <button onClick={() => setVista('login')}><KeyRound size={14} /> Iniciar sesión</button>
+                            <button onClick={() => cambiarVista('login')}><KeyRound size={14} /> Iniciar sesión</button>
                             <button className="on"><UserPlus size={14} /> Crear cuenta</button>
                         </div>
                     </>
