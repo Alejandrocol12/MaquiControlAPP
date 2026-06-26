@@ -312,13 +312,16 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             .then(r => setFaenaActiva(r.data))
             .catch(() => setFaenaActiva(null));
 
-    const cargarDatos = () => {
-        getIngresos().then(r => setIngresos(r.data.filter(i => i.maquinaNombre === maq.nombre))).catch(console.error);
+    const refreshGastos = () =>
         getGastos().then(r => {
             const filtrados = r.data.filter(g => g.maquinaNombre === maq.nombre);
             setGastos(filtrados);
             setFacturasIds(new Set(filtrados.filter(g => g.tieneFactura).map(g => String(g.id))));
         }).catch(console.error);
+
+    const cargarDatos = () => {
+        getIngresos().then(r => setIngresos(r.data.filter(i => i.maquinaNombre === maq.nombre))).catch(console.error);
+        refreshGastos();
         getCombustible().then(r => setCombustibles(r.data.filter(c => c.maquinaNombre === maq.nombre))).catch(console.error);
     };
 
@@ -388,7 +391,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             total: parseFloat(cantidad) * parseFloat(valorUnitario),
             fecha: fechaTrabajo, descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`
         };
-        createIngreso(payload).then(() => {
+        createIngreso(payload).then(res => {
+            if (res?.data) setIngresos(prev => [...prev, res.data]);
             const promises = [];
             if (tipoTrabajo === 'Horas') {
                 const maqActualizada = { ...maq, horometroActual: nuevoHoro };
@@ -416,7 +420,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             }
             return Promise.all(promises);
         }).then(() => {
-            cargarTodo();
             setCantidad(''); setValorUnitario(''); setDescTrabajo('');
             toast('Trabajo registrado');
         }).catch(console.error);
@@ -427,26 +430,32 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         createCombustible({
             maquinaNombre: maq.nombre, galones: parseFloat(galones),
             precioPorGalon: parseFloat(precioPorGalon), horometro: parseFloat(horoComb), fecha: fechaComb
-        }).then(() => {
-            cargarTodo();
+        }).then(res => {
+            if (res?.data) setCombustibles(prev => [...prev, res.data]);
+            refreshGastos();
             setGalones(''); setPrecioPorGalon('');
             toast('Carga de combustible registrada');
         }).catch(console.error);
     };
 
     const eliminarIngreso = async (id) => {
-        if (await confirm('¿Eliminar este ingreso?')) deleteIngreso(id).then(cargarTodo).catch(console.error);
+        if (await confirm('¿Eliminar este ingreso?'))
+            deleteIngreso(id).then(() => setIngresos(prev => prev.filter(i => i.id !== id))).catch(console.error);
     };
     const eliminarGasto = async (id) => {
         if (await confirm('¿Eliminar este gasto?')) {
             await deleteGasto(id).catch(console.error);
             await eliminarFactura(id).catch(() => {});
             setFacturasIds(prev => { const s = new Set(prev); s.delete(String(id)); return s; });
-            cargarTodo();
+            setGastos(prev => prev.filter(g => g.id !== id));
         }
     };
     const eliminarComb = async (id) => {
-        if (await confirm('¿Eliminar esta carga?')) deleteCombustible(id).then(cargarTodo).catch(console.error);
+        if (await confirm('¿Eliminar esta carga?'))
+            deleteCombustible(id).then(() => {
+                setCombustibles(prev => prev.filter(c => c.id !== id));
+                refreshGastos();
+            }).catch(console.error);
     };
 
     const abrirFaena = async () => {
@@ -458,7 +467,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         toast('Periodo abierto — los registros quedan en cero');
         setMostrarFormFaena(false);
         setFormFaena({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
-        cargarTodo();
+        cargarFaena();
     };
 
     const handleCerrarFaena = async () => {
@@ -735,7 +744,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             await guardarFactura(editandoGastoId, gastoFactura).catch(console.error);
                                             setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]));
                                         }
-                                        cancelarEditar(); cargarTodo(); toast('Gasto actualizado');
+                                        if (res.data) setGastos(prev => prev.map(g => g.id === editandoGastoId ? res.data : g));
+                                        cancelarEditar(); toast('Gasto actualizado');
                                     } else {
                                         const res = await createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).catch(console.error);
                                         if (!res) return;
@@ -743,7 +753,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             await guardarFactura(res.data.id, gastoFactura).catch(console.error);
                                             setFacturasIds(prev => new Set([...prev, String(res.data.id)]));
                                         }
-                                        setGastoForm(GASTO_VACIO); setGastoFactura(null); cargarTodo(); toast('Gasto registrado');
+                                        if (res.data) setGastos(prev => [...prev, res.data]);
+                                        setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
                                     }
                                 }}>
                                     <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
