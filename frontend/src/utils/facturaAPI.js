@@ -21,9 +21,12 @@ export async function abrirFactura(gastoId) {
             tab.location.href = url;
         } else {
             // Popup bloqueado → forzar descarga
+            const disposition = res.headers['content-disposition'] || '';
+            const match = disposition.match(/filename="([^"]+)"/);
+            const filename = match ? match[1] : 'factura';
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'factura.pdf';
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
