@@ -14,7 +14,7 @@ import MoneyInput from '../../utils/MoneyInput';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -217,6 +217,27 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [buscarIng, setBuscarIng] = useState('');
     const [buscarGas, setBuscarGas] = useState('');
     const [buscarComb, setBuscarComb] = useState('');
+
+    // Socios
+    const [socios, setSocios] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(`mc_socios_${maquina.id}`) || '[]'); }
+        catch { return []; }
+    });
+    const [nuevoSocio, setNuevoSocio] = useState({ nombre: '', porcentaje: '' });
+    const [montoSocios, setMontoSocios] = useState('');
+    const guardarSocios = (lista) => {
+        setSocios(lista);
+        localStorage.setItem(`mc_socios_${maquina.id}`, JSON.stringify(lista));
+    };
+    const agregarSocio = () => {
+        const nombre = nuevoSocio.nombre.trim();
+        const pct = parseFloat(nuevoSocio.porcentaje);
+        if (!nombre || isNaN(pct) || pct <= 0) return toast('Completa nombre y porcentaje válido', 'e');
+        guardarSocios([...socios, { nombre, porcentaje: pct }]);
+        setNuevoSocio({ nombre: '', porcentaje: '' });
+    };
+    const eliminarSocioFn = (i) => guardarSocios(socios.filter((_, idx) => idx !== i));
+    const sumaPct = socios.reduce((s, x) => s + Number(x.porcentaje || 0), 0);
 
     useEffect(() => {
         getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
@@ -459,6 +480,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><TrendingDown size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Gastos</>,
         <><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Combustible</>,
         <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
+        <><Users size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Socios</>,
     ];
 
     return (
@@ -944,6 +966,124 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     </div>
                                 )}
                             </>
+                        )}
+                    </div>
+                )}
+
+                {/* TAB 6 — SOCIOS */}
+                {tab === 6 && (
+                    <div>
+                        <div className="fc">
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Users size={18} /> Socios — {maq.nombre}
+                            </h3>
+                            <p className="fd">Define los socios y sus porcentajes. La suma debe llegar a 100%.</p>
+                            <div className="fg2">
+                                <div>
+                                    <label className="fl">Nombre del socio</label>
+                                    <input className="fi" value={nuevoSocio.nombre}
+                                        onChange={e => setNuevoSocio({ ...nuevoSocio, nombre: e.target.value })}
+                                        placeholder="Ej: Juan Pérez"
+                                        onKeyDown={e => e.key === 'Enter' && agregarSocio()} />
+                                </div>
+                                <div>
+                                    <label className="fl">Porcentaje (%)</label>
+                                    <input className="fi" type="number" min="0.1" max="100" step="0.1"
+                                        value={nuevoSocio.porcentaje}
+                                        onChange={e => setNuevoSocio({ ...nuevoSocio, porcentaje: e.target.value })}
+                                        placeholder="Ej: 40"
+                                        onKeyDown={e => e.key === 'Enter' && agregarSocio()} />
+                                </div>
+                            </div>
+                            <button className="bp" style={{ alignSelf: 'flex-start' }} onClick={agregarSocio}>
+                                <Plus size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                                Agregar socio
+                            </button>
+                        </div>
+
+                        {socios.length > 0 && (
+                            <div className="tbl" style={{ marginTop: '14px' }}>
+                                <div className="th">
+                                    <strong style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                        <Users size={14} /> Socios — {sumaPct % 1 === 0 ? sumaPct : sumaPct.toFixed(1)}% asignado
+                                    </strong>
+                                    {Math.abs(sumaPct - 100) > 0.01 && (
+                                        <span style={{ fontSize: '11px', color: sumaPct > 100 ? '#e74c3c' : '#e67e22', fontWeight: '600' }}>
+                                            {sumaPct > 100
+                                                ? `Excede en ${(sumaPct - 100).toFixed(1)}%`
+                                                : `Falta ${(100 - sumaPct).toFixed(1)}% para 100%`}
+                                        </span>
+                                    )}
+                                    {Math.abs(sumaPct - 100) <= 0.01 && (
+                                        <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '600' }}>✓ Completo</span>
+                                    )}
+                                </div>
+                                <div className="tr hdr">
+                                    <span>Socio</span>
+                                    <span>Porcentaje</span>
+                                    <span>Acc.</span>
+                                </div>
+                                {socios.map((s, i) => (
+                                    <div className="tr" key={i}>
+                                        <span style={{ fontWeight: '600' }}>{s.nombre}</span>
+                                        <span>{s.porcentaje % 1 === 0 ? s.porcentaje : s.porcentaje.toFixed(1)}%</span>
+                                        <span>
+                                            <button className="icon-btn" onClick={() => eliminarSocioFn(i)}>
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {socios.length > 0 && (
+                            <div className="fc" style={{ marginTop: '14px' }}>
+                                <h3>Dividir monto</h3>
+                                <p className="fd">Ingresa el monto total y se calculará automáticamente la parte de cada socio.</p>
+                                <div style={{ maxWidth: '280px' }}>
+                                    <label className="fl">Monto a dividir ($)</label>
+                                    <MoneyInput className="fi" value={montoSocios}
+                                        onChange={e => setMontoSocios(e.target.value)}
+                                        placeholder="Ej: 5.000.000" />
+                                </div>
+                                {Number(montoSocios) > 0 && (
+                                    <div className="tbl" style={{ marginTop: '12px' }}>
+                                        <div className="th">
+                                            <strong>Distribución de {fmt(Number(montoSocios))}</strong>
+                                        </div>
+                                        <div className="tr hdr">
+                                            <span>Socio</span>
+                                            <span>%</span>
+                                            <span>Le corresponde</span>
+                                        </div>
+                                        {socios.map((s, i) => (
+                                            <div className="tr" key={i}>
+                                                <span style={{ fontWeight: '600' }}>{s.nombre}</span>
+                                                <span>{s.porcentaje % 1 === 0 ? s.porcentaje : s.porcentaje.toFixed(1)}%</span>
+                                                <span style={{ color: '#27ae60', fontWeight: '700' }}>
+                                                    {fmt(Number(montoSocios) * s.porcentaje / 100)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {Math.abs(sumaPct - 100) > 0.01 && (
+                                            <div style={{ padding: '8px 14px', fontSize: '11px', color: '#e67e22', background: '#fffbf0', borderTop: '1px solid #f5e0a0' }}>
+                                                Los porcentajes no suman 100% — el total distribuido es {fmt(Number(montoSocios) * sumaPct / 100)}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {socios.length === 0 && (
+                            <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginTop: '14px' }}>
+                                <Users size={18} color="#2980b9" />
+                                <div>
+                                    <p>Sin socios registrados</p>
+                                    <span className="ale-desc">Agrega los socios y sus porcentajes para poder dividir cualquier monto entre ellos.</span>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}
