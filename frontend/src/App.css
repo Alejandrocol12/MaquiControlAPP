@@ -415,6 +415,27 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   .tb-label{display:none;}
   .tb-r .bs,.tb-r .bp{padding:8px 10px;}
 
+  /* tablas → card layout en móvil */
+  .tbl-r .tr.hdr{display:none;}
+  .tbl-r .tr:not(.hdr){
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:2px 8px;
+    padding:10px 14px;
+    align-items:center;
+  }
+  .tbl-r .tr:not(.hdr)>*{flex:none;}
+  /* 2da columna = contenido principal → fila 1 col 1 */
+  .tbl-r .tr:not(.hdr)>*:nth-child(2){grid-column:1;grid-row:1;font-weight:700;font-size:13px;white-space:normal;overflow:visible;color:#1a2d42;}
+  /* penúltimo = monto → fila 1 col 2 */
+  .tbl-r .tr:not(.hdr)>*:nth-last-child(2){grid-column:2;grid-row:1;text-align:right;font-weight:700;white-space:nowrap;}
+  /* 1ra columna = fecha → fila 2 col 1 */
+  .tbl-r .tr:not(.hdr)>*:first-child{grid-column:1;grid-row:2;font-size:11px;color:#9aa5b4;white-space:nowrap;}
+  /* último = acciones → fila 2 col 2 */
+  .tbl-r .tr:not(.hdr)>*:last-child{grid-column:2;grid-row:2;display:flex;justify-content:flex-end;}
+  /* columnas intermedias (ni 1ra, ni 2da, ni penúltima, ni última) → ocultas */
+  .tbl-r .tr:not(.hdr)>*:not(:first-child):not(:nth-child(2)):not(:nth-last-child(2)):not(:last-child){display:none;}
+
   /* grids */
   .g2,.g3,.g4,.fg2,.fg3{grid-template-columns:1fr;}
   .gm,.maquinas-grid,.og{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}

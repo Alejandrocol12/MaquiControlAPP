@@ -637,7 +637,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Confirmar y Guardar
                             </button>
                         </div>
-                        <div className="tbl">
+                        <div className="tbl tbl-r">
                             <div className="th"><strong>Trabajos en este periodo</strong></div>
                             <div className="tr hdr">
                                 <ThIng campo="fecha">Fecha</ThIng>
@@ -662,7 +662,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
-                    <div className="tbl">
+                    <div className="tbl tbl-r">
                         <div className="th">
                             <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
@@ -775,7 +775,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
                             </div>
                         </div>
-                        <div className="tbl">
+                        <div className="tbl tbl-r">
                             <div className="th">
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
@@ -847,7 +847,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <Fuel size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Registrar Carga
                             </button>
                         </div>
-                        <div className="tbl">
+                        <div className="tbl tbl-r">
                             <div className="th">
                                 <strong>Combustible — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarComb} onChange={e => setBuscarComb(e.target.value)} /></div>
