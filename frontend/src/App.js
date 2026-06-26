@@ -228,13 +228,24 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
     return (
         <div className="auth-shell">
-            <button className="dark-toggle-float" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
-                {darkMode ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-
-            <div className="auth-top">
-                <div className="auth-brand-big">
-                    <span className="am">Maqui</span><span className="ac">Control</span>
+            <div className="auth-left">
+                <div>
+                    <div className="auth-brand-big"><span className="am">Maqui</span><span className="ac">Control</span></div>
+                    <p className="auth-tagline">Control total de tu maquinaria pesada</p>
+                </div>
+                <div className="auth-features">
+                    {[
+                        [Tractor,    'Máquinas',   'GPS, horómetro y estado en tiempo real'],
+                        [DollarSign, 'Finanzas',   'Ingresos, gastos y combustible por máquina'],
+                        [HardHat,    'Operadores', 'Portal y reporte de horas por WhatsApp'],
+                        [FileText,   'Periodos',   'Liquidaciones y reportes por obra'],
+                        [BarChart2,  'Dashboard',  'Resumen financiero en tiempo real'],
+                    ].map(([Icon, title, desc]) => (
+                        <div className="auth-feat" key={title}>
+                            <Icon size={17} />
+                            <span><span className="auth-feat-t">{title}</span> — {desc}</span>
+                        </div>
+                    ))}
                 </div>
                 <div className="auth-anim">
                     {activeLabel && !modoPIN && (
@@ -246,6 +257,10 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                 </div>
             </div>
 
+            <div className="auth-right">
+            <button className="dark-toggle-float" onClick={toggleDark} title={darkMode ? 'Modo claro' : 'Modo oscuro'}>
+                {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <div className="auth-card-wrap">
                 {modoPIN ? (
                     <PinKeypad email={pinEmail} onPin={onLoginPin} onCancel={() => setModoPIN(false)} />
@@ -382,6 +397,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                     </>
                 )}
 
+            </div>
             </div>
         </div>
     );
