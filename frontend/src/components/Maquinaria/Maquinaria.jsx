@@ -391,71 +391,85 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             total: parseFloat(cantidad) * parseFloat(valorUnitario),
             fecha: fechaTrabajo, descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`
         };
+        const tempId = `tmp_${Date.now()}`;
+        const optimista = { ...payload, id: tempId, faenaId: faenaActiva?.id ?? null };
+        setIngresos(prev => [...prev, optimista]);
+        if (tipoTrabajo === 'Horas') {
+            const maqActualizada = { ...maq, horometroActual: nuevoHoro };
+            setMaq(maqActualizada);
+            onActualizar(maqActualizada);
+        }
+        setCantidad(''); setValorUnitario(''); setDescTrabajo('');
+        toast('Trabajo registrado');
+
         createIngreso(payload).then(res => {
-            if (res?.data) setIngresos(prev => [...prev, res.data]);
+            if (res?.data) setIngresos(prev => prev.map(i => i.id === tempId ? res.data : i));
             const promises = [];
             if (tipoTrabajo === 'Horas') {
                 const maqActualizada = { ...maq, horometroActual: nuevoHoro };
-                promises.push(
-                    updateMaquina(maq.id, maqActualizada).then(() => {
-                        setMaq(maqActualizada);
-                        onActualizar(maqActualizada);
-                    })
-                );
+                promises.push(updateMaquina(maq.id, maqActualizada));
                 if (maq.operadorNombre) {
                     const operadorObjetivo = operadoresAPI.find(o => o.nombre === maq.operadorNombre);
-                    promises.push(
-                        createHora({
-                            operador_id:     operadorObjetivo?.id || null,
-                            operadorNombre:  maq.operadorNombre,
-                            maquinaNombre:   maq.nombre,
-                            fecha:           fechaTrabajo,
-                            horas:           parseFloat(cantidad),
-                            valorHora:       maq.valorHoraOperador || 0,
-                            horometroInicio: maq.horometroActual || 0,
-                            horometroFin:    nuevoHoro,
-                        })
-                    );
+                    promises.push(createHora({
+                        operador_id:     operadorObjetivo?.id || null,
+                        operadorNombre:  maq.operadorNombre,
+                        maquinaNombre:   maq.nombre,
+                        fecha:           fechaTrabajo,
+                        horas:           parseFloat(cantidad),
+                        valorHora:       maq.valorHoraOperador || 0,
+                        horometroInicio: maq.horometroActual || 0,
+                        horometroFin:    nuevoHoro,
+                    }));
                 }
             }
             return Promise.all(promises);
-        }).then(() => {
-            setCantidad(''); setValorUnitario(''); setDescTrabajo('');
-            toast('Trabajo registrado');
-        }).catch(console.error);
+        }).catch(() => {
+            setIngresos(prev => prev.filter(i => i.id !== tempId));
+            toast('Error al guardar — intenta de nuevo', 'e');
+        });
     };
 
     const registrarCombustible = () => {
         if (!galones || !precioPorGalon) return toast('Completa galones y precio', 'e');
-        createCombustible({
+        const combPayload = {
             maquinaNombre: maq.nombre, galones: parseFloat(galones),
             precioPorGalon: parseFloat(precioPorGalon), horometro: parseFloat(horoComb), fecha: fechaComb
-        }).then(res => {
-            if (res?.data) setCombustibles(prev => [...prev, res.data]);
+        };
+        const tempId = `tmp_${Date.now()}`;
+        setCombustibles(prev => [...prev, { ...combPayload, id: tempId, total: combPayload.galones * combPayload.precioPorGalon }]);
+        setGalones(''); setPrecioPorGalon('');
+        toast('Carga de combustible registrada');
+
+        createCombustible(combPayload).then(res => {
+            if (res?.data) setCombustibles(prev => prev.map(c => c.id === tempId ? res.data : c));
             refreshGastos();
-            setGalones(''); setPrecioPorGalon('');
-            toast('Carga de combustible registrada');
-        }).catch(console.error);
+        }).catch(() => {
+            setCombustibles(prev => prev.filter(c => c.id !== tempId));
+            toast('Error al registrar — intenta de nuevo', 'e');
+        });
     };
 
     const eliminarIngreso = async (id) => {
-        if (await confirm('¿Eliminar este ingreso?'))
-            deleteIngreso(id).then(() => setIngresos(prev => prev.filter(i => i.id !== id))).catch(console.error);
+        if (!await confirm('¿Eliminar este ingreso?')) return;
+        const prev = ingresos;
+        setIngresos(p => p.filter(i => i.id !== id));
+        deleteIngreso(id).catch(() => { setIngresos(prev); toast('Error al eliminar', 'e'); });
     };
     const eliminarGasto = async (id) => {
-        if (await confirm('¿Eliminar este gasto?')) {
-            await deleteGasto(id).catch(console.error);
-            await eliminarFactura(id).catch(() => {});
-            setFacturasIds(prev => { const s = new Set(prev); s.delete(String(id)); return s; });
-            setGastos(prev => prev.filter(g => g.id !== id));
-        }
+        if (!await confirm('¿Eliminar este gasto?')) return;
+        const prev = gastos;
+        setGastos(p => p.filter(g => g.id !== id));
+        setFacturasIds(p => { const s = new Set(p); s.delete(String(id)); return s; });
+        deleteGasto(id).catch(() => { setGastos(prev); toast('Error al eliminar', 'e'); });
+        eliminarFactura(id).catch(() => {});
     };
     const eliminarComb = async (id) => {
-        if (await confirm('¿Eliminar esta carga?'))
-            deleteCombustible(id).then(() => {
-                setCombustibles(prev => prev.filter(c => c.id !== id));
-                refreshGastos();
-            }).catch(console.error);
+        if (!await confirm('¿Eliminar esta carga?')) return;
+        const prev = combustibles;
+        setCombustibles(p => p.filter(c => c.id !== id));
+        deleteCombustible(id)
+            .then(() => refreshGastos())
+            .catch(() => { setCombustibles(prev); toast('Error al eliminar', 'e'); });
     };
 
     const abrirFaena = async () => {
@@ -738,23 +752,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
                                     if (!gastoForm.descripcion || !gastoForm.monto) return toast('Completa descripción y monto', 'e');
                                     if (editandoGastoId) {
-                                        const res = await updateGasto(editandoGastoId, { ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).catch(console.error);
-                                        if (!res) return;
-                                        if (gastoFactura) {
-                                            await guardarFactura(editandoGastoId, gastoFactura).catch(console.error);
-                                            setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]));
-                                        }
-                                        if (res.data) setGastos(prev => prev.map(g => g.id === editandoGastoId ? res.data : g));
+                                        const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) };
+                                        setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoActualizado : g));
                                         cancelarEditar(); toast('Gasto actualizado');
+                                        updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
+                                        if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
                                     } else {
-                                        const res = await createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).catch(console.error);
-                                        if (!res) return;
-                                        if (gastoFactura && res.data?.id) {
-                                            await guardarFactura(res.data.id, gastoFactura).catch(console.error);
-                                            setFacturasIds(prev => new Set([...prev, String(res.data.id)]));
-                                        }
-                                        if (res.data) setGastos(prev => [...prev, res.data]);
+                                        const tempId = `tmp_${Date.now()}`;
+                                        const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: faenaActiva?.id ?? null };
+                                        setGastos(prev => [...prev, gastoOptimista]);
+                                        const facturaCapturada = gastoFactura;
                                         setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
+                                        createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).then(res => {
+                                            if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
+                                            if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
+                                        }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
                                     }
                                 }}>
                                     <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
