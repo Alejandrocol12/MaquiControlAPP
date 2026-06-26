@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
-import { usePusherChannel } from '../../hooks/usePusher';
+import { useState, useEffect } from 'react';
 import {
     getMaquinas, createMaquina, updateMaquina, deleteMaquina,
     getIngresos, getGastos, createIngreso, createGasto, updateGasto,
@@ -243,31 +242,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     useEffect(() => {
         getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
     }, []);
-
-    // Pusher — tiempo real
-    const userId = useMemo(() => {
-        try { return JSON.parse(localStorage.getItem('user'))?.id; } catch { return null; }
-    }, []);
-
-    usePusherChannel(userId, (evento, data) => {
-        const esDeMiMaquina = data?.maquinaNombre === maquina.nombre;
-        if (evento === 'ingreso.nuevo' && esDeMiMaquina)
-            setIngresos(p => [data, ...p.filter(x => x.id !== data.id)]);
-        if (evento === 'ingreso.eliminado')
-            setIngresos(p => p.filter(x => x.id !== data.id));
-        if (evento === 'gasto.nuevo' && esDeMiMaquina)
-            setGastos(p => [data, ...p.filter(x => x.id !== data.id)]);
-        if (evento === 'gasto.eliminado')
-            setGastos(p => p.filter(x => x.id !== data.id));
-        if (evento === 'trabajo.nuevo' && esDeMiMaquina)
-            setIngresos(p => [data, ...p.filter(x => x.id !== data.id)]);
-        if (evento === 'trabajo.eliminado')
-            setIngresos(p => p.filter(x => x.id !== data.id));
-        if (evento === 'comb.nuevo' && esDeMiMaquina)
-            setCombustibles(p => [data, ...p.filter(x => x.id !== data.id)]);
-        if (evento === 'comb.eliminado')
-            setCombustibles(p => p.filter(x => x.id !== data.id));
-    });
 
     // Registro trabajo
     const [tipoTrabajo, setTipoTrabajo] = useState('Horas');
