@@ -412,6 +412,8 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   .topbar{padding:12px 14px 12px 62px;}
   .topbar h1{font-size:17px;}
   .topbar p{font-size:11px;}
+  .tb-label{display:none;}
+  .tb-r .bs,.tb-r .bp{padding:8px 10px;}
 
   /* grids */
   .g2,.g3,.g4,.fg2,.fg3{grid-template-columns:1fr;}

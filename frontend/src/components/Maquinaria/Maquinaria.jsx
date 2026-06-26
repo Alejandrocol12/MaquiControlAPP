@@ -14,7 +14,7 @@ import MoneyInput from '../../utils/MoneyInput';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users, ChevronLeft,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -512,9 +512,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             <div className="topbar">
                 <div><h1>{maq.nombre}</h1><p>Detalle financiero y operativo</p></div>
                 <div className="tb-r">
-                    <button className="bs" onClick={onVolver}>← Volver</button>
-                    <button className="bs" onClick={abrirCompartir}><Share2 size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Compartir</button>
-                    <button className="bp" onClick={onEditar}><Pencil size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Editar</button>
+                    <button className="bs" onClick={onVolver}><ChevronLeft size={15} style={{verticalAlign:'middle'}} /><span className="tb-label">Volver</span></button>
+                    <button className="bs" onClick={abrirCompartir}><Share2 size={14} style={{verticalAlign:'middle'}} /><span className="tb-label" style={{marginLeft:'5px'}}>Compartir</span></button>
+                    <button className="bp" onClick={onEditar}><Pencil size={14} style={{verticalAlign:'middle'}} /><span className="tb-label" style={{marginLeft:'5px'}}>Editar</span></button>
                 </div>
             </div>
             <div className="content"><div className="pad">
