@@ -101,11 +101,11 @@ function Mapa() {
                                         {m.tipo} • {m.estado}
                                     </div>
                                     {m.operadorNombre && (
-                                        <div style={{ fontSize: '12px', marginTop: '3px' }}>👷 {m.operadorNombre}</div>
+                                        <div style={{ fontSize: '12px', marginTop: '3px', color: '#6b7a8d' }}>Op. {m.operadorNombre}</div>
                                     )}
                                     {m.ubicacionNombre && (
                                         <div style={{ fontSize: '11px', color: '#9aa5b4', marginTop: '4px' }}>
-                                            📍 {m.ubicacionNombre}
+                                            Ubic. {m.ubicacionNombre}
                                         </div>
                                     )}
                                 </div>

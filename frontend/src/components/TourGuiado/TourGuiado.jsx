@@ -1,59 +1,60 @@
 import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, CheckCircle, BarChart2, DollarSign, Users, Wrench, Fuel, ClipboardList, MapPin, Settings } from 'lucide-react';
+import { GiBulldozer } from 'react-icons/gi';
 
 const PASOS = [
     {
         modulo: 'dashboard',
         titulo: 'Dashboard',
-        icono: '📊',
+        Icono: BarChart2,
         desc: 'Vista general de tu flota: máquinas activas, gastos del mes, ingresos y utilidad neta de un vistazo rápido.',
     },
     {
         modulo: 'maquinaria',
         titulo: 'Maquinaria',
-        icono: '🚜',
+        Icono: GiBulldozer,
         desc: 'Registra y gestiona tus máquinas. Agrega gastos, ingresos por obra, combustible, horas trabajadas y adjunta facturas PDF.',
     },
     {
         modulo: 'finanzas',
         titulo: 'Finanzas',
-        icono: '💰',
+        Icono: DollarSign,
         desc: 'Controla todos los gastos e ingresos de tu flota. Filtra por máquina, categoría o rango de fechas.',
     },
     {
         modulo: 'operadores',
         titulo: 'Operadores',
-        icono: '👷',
+        Icono: Users,
         desc: 'Gestiona operadores, registra sus horas trabajadas, salarios y periodos. Los operadores también pueden reportar horas por WhatsApp.',
     },
     {
         modulo: 'mantenimientos',
         titulo: 'Mantenimientos',
-        icono: '🔧',
+        Icono: Wrench,
         desc: 'Programa y registra mantenimientos preventivos y correctivos. El sistema muestra alertas cuando se acerca el próximo servicio.',
     },
     {
         modulo: 'combustible',
         titulo: 'Combustible',
-        icono: '⛽',
+        Icono: Fuel,
         desc: 'Lleva el control de cada carga de combustible por máquina: galones, valor, fecha y acumulado total.',
     },
     {
         modulo: 'reportes',
         titulo: 'Reportes',
-        icono: '📋',
+        Icono: ClipboardList,
         desc: 'Genera reportes en PDF o Excel de gastos, ingresos, horas y rentabilidad por máquina o por periodo de tiempo.',
     },
     {
         modulo: 'mapa',
         titulo: 'Mapa',
-        icono: '📍',
+        Icono: MapPin,
         desc: 'Ve dónde está cada máquina en tiempo real. Actualiza la ubicación con el GPS de tu celular con un solo toque.',
     },
     {
         modulo: 'perfil',
         titulo: 'Perfil y seguridad',
-        icono: '⚙️',
+        Icono: Settings,
         desc: 'Configura tu cuenta, cambia contraseña con política de seguridad, activa el PIN de acceso rápido y personaliza los requisitos.',
     },
 ];
@@ -62,6 +63,7 @@ export default function TourGuiado({ onCerrar, onIrModulo }) {
     const [paso, setPaso] = useState(0);
     const actual = PASOS[paso];
     const esUltimo = paso === PASOS.length - 1;
+    const ModuloIcono = actual.Icono;
 
     const siguiente = () => {
         if (esUltimo) { terminar(); return; }
@@ -100,7 +102,7 @@ export default function TourGuiado({ onCerrar, onIrModulo }) {
                 {/* Header */}
                 <div style={{ background: '#1a2d42', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '18px' }}>🏗️</span>
+                        <GiBulldozer size={18} color="#f5a623" />
                         <span style={{ color: '#fff', fontWeight: '700', fontSize: '14px' }}>
                             Tour de <span style={{ color: '#f5a623' }}>MaquiControl</span>
                         </span>
@@ -123,7 +125,7 @@ export default function TourGuiado({ onCerrar, onIrModulo }) {
 
                 {/* Contenido */}
                 <div style={{ padding: '16px 18px 20px' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>{actual.icono}</div>
+                    <div style={{ marginBottom: '8px' }}><ModuloIcono size={32} color="#1a2d42" /></div>
                     <div style={{ fontWeight: '700', fontSize: '16px', color: '#1a2d42', marginBottom: '6px' }}>
                         {actual.titulo}
                     </div>

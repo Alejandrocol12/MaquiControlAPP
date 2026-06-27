@@ -278,12 +278,16 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                                 <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                     {checks.map((c, i) => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: c.ok ? '#27ae60' : '#9aa5b4' }}>
-                                            <span style={{ fontSize: '14px' }}>{c.ok ? '✅' : '⬜'}</span>
+                                            <span style={{ width:'14px', height:'14px', borderRadius:'50%', flexShrink:0, display:'inline-flex', alignItems:'center', justifyContent:'center', background: c.ok ? '#27ae60' : 'transparent', border: `2px solid ${c.ok ? '#27ae60' : '#c8d6e5'}` }}>
+                                                {c.ok && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                            </span>
                                             {c.label}
                                         </div>
                                     ))}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: (passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : '#9aa5b4' }}>
-                                        <span style={{ fontSize: '14px' }}>{(passForm.confirmar && passForm.nueva === passForm.confirmar) ? '✅' : '⬜'}</span>
+                                        <span style={{ width:'14px', height:'14px', borderRadius:'50%', flexShrink:0, display:'inline-flex', alignItems:'center', justifyContent:'center', background: (passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : 'transparent', border: `2px solid ${(passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : '#c8d6e5'}` }}>
+                                            {(passForm.confirmar && passForm.nueva === passForm.confirmar) && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                                        </span>
                                         Las contraseñas coinciden
                                     </div>
                                 </div>

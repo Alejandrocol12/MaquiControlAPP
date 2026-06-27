@@ -315,7 +315,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                 ) : vista === 'forgot' ? (
                     <>
                         <div style={{ textAlign: 'center', marginBottom: '18px' }}>
-                            <div style={{ fontSize: '32px', marginBottom: '8px' }}>🔑</div>
+                            <div style={{ marginBottom: '8px' }}><KeyRound size={32} color="#1a2d42" /></div>
                             <div style={{ fontWeight: '700', fontSize: '15px', color: '#1a2d42' }}>Recuperar contraseña</div>
                             <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '6px 0 0' }}>
                                 Inicia sesión con tu correo y contraseña. Dentro de la app ve a <strong>Perfil → Cambiar contraseña</strong> para generar un código de verificación.
@@ -381,7 +381,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                                 success={passMatch}
                             />
                             {errores.confirmPassword && <span style={{ fontSize: '11px', color: '#e74c3c', display: 'block', marginBottom: '4px' }}>{errores.confirmPassword}</span>}
-                            {passMatch && <span style={{ fontSize: '11px', color: '#27ae60', display: 'block', marginBottom: '6px' }}>✅ Contraseñas coinciden</span>}
+                            {passMatch && <span style={{ fontSize: '11px', color: '#27ae60', display: 'block', marginBottom: '6px' }}>✔ Contraseñas coinciden</span>}
 
                             <button className="auth-submit" type="submit" disabled={cargando} style={{ marginTop: '10px' }}>
                                 {cargando

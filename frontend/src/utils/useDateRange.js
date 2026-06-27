@@ -27,7 +27,7 @@ export function DateRangePicker({ desde, setDesde, hasta, setHasta }) {
                 onChange={e => setHasta(e.target.value)}
                 title="Hasta" />
             {(desde || hasta) && (
-                <button className="dr-x" onClick={() => { setDesde(''); setHasta(''); }}>✕</button>
+                <button className="dr-x" onClick={() => { setDesde(''); setHasta(''); }}>&times;</button>
             )}
         </div>
     );

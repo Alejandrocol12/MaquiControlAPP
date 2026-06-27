@@ -1046,7 +1046,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         </span>
                                     )}
                                     {Math.abs(sumaPct - 100) <= 0.01 && (
-                                        <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '600' }}>✓ Completo</span>
+                                        <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '700', background: '#e8f5e9', border: '1px solid #27ae60', borderRadius: '12px', padding: '2px 8px' }}>Completo</span>
                                     )}
                                 </div>
                                 <div className="tr hdr">
