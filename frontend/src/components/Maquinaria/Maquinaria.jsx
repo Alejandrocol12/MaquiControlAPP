@@ -378,9 +378,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const { sorted: ingOrdenados,  Th: ThIng  } = useSortable(ingFiltrados,  'fecha', 'desc');
     const { sorted: gasOrdenados,  Th: ThGas  } = useSortable(gasFiltrados,  'fecha', 'desc');
     const { sorted: combOrdenados, Th: ThComb } = useSortable(combFiltrados, 'fecha', 'desc');
-    const pagIngs = usePaginacion(ingOrdenados, 10);
-    const pagGas  = usePaginacion(gasOrdenados, 10);
-    const pagComb = usePaginacion(combOrdenados, 10);
+    const pagIngs = usePaginacion(ingOrdenados, 20);
+    const pagGas  = usePaginacion(gasOrdenados, 20);
+    const pagComb = usePaginacion(combOrdenados, 20);
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
     const totalTrabajo = parseFloat(cantidad || 0) * parseFloat(valorUnitario || 0);
@@ -660,7 +660,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {ingOrdenados.length === 0 && <p className="vacio">Sin registros en este periodo</p>}
-                            <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={10} />
+                            <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={20} />
                         </div>
                     </>
                 )}
@@ -688,7 +688,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                         ))}
                         {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
-                        <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={10} />
+                        <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={20} />
                     </div>
                 )}
 
@@ -827,7 +827,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
-                            <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasOrdenados.length} porPagina={10} />
+                            <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasOrdenados.length} porPagina={20} />
                         </div>
                     </>
                 )}
@@ -877,7 +877,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {combOrdenados.length === 0 && <p className="vacio">Sin cargas en este periodo</p>}
-                            <Paginacion pagina={pagComb.pagina} total={pagComb.total} ir={pagComb.ir} totalItems={combOrdenados.length} porPagina={10} />
+                            <Paginacion pagina={pagComb.pagina} total={pagComb.total} ir={pagComb.ir} totalItems={combOrdenados.length} porPagina={20} />
                         </div>
                     </>
                 )}

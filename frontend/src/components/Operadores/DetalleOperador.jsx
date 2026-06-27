@@ -199,7 +199,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
-    const pagHoras = usePaginacion(horasOrdenadas, 10);
+    const pagHoras = usePaginacion(horasOrdenadas, 20);
 
     const calcularHoras = (entrada, salida) => {
         if (!entrada || !salida) return 0;
@@ -548,7 +548,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     </span>
                                 </div>
                             ))}
-                            <Paginacion pagina={pagHoras.pagina} total={pagHoras.total} ir={pagHoras.ir} totalItems={horasOrdenadas.length} porPagina={10} />
+                            <Paginacion pagina={pagHoras.pagina} total={pagHoras.total} ir={pagHoras.ir} totalItems={horasOrdenadas.length} porPagina={20} />
                         </div>
                     )}
 

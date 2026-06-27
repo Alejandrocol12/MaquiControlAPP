@@ -174,10 +174,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const { sorted: salSorted, Th: ThSal } = useSortable(salFiltrados, 'fecha');
     const { sorted: pagSorted, Th: ThPag } = useSortable(pagFiltrados, 'fecha');
 
-    const pagIng  = usePaginacion(ingSorted, 10);
-    const pagGas  = usePaginacion(gasSorted, 10);
-    const pagSal  = usePaginacion(salSorted, 10);
-    const pagPag  = usePaginacion(pagSorted, 10);
+    const pagIng  = usePaginacion(ingSorted, 20);
+    const pagGas  = usePaginacion(gasSorted, 20);
+    const pagSal  = usePaginacion(salSorted, 20);
+    const pagPag  = usePaginacion(pagSorted, 20);
 
     const TABS = [
         { key: 'ingresos', label: <><TrendingUp size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Ingresos</> },
@@ -447,7 +447,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </span>
                             </div>
                         ))}
-                        <Paginacion pagina={pagIng.pagina} total={pagIng.total} ir={pagIng.ir} totalItems={ingFiltrados.length} porPagina={10} />
+                        <Paginacion pagina={pagIng.pagina} total={pagIng.total} ir={pagIng.ir} totalItems={ingFiltrados.length} porPagina={20} />
                     </div>
                 )}
 
@@ -517,7 +517,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
                             );
                         })}
-                        <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasFiltrados.length} porPagina={10} />
+                        <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasFiltrados.length} porPagina={20} />
                     </div>
                 )}
 
@@ -551,7 +551,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </span>
                             </div>
                         ))}
-                        <Paginacion pagina={pagSal.pagina} total={pagSal.total} ir={pagSal.ir} totalItems={salFiltrados.length} porPagina={10} />
+                        <Paginacion pagina={pagSal.pagina} total={pagSal.total} ir={pagSal.ir} totalItems={salFiltrados.length} porPagina={20} />
                     </div>
                 )}
 
@@ -599,7 +599,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </div>
                                 );
                             })}
-                            <Paginacion pagina={pagPag.pagina} total={pagPag.total} ir={pagPag.ir} totalItems={pagFiltrados.length} porPagina={10} />
+                            <Paginacion pagina={pagPag.pagina} total={pagPag.total} ir={pagPag.ir} totalItems={pagFiltrados.length} porPagina={20} />
                         </div>
                     </>
                 )}
