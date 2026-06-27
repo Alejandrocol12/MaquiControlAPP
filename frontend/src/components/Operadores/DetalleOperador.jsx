@@ -68,6 +68,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [maquinas, setMaquinas] = useState([]);
     const [periodos, setPeriodos] = useState([]);
     const [tgCode, setTgCode] = useState(null);
+    const [tgDeepLink, setTgDeepLink] = useState(null);
     const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
     const [tgCargando, setTgCargando] = useState(false);
 
@@ -318,6 +319,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         try {
             const { data } = await getTelegramCodeAPI(operador.id);
             setTgCode(data.code);
+            setTgDeepLink(data.deepLink);
             setTgVinculado(data.vinculado);
         } catch { toast('No se pudo generar el código', 'e'); }
         finally { setTgCargando(false); }
@@ -329,6 +331,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             await unlinkTelegramAPI(operador.id);
             setTgVinculado(false);
             setTgCode(null);
+            setTgDeepLink(null);
             toast('Telegram desvinculado');
         } catch { toast('Error al desvincular', 'e'); }
     };
@@ -709,11 +712,40 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <p style={{ fontSize: '12px', color: '#6b7a8d', marginBottom: '12px', lineHeight: '1.5' }}>
                                     El operador podrá registrar horas y gastos, y adjuntar facturas directamente desde Telegram — de forma gratuita.
                                 </p>
-                                {tgCode && (
-                                    <div style={{ background: '#1a2d42', borderRadius: '8px', padding: '10px 14px', marginBottom: '10px' }}>
-                                        <p style={{ fontSize: '11px', color: '#9aa5b4', margin: '0 0 4px' }}>El operador debe escribir en el bot de Telegram:</p>
-                                        <code style={{ color: '#f5a623', fontSize: '16px', fontWeight: '700', letterSpacing: '2px' }}>/start {tgCode}</code>
-                                        <p style={{ fontSize: '10px', color: '#6b7a8d', margin: '6px 0 0' }}>El código expira cuando el operador lo usa.</p>
+                                {tgDeepLink && (
+                                    <div style={{ background: '#1a2d42', borderRadius: '8px', padding: '12px 14px', marginBottom: '10px' }}>
+                                        <p style={{ fontSize: '11px', color: '#9aa5b4', margin: '0 0 10px' }}>
+                                            Comparte este enlace con el operador. Al tocarlo desde su celular, se vincula automáticamente sin escribir nada.
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                            <a
+                                                href={tgDeepLink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{ flex: 1, background: '#2980b9', color: '#fff', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}
+                                            >
+                                                ✈ Abrir en Telegram
+                                            </a>
+                                            <button
+                                                onClick={() => { navigator.clipboard.writeText(tgDeepLink); toast('Enlace copiado'); }}
+                                                style={{ background: '#34495e', color: '#fff', border: 'none', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', cursor: 'pointer' }}
+                                            >
+                                                Copiar
+                                            </button>
+                                        </div>
+                                        {operadorLocal.telefono && (
+                                            <a
+                                                href={`https://wa.me/57${operadorLocal.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${operadorLocal.nombre}, toca este enlace para vincular tu Telegram con MaquiControl y registrar tus horas desde el celular:\n${tgDeepLink}`)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{ display: 'block', background: '#27ae60', color: '#fff', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}
+                                            >
+                                                Enviar por WhatsApp
+                                            </a>
+                                        )}
+                                        <p style={{ fontSize: '10px', color: '#6b7a8d', margin: '8px 0 0' }}>
+                                            Expira al usarse · Código: <code style={{ color: '#f5a623' }}>{tgCode}</code>
+                                        </p>
                                     </div>
                                 )}
                                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
