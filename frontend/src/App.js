@@ -38,6 +38,7 @@ import {
     Map,
     Eye,
     EyeOff,
+    Download,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import './App.css';
@@ -415,6 +416,8 @@ function App() {
     const [tourActivo, setTourActivo] = useState(false);
     const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mc_dark') === '1');
     const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
+    const [installPrompt, setInstallPrompt] = useState(null);
+    const [appInstalada, setAppInstalada] = useState(false);
 
     const ir = (mod) => { setModulo(mod); setSbMob(false); };
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
@@ -440,6 +443,24 @@ function App() {
         window.addEventListener('online', goOn);
         return () => { window.removeEventListener('offline', goOff); window.removeEventListener('online', goOn); };
     }, []);
+
+    useEffect(() => {
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            setAppInstalada(true);
+            return;
+        }
+        const handler = (e) => { e.preventDefault(); setInstallPrompt(e); };
+        window.addEventListener('beforeinstallprompt', handler);
+        window.addEventListener('appinstalled', () => { setInstallPrompt(null); setAppInstalada(true); });
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const instalarApp = async () => {
+        if (!installPrompt) return;
+        installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') setInstallPrompt(null);
+    };
 
     const navFin = (tab) => { setModulo('finanzas'); setFinOpen(true); setFinTab(tab); };
     const irNuevaMaquina = () => { setMaqVista('nueva'); setModulo('maquinaria'); };
@@ -619,6 +640,12 @@ function App() {
                             <span className="ico">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</span>
                             <span className="sb-label">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
                         </button>
+                        {installPrompt && !appInstalada && (
+                            <button className="dark-btn" onClick={instalarApp} title="Instalar MaquiControl como app de escritorio" style={{ color: '#f5a623', borderColor: '#f5a623' }}>
+                                <span className="ico"><Download size={17} /></span>
+                                <span className="sb-label">Instalar app</span>
+                            </button>
+                        )}
                         <button className="btn-exit" onClick={logout}>
                             <span><LogOut size={16} /></span><span className="sb-label">Cerrar sesión</span>
                         </button>
