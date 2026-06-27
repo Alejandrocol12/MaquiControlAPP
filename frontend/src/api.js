@@ -92,6 +92,9 @@ export const updateOperadorAPI  = (id, data) => API.put(`/operadores/${id}`, dat
 export const deleteOperadorAPI  = (id)       => API.delete(`/operadores/${id}`);
 
 // Períodos de operadores
+export const getTelegramCodeAPI   = (id)         => API.get(`/operadores/${id}/telegram-code`);
+export const unlinkTelegramAPI    = (id)         => API.delete(`/operadores/${id}/telegram-link`);
+
 export const getPeriodosAPI       = (opId)       => API.get(`/operadores/${opId}/periodos`);
 export const getPeriodoActivoAPI  = (opId)       => API.get(`/operadores/${opId}/periodos/activo`);
 export const createPeriodoAPI     = (opId, data) => API.post(`/operadores/${opId}/periodos`, data);

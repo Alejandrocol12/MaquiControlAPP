@@ -11,6 +11,8 @@ import {
     updatePeriodoAPI,
     deletePeriodoAPI,
     updateOperadorAPI,
+    getTelegramCodeAPI,
+    unlinkTelegramAPI,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -65,6 +67,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [horas, setHoras] = useState([]);
     const [maquinas, setMaquinas] = useState([]);
     const [periodos, setPeriodos] = useState([]);
+    const [tgCode, setTgCode] = useState(null);
+    const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
+    const [tgCargando, setTgCargando] = useState(false);
 
     const [horaForm, setHoraForm] = useState({
         maquinaNombre: '',
@@ -308,6 +313,26 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             }).catch(console.error);
     };
 
+    const generarCodigoTelegram = async () => {
+        setTgCargando(true);
+        try {
+            const { data } = await getTelegramCodeAPI(operador.id);
+            setTgCode(data.code);
+            setTgVinculado(data.vinculado);
+        } catch { toast('No se pudo generar el código', 'e'); }
+        finally { setTgCargando(false); }
+    };
+
+    const desvincularTelegram = async () => {
+        if (!await confirm('¿Desvincular Telegram de este operador?')) return;
+        try {
+            await unlinkTelegramAPI(operador.id);
+            setTgVinculado(false);
+            setTgCode(null);
+            toast('Telegram desvinculado');
+        } catch { toast('Error al desvincular', 'e'); }
+    };
+
     const TABS = [
         <><ClipboardList size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Resumen</>,
         <><Clock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Registrar Horas</>,
@@ -333,7 +358,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         <div className="dhi"><HardHat size={28} /></div>
                         <div>
                             <h2>{operadorLocal.nombre}</h2>
-                            <p>Cedula: {operadorLocal.cedula || '-'} · Tel: {operadorLocal.telefono || '-'} · {operadorLocal.email || '-'}</p>
+                            <p>Cedula: {operadorLocal.cedula || '-'} · Tel: {operadorLocal.telefono || '-'} · {operadorLocal.email || '-'}
+                                {tgVinculado && <span style={{ marginLeft: '8px', fontSize: '11px', background: '#e8f4fd', color: '#2980b9', border: '1px solid #aed6f1', borderRadius: '10px', padding: '1px 7px', fontWeight: '600' }}>✈ Telegram</span>}
+                            </p>
                             {operador.observaciones && (
                                 <p style={{ fontSize: '11px', color: '#6b7a8d', marginTop: '2px' }}>{operador.observaciones}</p>
                             )}
@@ -671,6 +698,35 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             <button className="bp" onClick={guardarEdicion}>
                                 <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Guardar cambios
                             </button>
+
+                            {/* ── Telegram ── */}
+                            <div style={{ marginTop: '24px', padding: '16px', background: '#f0f8ff', border: '1px solid #aed6f1', borderRadius: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '16px' }}>✈</span>
+                                    <strong style={{ fontSize: '13px', color: '#1a2d42' }}>Vincular Telegram</strong>
+                                    {tgVinculado && <span style={{ fontSize: '11px', background: '#27ae60', color: '#fff', borderRadius: '10px', padding: '1px 8px' }}>Vinculado</span>}
+                                </div>
+                                <p style={{ fontSize: '12px', color: '#6b7a8d', marginBottom: '12px', lineHeight: '1.5' }}>
+                                    El operador podrá registrar horas y gastos, y adjuntar facturas directamente desde Telegram — de forma gratuita.
+                                </p>
+                                {tgCode && (
+                                    <div style={{ background: '#1a2d42', borderRadius: '8px', padding: '10px 14px', marginBottom: '10px' }}>
+                                        <p style={{ fontSize: '11px', color: '#9aa5b4', margin: '0 0 4px' }}>El operador debe escribir en el bot de Telegram:</p>
+                                        <code style={{ color: '#f5a623', fontSize: '16px', fontWeight: '700', letterSpacing: '2px' }}>/start {tgCode}</code>
+                                        <p style={{ fontSize: '10px', color: '#6b7a8d', margin: '6px 0 0' }}>El código expira cuando el operador lo usa.</p>
+                                    </div>
+                                )}
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    <button className="bp" onClick={generarCodigoTelegram} disabled={tgCargando} style={{ fontSize: '12px' }}>
+                                        {tgCargando ? 'Generando…' : tgCode ? '↻ Nuevo código' : '✈ Generar código'}
+                                    </button>
+                                    {tgVinculado && (
+                                        <button className="bs" onClick={desvincularTelegram} style={{ fontSize: '12px', color: '#e74c3c', borderColor: '#e74c3c' }}>
+                                            Desvincular
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div></div>
