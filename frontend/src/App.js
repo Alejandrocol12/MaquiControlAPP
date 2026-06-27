@@ -16,7 +16,6 @@ import { apiLogin, apiRegister, loginPin } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
     BarChart2,
-    Tractor,
     DollarSign,
     HardHat,
     Wrench,
@@ -235,7 +234,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                 </div>
                 <div className="auth-features">
                     {[
-                        [Tractor,    'Máquinas',   'GPS, horómetro y estado en tiempo real'],
+                        [GiBulldozer, 'Máquinas',   'GPS, horómetro y estado en tiempo real'],
                         [DollarSign, 'Finanzas',   'Ingresos, gastos y combustible por máquina'],
                         [HardHat,    'Operadores', 'Portal y reporte de horas por WhatsApp'],
                         [FileText,   'Periodos',   'Liquidaciones y reportes por obra'],
@@ -578,7 +577,7 @@ function App() {
 
                             <div className="ns">Gestión</div>
                             <div className={`ni ${modulo === 'maquinaria' ? 'active' : ''}`} onClick={() => { irMaquinaria(); setSbMob(false); }}>
-                                <span className="ico"><Tractor size={18} /></span><span className="sb-label">Maquinaria</span>
+                                <span className="ico"><GiBulldozer size={18} /></span><span className="sb-label">Maquinaria</span>
                             </div>
 
                             <div
