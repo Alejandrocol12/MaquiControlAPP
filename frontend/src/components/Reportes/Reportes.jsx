@@ -6,7 +6,8 @@ import {
     getMaquinas, getIngresos, getGastos, getSalarios,
     getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
 } from '../../api';
-import { BarChart2, Tractor, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase } from 'lucide-react';
+import { BarChart2, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase, TrendingDown, TrendingUp } from 'lucide-react';
+import { GiBulldozer } from 'react-icons/gi';
 
 // ── helpers ────────────────────────────────────────────────────
 const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
@@ -865,7 +866,7 @@ function Reportes() {
             accion: () => pdfMensual(mesSel, ingresos, gastos, salarios),
         },
         {
-            id: 'maquina', ico: <Tractor size={22} />, color: 'b',
+            id: 'maquina', ico: <GiBulldozer size={22} />, color: 'b',
             titulo: 'Reporte por Máquina',
             desc: 'Ingresos, gastos, combustible y horas de una máquina específica',
             control: (
@@ -880,7 +881,7 @@ function Reportes() {
             },
         },
         {
-            id: 'gastos-periodos', ico: <BarChart2 size={22} />, color: 'b',
+            id: 'gastos-periodos', ico: <TrendingDown size={22} />, color: 'b',
             titulo: 'Gastos por Periodos',
             desc: 'Gastos de una máquina desglosados por periodo — elige uno específico o todos',
             control: (
@@ -906,7 +907,7 @@ function Reportes() {
             accion: () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
         },
         {
-            id: 'ingresos-periodos', ico: <Tractor size={22} />, color: 'r',
+            id: 'ingresos-periodos', ico: <TrendingUp size={22} />, color: 'r',
             titulo: 'Ingresos por Periodos',
             desc: 'Ingresos de una máquina desglosados por periodo — elige uno específico o todos',
             control: (
