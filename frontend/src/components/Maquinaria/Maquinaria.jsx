@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     getMaquinas, createMaquina, updateMaquina, deleteMaquina,
     getIngresos, getGastos, createIngreso, createGasto, updateGasto,
@@ -377,6 +378,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const { sorted: ingOrdenados,  Th: ThIng  } = useSortable(ingFiltrados,  'fecha', 'desc');
     const { sorted: gasOrdenados,  Th: ThGas  } = useSortable(gasFiltrados,  'fecha', 'desc');
     const { sorted: combOrdenados, Th: ThComb } = useSortable(combFiltrados, 'fecha', 'desc');
+    const pagIngs = usePaginacion(ingOrdenados, 10);
+    const pagGas  = usePaginacion(gasOrdenados, 10);
+    const pagComb = usePaginacion(combOrdenados, 10);
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
     const totalTrabajo = parseFloat(cantidad || 0) * parseFloat(valorUnitario || 0);
@@ -646,7 +650,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThIng campo="total">Total</ThIng>
                                 <span>Acc.</span>
                             </div>
-                            {ingOrdenados.map(i => (
+                            {pagIngs.paginados.map(i => (
                                 <div className="tr" key={i.id}>
                                     <span>{i.fecha}</span>
                                     <span><span className="b hrs">{i.tipoTrabajo}</span></span>
@@ -656,6 +660,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {ingOrdenados.length === 0 && <p className="vacio">Sin registros en este periodo</p>}
+                            <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={10} />
                         </div>
                     </>
                 )}
@@ -674,7 +679,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <ThIng campo="total">Total</ThIng>
                             <span>Acc.</span>
                         </div>
-                        {ingOrdenados.map(i => (
+                        {pagIngs.paginados.map(i => (
                             <div className="tr" key={i.id}>
                                 <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
                                 <span><span className="b hrs">{i.tipoTrabajo}</span></span>
@@ -683,6 +688,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                         ))}
                         {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
+                        <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={10} />
                     </div>
                 )}
 
@@ -787,7 +793,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThGas campo="monto">Total</ThGas>
                                 <span>Acc.</span>
                             </div>
-                            {gasOrdenados.map(g => (
+                            {pagGas.paginados.map(g => (
                                 <div className="tr" key={g.id}>
                                     <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
                                     <span>{g.categoria}</span>
@@ -821,6 +827,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
+                            <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasOrdenados.length} porPagina={10} />
                         </div>
                     </>
                 )}
@@ -860,7 +867,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThComb campo="total">Total</ThComb>
                                 <span>Acc.</span>
                             </div>
-                            {combOrdenados.map(c => (
+                            {pagComb.paginados.map(c => (
                                 <div className="tr" key={c.id}>
                                     <span>{c.fecha}</span><span>{c.galones} gal</span>
                                     <span>{fmt(c.precioPorGalon)}</span>
@@ -870,6 +877,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </div>
                             ))}
                             {combOrdenados.length === 0 && <p className="vacio">Sin cargas en este periodo</p>}
+                            <Paginacion pagina={pagComb.pagina} total={pagComb.total} ir={pagComb.ir} totalItems={combOrdenados.length} porPagina={10} />
                         </div>
                     </>
                 )}

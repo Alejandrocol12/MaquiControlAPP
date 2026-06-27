@@ -14,6 +14,7 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
+import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     ClipboardList,
     Clock,
@@ -198,6 +199,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
+    const pagHoras = usePaginacion(horasOrdenadas, 10);
 
     const calcularHoras = (entrada, salida) => {
         if (!entrada || !salida) return 0;
@@ -528,7 +530,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <span>Acc.</span>
                             </div>
                             {horasOrdenadas.length === 0 && <p className="vacio">Sin horas registradas</p>}
-                            {horasOrdenadas.map((h) => (
+                            {pagHoras.paginados.map((h) => (
                                 <div className="tr" key={h.id}>
                                     <span>{fmtFecha(h.fecha)}</span>
                                     <span className="w2">{h.maquinaNombre}</span>
@@ -546,6 +548,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     </span>
                                 </div>
                             ))}
+                            <Paginacion pagina={pagHoras.pagina} total={pagHoras.total} ir={pagHoras.ir} totalItems={horasOrdenadas.length} porPagina={10} />
                         </div>
                     )}
 
