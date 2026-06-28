@@ -190,6 +190,8 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
     const [registerForm, setRegisterForm] = useState({ nombre: '', empresa: '', email: '', password: '', confirmPassword: '' });
     const [activeLabel, setActiveLabel] = useState(null);
     const [animKey, setAnimKey] = useState(0);
+    const MACHINES = ['/img/m1.png', '/img/m2.png'];
+    const [maqIdx, setMaqIdx] = useState(0);
     const [modoPIN, setModoPIN] = useState(false);
     const [cargando, setCargando] = useState(false);
     const [passVis, setPassVis] = useState({ login: false, reg: false, reg2: false });
@@ -237,7 +239,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                     {[
                         [GiBulldozer, 'Máquinas',   'GPS, horómetro y estado en tiempo real'],
                         [DollarSign, 'Finanzas',   'Ingresos, gastos y combustible por máquina'],
-                        [HardHat,    'Operadores', 'Portal y reporte de horas por WhatsApp'],
+                        [HardHat,    'Operadores', 'Reporte de horas por Telegram'],
                         [FileText,   'Periodos',   'Liquidaciones y reportes por obra'],
                         [BarChart2,  'Dashboard',  'Resumen financiero en tiempo real'],
                     ].map(([Icon, title, desc]) => (
@@ -247,11 +249,20 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                         </div>
                     ))}
                 </div>
-                <div className="auth-anim">
+                <div className="auth-machines">
+                    {MACHINES.map((src, i) => (
+                        <img
+                            key={src}
+                            src={src}
+                            alt="Maquinaria pesada"
+                            className={`auth-maq-img${i === maqIdx ? ' visible' : ''}`}
+                        />
+                    ))}
+                    <div className="auth-maq-fade" />
                     {activeLabel && !modoPIN && (
-                        <div className="auth-dozer-row" key={animKey}>
-                            <GiBulldozer size={34} color="#f5a623" />
-                            <span className="auth-dozer-label">{activeLabel}</span>
+                        <div className="auth-maq-label" key={animKey}>
+                            <GiBulldozer size={14} color="#f5a623" />
+                            <span>{activeLabel}</span>
                         </div>
                     )}
                 </div>
@@ -461,6 +472,11 @@ function App() {
         const { outcome } = await installPrompt.userChoice;
         if (outcome === 'accepted') setInstallPrompt(null);
     };
+
+    useEffect(() => {
+        const t = setInterval(() => setMaqIdx(i => (i + 1) % MACHINES.length), 5000);
+        return () => clearInterval(t);
+    }, [MACHINES.length]);
 
     const navFin = (tab) => { setModulo('finanzas'); setFinOpen(true); setFinTab(tab); };
     const irNuevaMaquina = () => { setMaqVista('nueva'); setModulo('maquinaria'); };
