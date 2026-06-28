@@ -118,6 +118,8 @@ export const getMisMaquinasAPI    = ()          => API.get('/maquinaria/mis-maqu
 // Perfil del usuario autenticado
 export const updateMe             = (data) => API.put('/auth/me', data);
 export const enviarCodigoPassword  = ()     => API.post('/auth/enviar-codigo');
+export const recuperarPassword     = (data) => API.post('/auth/recuperar-password', data);
+export const resetPassword         = (data) => API.post('/auth/reset-password', data);
 export const changePassword        = (data) => API.put('/auth/password', data);
 export const solicitarCambioEmail  = (data) => API.post('/auth/solicitar-cambio-email', data);
 export const verificarEmailViejo   = (data) => API.post('/auth/verificar-email-viejo', data);

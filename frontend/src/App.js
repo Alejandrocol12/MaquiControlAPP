@@ -12,7 +12,7 @@ import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
 import TourGuiado from './components/TourGuiado/TourGuiado';
-import { apiLogin, apiRegister, loginPin } from './api';
+import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
     BarChart2,
@@ -192,8 +192,12 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
     const [animKey, setAnimKey] = useState(0);
     const [modoPIN, setModoPIN] = useState(false);
     const [cargando, setCargando] = useState(false);
-    const [passVis, setPassVis] = useState({ login: false, reg: false, reg2: false });
+    const [passVis, setPassVis] = useState({ login: false, reg: false, reg2: false, rec: false });
     const [errores, setErrores] = useState({});
+    const [recForm, setRecForm] = useState({ email: '', codigo: '', nueva: '', confirmar: '' });
+    const [recPaso, setRecPaso] = useState(0); // 0=email, 1=código+contraseña
+    const [recCargando, setRecCargando] = useState(false);
+    const [recCountdown, setRecCountdown] = useState(0);
 
     const pinEmail = localStorage.getItem('mc_pin_email') || '';
     const hasPIN   = !!pinEmail;
@@ -224,7 +228,31 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
         setCargando(false);
     };
 
-    const cambiarVista = (v) => { setVista(v); setErrores({}); setCargando(false); };
+    const cambiarVista = (v) => { setVista(v); setErrores({}); setCargando(false); setRecPaso(0); setRecForm({ email: '', codigo: '', nueva: '', confirmar: '' }); };
+
+    const enviarCodigoRecuperacion = async () => {
+        if (!recForm.email.trim()) return;
+        setRecCargando(true);
+        try {
+            await recuperarPassword({ email: recForm.email.trim() });
+            setRecPaso(1);
+            setRecCountdown(60);
+            const t = setInterval(() => setRecCountdown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
+        } finally { setRecCargando(false); }
+    };
+
+    const hacerResetPassword = async () => {
+        if (!recForm.codigo.trim()) return;
+        if (recForm.nueva.length < 6) return;
+        if (recForm.nueva !== recForm.confirmar) return;
+        setRecCargando(true);
+        try {
+            await resetPassword({ email: recForm.email.trim(), codigo: recForm.codigo.trim(), nueva: recForm.nueva });
+            cambiarVista('login');
+        } catch (err) {
+            setRecForm(f => ({ ...f, codigo: '' }));
+        } finally { setRecCargando(false); }
+    };
 
     return (
         <div className="auth-shell">
@@ -314,15 +342,75 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
                 ) : vista === 'forgot' ? (
                     <>
-                        <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+                        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                             <div style={{ marginBottom: '8px' }}><KeyRound size={32} color="#1a2d42" /></div>
                             <div style={{ fontWeight: '700', fontSize: '15px', color: '#1a2d42' }}>Recuperar contraseña</div>
                             <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '6px 0 0' }}>
-                                Inicia sesión con tu correo y contraseña. Dentro de la app ve a <strong>Perfil → Cambiar contraseña</strong> para generar un código de verificación.
+                                {recPaso === 0
+                                    ? 'Te enviaremos un código de verificación a tu correo.'
+                                    : <>Código enviado a <strong>{recForm.email}</strong>. Revisa tu bandeja.</>}
                             </p>
                         </div>
-                        <button className="auth-submit" onClick={() => cambiarVista('login')}>
-                            Volver al inicio de sesión
+
+                        {recPaso === 0 ? (
+                            <>
+                                <label className="fl">Correo electrónico</label>
+                                <input className="fi" type="email" value={recForm.email}
+                                    onChange={e => setRecForm(f => ({ ...f, email: e.target.value }))}
+                                    placeholder="tu@correo.com" />
+                                <button className="auth-submit" style={{ marginTop: '10px' }}
+                                    onClick={enviarCodigoRecuperacion}
+                                    disabled={recCargando || !recForm.email.trim()}>
+                                    {recCargando ? 'Enviando...' : 'Enviar código'}
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <label className="fl">Código de verificación</label>
+                                <input className="fi" value={recForm.codigo}
+                                    onChange={e => setRecForm(f => ({ ...f, codigo: e.target.value }))}
+                                    placeholder="000000" maxLength={6} inputMode="numeric"
+                                    style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center', marginBottom: '10px' }} />
+
+                                <label className="fl">Nueva contraseña</label>
+                                <div style={{ position: 'relative', marginBottom: '10px' }}>
+                                    <input className="fi" type={passVis.rec ? 'text' : 'password'}
+                                        value={recForm.nueva} style={{ paddingRight: '40px', marginBottom: 0 }}
+                                        onChange={e => setRecForm(f => ({ ...f, nueva: e.target.value }))}
+                                        placeholder="Mínimo 6 caracteres" />
+                                    <button type="button" onClick={() => setPassVis(p => ({ ...p, rec: !p.rec }))}
+                                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9aa5b4', display: 'flex', padding: 0 }}>
+                                        {passVis.rec ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+
+                                <label className="fl">Confirmar contraseña</label>
+                                <input className="fi" type="password"
+                                    value={recForm.confirmar} style={{ marginBottom: '10px' }}
+                                    onChange={e => setRecForm(f => ({ ...f, confirmar: e.target.value }))}
+                                    placeholder="Repite la contraseña" />
+
+                                {recForm.nueva && recForm.confirmar && recForm.nueva !== recForm.confirmar && (
+                                    <p style={{ fontSize: '12px', color: '#e74c3c', margin: '0 0 8px' }}>Las contraseñas no coinciden</p>
+                                )}
+
+                                <button className="auth-submit"
+                                    onClick={hacerResetPassword}
+                                    disabled={recCargando || !recForm.codigo.trim() || recForm.nueva.length < 6 || recForm.nueva !== recForm.confirmar}>
+                                    {recCargando ? 'Cambiando...' : 'Cambiar contraseña'}
+                                </button>
+
+                                <button type="button" onClick={enviarCodigoRecuperacion}
+                                    disabled={recCargando || recCountdown > 0}
+                                    style={{ background: 'none', border: 'none', color: '#9aa5b4', fontSize: '12px', cursor: 'pointer', marginTop: '8px', width: '100%' }}>
+                                    {recCountdown > 0 ? `Reenviar código en ${recCountdown}s` : 'Reenviar código'}
+                                </button>
+                            </>
+                        )}
+
+                        <button type="button" onClick={() => cambiarVista('login')}
+                            style={{ background: 'none', border: 'none', color: '#6b7a8d', fontSize: '13px', cursor: 'pointer', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <ChevronLeft size={14} /> Volver al inicio de sesión
                         </button>
                     </>
 
