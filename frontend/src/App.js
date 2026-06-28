@@ -228,6 +228,11 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
     const cambiarVista = (v) => { setVista(v); setErrores({}); setCargando(false); };
 
+    useEffect(() => {
+        const t = setInterval(() => setMaqIdx(i => (i + 1) % MACHINES.length), 5000);
+        return () => clearInterval(t);
+    }, [MACHINES.length]);
+
     return (
         <div className="auth-shell">
             <div className="auth-left">
@@ -472,11 +477,6 @@ function App() {
         const { outcome } = await installPrompt.userChoice;
         if (outcome === 'accepted') setInstallPrompt(null);
     };
-
-    useEffect(() => {
-        const t = setInterval(() => setMaqIdx(i => (i + 1) % MACHINES.length), 5000);
-        return () => clearInterval(t);
-    }, [MACHINES.length]);
 
     const navFin = (tab) => { setModulo('finanzas'); setFinOpen(true); setFinTab(tab); };
     const irNuevaMaquina = () => { setMaqVista('nueva'); setModulo('maquinaria'); };
