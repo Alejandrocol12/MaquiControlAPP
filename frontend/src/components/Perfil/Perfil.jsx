@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useToast } from '../../utils/toast';
-import { updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin } from '../../api';
+import { updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin, solicitarCambioEmail, confirmarCambioEmail } from '../../api';
 import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff, Shield, PlayCircle } from 'lucide-react';
 
 const AUTH_USER_KEY  = 'mc_auth_user';
@@ -55,6 +55,12 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
     const [cambiando, setCambiando] = useState(false);
 
     const [policy, setPolicy] = useState(loadPolicy);
+
+    const [emailForm, setEmailForm] = useState({ nuevo: '', codigo: '' });
+    const [codigoEnviadoEmail, setCodigoEnviadoEmail] = useState(false);
+    const [enviandoEmail, setEnviandoEmail] = useState(false);
+    const [cambiandoEmail, setCambiandoEmail] = useState(false);
+    const [countdownEmail, setCountdownEmail] = useState(0);
 
     const actualizarPolicy = (campo, valor) => {
         const nueva = { ...policy, [campo]: valor };
@@ -134,6 +140,39 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
         } finally { setGuardandoPin(false); }
     };
 
+    const pedirCodigoEmail = async () => {
+        const email = emailForm.nuevo.trim().toLowerCase();
+        if (!email.includes('@')) return toast('Ingresa un correo válido', 'e');
+        setEnviandoEmail(true);
+        try {
+            await solicitarCambioEmail({ nuevoEmail: email });
+            setCodigoEnviadoEmail(true);
+            toast('Código enviado al nuevo correo — revísalo', 's');
+            setCountdownEmail(60);
+            const t = setInterval(() => {
+                setCountdownEmail(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; });
+            }, 1000);
+        } catch (err) {
+            toast(err.response?.data?.error || 'No se pudo enviar el código', 'e');
+        } finally { setEnviandoEmail(false); }
+    };
+
+    const cambiarEmail = async () => {
+        if (!emailForm.codigo.trim()) return toast('Ingresa el código de verificación', 'e');
+        setCambiandoEmail(true);
+        try {
+            const { data } = await confirmarCambioEmail({ nuevoEmail: emailForm.nuevo.trim(), codigo: emailForm.codigo.trim() });
+            onUpdate(data);
+            const session = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || '{}');
+            if (session.user) { session.user = { ...session.user, ...data }; localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session)); }
+            setEmailForm({ nuevo: '', codigo: '' });
+            setCodigoEnviadoEmail(false);
+            toast('Correo actualizado correctamente', 's');
+        } catch (err) {
+            toast(err.response?.data?.error || 'Código incorrecto o expirado', 'e');
+        } finally { setCambiandoEmail(false); }
+    };
+
     const checks   = validarContra(passForm.nueva, policy);
     const todoOk   = checks.every(c => c.ok) && passForm.nueva === passForm.confirmar;
     const inicial  = (user.nombre || 'U').charAt(0).toUpperCase();
@@ -180,12 +219,70 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                         <label className="fl">Correo electrónico</label>
                         <input className="fi" value={user.email} readOnly
                             style={{ background: '#f0f4f8', color: '#9aa5b4', cursor: 'not-allowed' }} />
-                        <span style={{ fontSize: '11px', color: '#9aa5b4' }}>El correo no se puede cambiar</span>
                     </div>
                     <button className="bp" onClick={guardarPerfil} disabled={guardando}>
                         <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
                         {guardando ? 'Guardando...' : 'Guardar cambios'}
                     </button>
+                </div>
+
+                {/* Cambiar correo */}
+                <div className="fc">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Mail size={18} /> Cambiar correo</h3>
+
+                    {!codigoEnviadoEmail ? (
+                        <div>
+                            <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginBottom: '14px' }}>
+                                <Mail size={18} color="#2980b9" />
+                                <div>
+                                    <p>Correo actual: <strong>{user.email}</strong></p>
+                                    <span className="ale-desc">Se enviará un código al <strong>nuevo correo</strong> para verificarlo.</span>
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: '10px' }}>
+                                <label className="fl">Nuevo correo *</label>
+                                <input className="fi" type="email" value={emailForm.nuevo}
+                                    onChange={e => setEmailForm({ ...emailForm, nuevo: e.target.value })}
+                                    placeholder="nuevo@correo.com" />
+                            </div>
+                            <button className="bp" onClick={pedirCodigoEmail} disabled={enviandoEmail || !emailForm.nuevo.trim()}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Mail size={14} />
+                                {enviandoEmail ? 'Enviando...' : 'Enviar código de verificación'}
+                            </button>
+                        </div>
+                    ) : (
+                        <div>
+                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                                <Check size={18} color="#27ae60" />
+                                <div>
+                                    <p>Código enviado a <strong>{emailForm.nuevo}</strong></p>
+                                    <span className="ale-desc">Revisa tu bandeja de entrada (y spam). Válido por 15 minutos.</span>
+                                </div>
+                            </div>
+                            <div style={{ marginBottom: '10px' }}>
+                                <label className="fl">Código de verificación *</label>
+                                <input className="fi" value={emailForm.codigo}
+                                    onChange={e => setEmailForm({ ...emailForm, codigo: e.target.value })}
+                                    placeholder="Ej: 483921" maxLength={6} inputMode="numeric"
+                                    style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <button className="bp" onClick={cambiarEmail} disabled={cambiandoEmail || !emailForm.codigo.trim()}>
+                                    <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
+                                    {cambiandoEmail ? 'Cambiando...' : 'Confirmar nuevo correo'}
+                                </button>
+                                <button className="bs" onClick={pedirCodigoEmail} disabled={enviandoEmail || countdownEmail > 0}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <RefreshCw size={13} />
+                                    {countdownEmail > 0 ? `Reenviar en ${countdownEmail}s` : 'Reenviar código'}
+                                </button>
+                                <button className="bs" onClick={() => { setCodigoEnviadoEmail(false); setEmailForm({ nuevo: '', codigo: '' }); }}>
+                                    Cancelar
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Política de contraseña */}
