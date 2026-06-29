@@ -68,7 +68,14 @@ export const createHora            = (data)     => API.post('/horas', data);
 export const deleteHora            = (id)       => API.delete(`/horas/${id}`);
 
 // Mantenimientos
-export const getMantenimientos    = ()         => API.get('/mantenimientos');
+export const getMantenimientos          = ()         => API.get('/mantenimientos');
+export const getMantenimientosMiMaquina = ()         => API.get('/mantenimientos/mi-maquina');
+
+// Novedades
+export const createNovedad    = (data) => API.post('/novedades', data);
+export const getMisNovedades  = ()     => API.get('/novedades/mis');
+export const getNovedadesAPI  = ()     => API.get('/novedades');
+export const updateNovedadEstado = (id, estado) => API.put(`/novedades/${id}/estado`, { estado });
 export const createMantenimiento  = (data)     => API.post('/mantenimientos', data);
 export const updateMantenimiento  = (id, data) => API.put(`/mantenimientos/${id}`, data);
 export const deleteMantenimiento  = (id)       => API.delete(`/mantenimientos/${id}`);

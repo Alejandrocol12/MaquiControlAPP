@@ -13,6 +13,8 @@ import {
     updateOperadorAPI,
     getTelegramCodeAPI,
     unlinkTelegramAPI,
+    getNovedadesAPI,
+    updateNovedadEstado,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -33,6 +35,8 @@ import {
     Gauge,
     Pencil,
     StopCircle,
+    Bell,
+    CheckCircle,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -71,6 +75,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [tgDeepLink, setTgDeepLink] = useState(null);
     const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
     const [tgCargando, setTgCargando] = useState(false);
+    const [novedadesOp, setNovedadesOp] = useState([]);
 
     const [horaForm, setHoraForm] = useState({
         maquinaNombre: '',
@@ -170,6 +175,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             }
         };
         init();
+        if (!modoPortal) {
+            getNovedadesAPI().then(r => setNovedadesOp((r.data || []).filter(n => n.operadorId === operador.id))).catch(() => {});
+        }
     }, [operador.id]);
 
     const periodoActivo = periodos.find((p) => p.estado === 'activo') || null;
@@ -336,12 +344,18 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         } catch { toast('Error al desvincular', 'e'); }
     };
 
+    const pendientesOp = novedadesOp.filter(n => n.estado === 'pendiente').length;
     const TABS = [
         <><ClipboardList size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Resumen</>,
         <><Clock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Registrar Horas</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Historial</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Periodos</>,
-        ...(!modoPortal ? [<><Pencil size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Editar</>] : []),
+        ...(!modoPortal ? [
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Bell size={14} />Novedades{pendientesOp > 0 && <span style={{ background: '#e74c3c', color: '#fff', fontSize: '10px', fontWeight: '700', borderRadius: '99px', padding: '0 5px' }}>{pendientesOp}</span>}
+            </span>,
+            <><Pencil size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Editar</>,
+        ] : []),
     ];
 
     return (
@@ -643,6 +657,44 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     )}
 
                     {tab === 4 && !modoPortal && (
+                        <div>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}><Bell size={18} /> Novedades reportadas</h3>
+                            {novedadesOp.length === 0 ? (
+                                <p className="vacio">Este operador no ha reportado novedades</p>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    {novedadesOp.map(n => (
+                                        <div key={n.id} style={{
+                                            background: n.estado === 'revisada' ? '#f0fdf4' : '#fffbeb',
+                                            border: `1px solid ${n.estado === 'revisada' ? '#86efac' : '#fcd34d'}`,
+                                            borderRadius: '12px', padding: '14px 16px',
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <span style={{ fontWeight: '700', fontSize: '13px', color: '#1a2d42' }}>{n.tipo}</span>
+                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>·</span>
+                                                    <span style={{ fontSize: '12px', color: '#6b7a8d' }}>{n.maquinaNombre}</span>
+                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>·</span>
+                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>{fmtFecha(n.fecha)}</span>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    {n.estado === 'revisada'
+                                                        ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#e8f5e9', color: '#27ae60', border: '1px solid #a8d5b5', borderRadius: '99px', padding: '2px 8px', fontSize: '11px', fontWeight: '600' }}><CheckCircle size={10} /> Revisada</span>
+                                                        : <button className="bp" style={{ fontSize: '11px', padding: '3px 10px' }}
+                                                            onClick={() => updateNovedadEstado(n.id, 'revisada').then(({ data }) => setNovedadesOp(prev => prev.map(x => x.id === n.id ? data : x))).catch(() => toast('Error al actualizar', 'e'))}>
+                                                            <Check size={10} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Marcar revisada
+                                                          </button>}
+                                                </div>
+                                            </div>
+                                            <p style={{ fontSize: '13px', color: '#4a5568', margin: 0, lineHeight: '1.5' }}>{n.descripcion}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {tab === 5 && !modoPortal && (
                         <div className="fc">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Pencil size={18} /> Editar información del operador
