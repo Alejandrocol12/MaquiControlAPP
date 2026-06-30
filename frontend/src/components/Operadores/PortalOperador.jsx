@@ -17,7 +17,6 @@ const SECCIONES = [
     { id: 'jornada',   icon: ClipboardList, label: 'Mi jornada' },
     { id: 'maquina',   icon: Wrench,        label: 'Mi máquina' },
     { id: 'novedades', icon: Bell,          label: 'Novedades' },
-    { id: 'perfil',    icon: User,          label: 'Mi perfil' },
 ];
 
 const TIPOS_NOVEDAD = ['Daño', 'Falla mecánica', 'Falla eléctrica', 'Observación', 'Otro'];
@@ -227,19 +226,24 @@ function PortalOperador({ user, onLogout }) {
                     <button className="op-close-btn" onClick={() => setMobSide(false)} aria-label="Cerrar"><X size={15} /></button>
                 </div>
 
-                <div className="operator-user">
+                <button
+                    className={`operator-user op-user-btn${seccion === 'perfil' ? ' op-user-active' : ''}`}
+                    onClick={() => navegar('perfil')}
+                    title="Mi perfil"
+                >
                     <div className="av">{inicial}</div>
                     <div className="sb-uinfo">
                         <p>{operador.nombre}</p>
                         <span>{operador.email || user?.email}</span>
                     </div>
-                </div>
+                    <User size={14} style={{ marginLeft: 'auto', flexShrink: 0, opacity: 0.5 }} />
+                </button>
 
                 <div className="operator-menu">
                     {SECCIONES.map(({ id, icon: Icon, label }) => (
                         <button key={id} className={`operator-item${seccion === id ? ' active' : ''}`}
                             onClick={() => navegar(id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', position: 'relative' }}>
+                            style={{ border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', position: 'relative' }}>
                             <Icon size={16} /> {label}
                             {id === 'novedades' && pendientes > 0 && (
                                 <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: '#e74c3c', color: '#fff', fontSize: '10px', fontWeight: '700', borderRadius: '99px', padding: '1px 6px' }}>

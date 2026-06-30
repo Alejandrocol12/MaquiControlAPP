@@ -319,6 +319,9 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
 .operator-shell{display:flex;min-height:100vh;background:#e8ecf1;}
 .operator-side{width:290px;min-width:290px;background:linear-gradient(180deg,#0d1b2a 0%,#12283c 100%);padding:22px 18px;display:flex;flex-direction:column;gap:18px;}
 .operator-user{padding:14px 0 18px;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;}
+.op-user-btn{background:none;border:none;cursor:pointer;width:100%;text-align:left;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .18s;}
+.op-user-btn:hover{background:rgba(255,255,255,.07);}
+.op-user-active{background:rgba(245,166,35,.13) !important;border:1px solid rgba(245,166,35,.32) !important;}
 .operator-menu{display:flex;flex-direction:column;gap:12px;}
 .operator-item{display:flex;align-items:center;gap:9px;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.06);color:#dce7f2;font-size:13px;font-weight:700;}
 .operator-item.active{background:#f5a623;color:#0d1b2a;}
