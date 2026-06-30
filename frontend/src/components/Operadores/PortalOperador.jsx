@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     HardHat, LogOut, AlertTriangle, ClipboardList, MapPin, Menu, X,
     Radio, Wrench, Bell, User, Lock, Mail, Check, RefreshCw, ChevronRight,
-    Clock, Gauge, AlertCircle, CheckCircle, Info,
+    Clock, Gauge, AlertCircle, CheckCircle, Info, KeyRound, Trash2,
 } from 'lucide-react';
 import DetalleOperador from './DetalleOperador';
 import {
     getOperadoresAPI, getOperadorByIdAPI, getMisMaquinasAPI, actualizarUbicacion,
     getMantenimientosMiMaquina, createNovedad, getMisNovedades,
-    enviarCodigoPassword, changePassword,
+    enviarCodigoPassword, changePassword, configurarPin, eliminarPin,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -61,6 +61,11 @@ function PortalOperador({ user, onLogout }) {
     const [passForm, setPassForm] = useState({ codigo: '', nueva: '', confirmar: '' });
     const [passLoading, setPassLoading] = useState(false);
     const [passCountdown, setPassCountdown] = useState(0);
+
+    // Mi Perfil — PIN
+    const [hasPin, setHasPin] = useState(!!user?.hasPin);
+    const [pinForm, setPinForm] = useState({ pin: '', confirmar: '' });
+    const [pinLoading, setPinLoading] = useState(false);
 
     useEffect(() => {
         const encontrarOperador = async () => {
@@ -168,6 +173,30 @@ function PortalOperador({ user, onLogout }) {
         } finally { setPassLoading(false); }
     };
 
+    const guardarPin = async () => {
+        if (!/^\d{4}$/.test(pinForm.pin)) return toast('El PIN debe ser exactamente 4 dígitos', 'e');
+        if (pinForm.pin !== pinForm.confirmar) return toast('Los PINs no coinciden', 'e');
+        setPinLoading(true);
+        try {
+            await configurarPin({ pin: pinForm.pin });
+            setHasPin(true);
+            setPinForm({ pin: '', confirmar: '' });
+            toast('PIN configurado — ya puedes usarlo para ingresar', 's');
+        } catch (err) {
+            toast(err.response?.data?.error || 'No se pudo guardar el PIN', 'e');
+        } finally { setPinLoading(false); }
+    };
+
+    const borrarPin = async () => {
+        setPinLoading(true);
+        try {
+            await eliminarPin();
+            setHasPin(false);
+            toast('PIN eliminado', 's');
+        } catch { toast('No se pudo eliminar el PIN', 'e'); }
+        finally { setPinLoading(false); }
+    };
+
     const inicial = useMemo(() => (user?.nombre?.charAt(0)?.toUpperCase() || 'O'), [user]);
 
     const navegar = (id) => { setSeccion(id); setMobSide(false); };
@@ -236,7 +265,7 @@ function PortalOperador({ user, onLogout }) {
                         <p>{operador.nombre}</p>
                         <span>{operador.email || user?.email}</span>
                     </div>
-                    <User size={14} style={{ marginLeft: 'auto', flexShrink: 0, opacity: 0.5 }} />
+                    <User size={14} color="#f5a623" style={{ marginLeft: 'auto', flexShrink: 0 }} />
                 </button>
 
                 <div className="operator-menu">
@@ -500,6 +529,64 @@ function PortalOperador({ user, onLogout }) {
                                     <div><p style={{ margin: 0 }}>{operador.observaciones}</p></div>
                                 </div>
                             )}
+                        </div>
+
+                        {/* PIN de acceso rápido */}
+                        <div className="fc">
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><KeyRound size={18} /> PIN de acceso rápido</h3>
+
+                            {hasPin ? (
+                                <div>
+                                    <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                                        <CheckCircle size={18} color="#27ae60" />
+                                        <div>
+                                            <p>Tienes un PIN de 4 dígitos configurado</p>
+                                            <span className="ale-desc">Puedes usarlo desde la pantalla de inicio de sesión.</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                                        <button className="bs" style={{ color: '#e74c3c', borderColor: '#e74c3c', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                            onClick={borrarPin} disabled={pinLoading}>
+                                            <Trash2 size={13} />{pinLoading ? 'Eliminando...' : 'Eliminar PIN'}
+                                        </button>
+                                    </div>
+                                    <p style={{ fontSize: '12px', color: '#6b7a8d', margin: 0 }}>¿Quieres cambiar el PIN? Configura uno nuevo abajo:</p>
+                                </div>
+                            ) : (
+                                <div className="ale" style={{ marginBottom: '14px' }}>
+                                    <KeyRound size={18} color="#6b7a8d" />
+                                    <div>
+                                        <p>No tienes PIN configurado</p>
+                                        <span className="ale-desc">El PIN te permite ingresar rápido sin escribir tu contraseña.</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="fg2">
+                                <div>
+                                    <label className="fl">{hasPin ? 'Nuevo PIN' : 'PIN (4 dígitos)'} *</label>
+                                    <input className="fi" inputMode="numeric" maxLength={4} value={pinForm.pin}
+                                        onChange={e => setPinForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                                        placeholder="• • • •"
+                                        style={{ letterSpacing: '8px', fontSize: '22px', fontWeight: '700', textAlign: 'center' }} />
+                                </div>
+                                <div>
+                                    <label className="fl">Confirmar PIN *</label>
+                                    <input className="fi" inputMode="numeric" maxLength={4} value={pinForm.confirmar}
+                                        onChange={e => setPinForm(f => ({ ...f, confirmar: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                                        placeholder="• • • •"
+                                        style={{ letterSpacing: '8px', fontSize: '22px', fontWeight: '700', textAlign: 'center' }} />
+                                </div>
+                            </div>
+                            {pinForm.pin.length === 4 && pinForm.confirmar.length === 4 && pinForm.pin !== pinForm.confirmar && (
+                                <p style={{ fontSize: '12px', color: '#e74c3c', margin: '-4px 0 8px' }}>Los PINs no coinciden</p>
+                            )}
+                            <button className="bp" onClick={guardarPin}
+                                disabled={pinLoading || pinForm.pin.length !== 4 || pinForm.pin !== pinForm.confirmar}
+                                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <KeyRound size={14} />
+                                {pinLoading ? 'Guardando...' : hasPin ? 'Cambiar PIN' : 'Activar PIN'}
+                            </button>
                         </div>
 
                         {/* Cambiar contraseña */}
