@@ -1,5 +1,17 @@
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+// ExcelJS y file-saver se cargan dinámicamente para no romper el bundle principal
+let _XLS = null;
+let _saveAs = null;
+async function getLibs() {
+    if (!_XLS) {
+        const [ejsMod, fsMod] = await Promise.all([
+            import('exceljs'),
+            import('file-saver'),
+        ]);
+        _XLS = ejsMod.default;
+        _saveAs = fsMod.saveAs;
+    }
+    return { ExcelJS: _XLS, saveAs: _saveAs };
+}
 
 // ── Colores de marca ──────────────────────────────────────────
 const C = {
@@ -200,6 +212,7 @@ function setColWidths(ws, cols) {
 
 // ── Guardar libro ──────────────────────────────────────────────
 async function guardar(wb, nombre) {
+    const { saveAs } = await getLibs();
     const buf = await wb.xlsx.writeBuffer();
     saveAs(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), nombre);
 }
@@ -209,6 +222,7 @@ async function guardar(wb, nombre) {
 // ══════════════════════════════════════════════════════════════
 
 export async function xlsMensual(mes, ingresos, gastos, salarios) {
+    const { ExcelJS } = await getLibs();
     const [anio, mesNum] = mes.split('-');
     const label = new Date(anio, mesNum - 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
     const label2 = label.charAt(0).toUpperCase() + label.slice(1);
@@ -289,6 +303,7 @@ export async function xlsMensual(mes, ingresos, gastos, salarios) {
 }
 
 export async function xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas) {
+    const { ExcelJS } = await getLibs();
     const ingM  = ingresos.filter(x => x.maquinaNombre === maq.nombre);
     const gasM  = gastos.filter(x => x.maquinaNombre === maq.nombre);
     const combM = combustibles.filter(x => x.maquinaNombre === maq.nombre);
@@ -379,6 +394,7 @@ export async function xlsMaquina(maq, ingresos, gastos, combustibles, mantenimie
 }
 
 export async function xlsOperadores(horas, salarios, maquinas) {
+    const { ExcelJS } = await getLibs();
     const ops = {};
     horas.forEach(h => {
         if (!ops[h.operadorNombre]) ops[h.operadorNombre] = { horas: [], maq: null };
@@ -447,6 +463,7 @@ export async function xlsOperadores(horas, salarios, maquinas) {
 }
 
 export async function xlsMantenimientos(mantenimientos) {
+    const { ExcelJS } = await getLibs();
     const total   = mantenimientos.reduce((a,m)=>a+(m.costo||0),0);
     const pend    = mantenimientos.filter(m=>m.estado==='Pendiente').length;
 
@@ -480,6 +497,7 @@ export async function xlsMantenimientos(mantenimientos) {
 }
 
 export async function xlsCombustible(combustibles) {
+    const { ExcelJS } = await getLibs();
     const total  = combustibles.reduce((a,c)=>a+(c.total||0),0);
     const galTot = combustibles.reduce((a,c)=>a+(c.galones||0),0);
 
@@ -535,6 +553,7 @@ export async function xlsCombustible(combustibles) {
 }
 
 export async function xlsPagos(pagos) {
+    const { ExcelJS } = await getLibs();
     const cobrado   = pagos.filter(p=>p.estado==='Pagado').reduce((a,p)=>a+(p.monto||0),0);
     const pendiente = pagos.filter(p=>p.estado!=='Pagado').reduce((a,p)=>a+(p.monto||0),0);
 
@@ -568,6 +587,7 @@ export async function xlsPagos(pagos) {
 }
 
 export async function xlsResumenFlota(maquinas, ingresos, gastos, combustibles, mantenimientos) {
+    const { ExcelJS } = await getLibs();
     const filas = maquinas.map(m => {
         const ing  = ingresos.filter(x=>x.maquinaNombre===m.nombre).reduce((a,x)=>a+(x.total||0),0);
         const gas  = gastos.filter(x=>x.maquinaNombre===m.nombre).reduce((a,x)=>a+(x.monto||0),0);
@@ -613,6 +633,7 @@ export async function xlsResumenFlota(maquinas, ingresos, gastos, combustibles, 
 }
 
 export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
+    const { ExcelJS } = await getLibs();
     const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
     let faenasMaq = faenas
         .filter(f => f.maquinaNombre === maqNombre)
@@ -703,6 +724,7 @@ export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFilt
 }
 
 export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
+    const { ExcelJS } = await getLibs();
     const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
     let faenasMaq = faenas
         .filter(f => f.maquinaNombre === maqNombre)
