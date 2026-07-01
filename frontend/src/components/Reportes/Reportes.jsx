@@ -6,8 +6,12 @@ import {
     getMaquinas, getIngresos, getGastos, getSalarios,
     getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
 } from '../../api';
-import { BarChart2, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase, TrendingDown, TrendingUp } from 'lucide-react';
+import { BarChart2, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase, TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
+import {
+    xlsMensual, xlsMaquina, xlsOperadores, xlsMantenimientos,
+    xlsCombustible, xlsPagos, xlsResumenFlota,
+} from '../../utils/excelReportes';
 
 // ── helpers ────────────────────────────────────────────────────
 const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
@@ -848,7 +852,7 @@ function Reportes() {
     const ejecutar = async (id, fn) => {
         setGenerando(id);
         try { await fn(); }
-        catch(e) { console.error(e); toast('Error generando el PDF', 'e'); }
+        catch(e) { console.error(e); toast('Error generando el reporte', 'e'); }
         finally { setGenerando(null); }
     };
 
@@ -863,12 +867,13 @@ function Reportes() {
                     {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                 </select>
             ),
-            accion: () => pdfMensual(mesSel, ingresos, gastos, salarios),
+            accion:    () => pdfMensual(mesSel, ingresos, gastos, salarios),
+            xlsAccion: () => xlsMensual(mesSel, ingresos, gastos, salarios),
         },
         {
             id: 'maquina', ico: <GiBulldozer size={22} />, color: 'b',
             titulo: 'Reporte por Máquina',
-            desc: 'Ingresos, gastos, combustible y horas de una máquina específica',
+            desc: 'Ingresos, gastos, combustible, horas y mantenimientos de una máquina',
             control: (
                 <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
                     value={maqSel} onChange={e => setMaqSel(e.target.value)}>
@@ -879,11 +884,50 @@ function Reportes() {
                 const maq = maquinas.find(m => m.nombre === maqSel);
                 if (maq) pdfMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
             },
+            xlsAccion: () => {
+                const maq = maquinas.find(m => m.nombre === maqSel);
+                if (maq) return xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
+            },
+        },
+        {
+            id: 'flota', ico: <HardHat size={22} />, color: 'b',
+            titulo: 'Resumen de Flota',
+            desc: 'Comparativo de ingresos, gastos y utilidad de todas las máquinas',
+            accion:    () => pdfResumenMaquinas(maquinas, ingresos, gastos, combustibles, mantenimientos),
+            xlsAccion: () => xlsResumenFlota(maquinas, ingresos, gastos, combustibles, mantenimientos),
+        },
+        {
+            id: 'operadores', ico: <HardHat size={22} />, color: 'r',
+            titulo: 'Reporte de Operadores',
+            desc: 'Horas trabajadas, salarios y liquidaciones por operador',
+            accion:    () => pdfOperadores(horas, salarios, maquinas),
+            xlsAccion: () => xlsOperadores(horas, salarios, maquinas),
+        },
+        {
+            id: 'mantenimientos', ico: <Wrench size={22} />, color: 'b',
+            titulo: 'Reporte de Mantenimientos',
+            desc: 'Historial y costos de mantenimiento por máquina',
+            accion:    () => pdfMantenimientos(mantenimientos),
+            xlsAccion: () => xlsMantenimientos(mantenimientos),
+        },
+        {
+            id: 'combustible', ico: <Fuel size={22} />, color: 'r',
+            titulo: 'Reporte de Combustible',
+            desc: 'Consumo en galones y gasto por máquina',
+            accion:    () => pdfCombustible(combustibles),
+            xlsAccion: () => xlsCombustible(combustibles),
+        },
+        {
+            id: 'pagos', ico: <CreditCard size={22} />, color: 'b',
+            titulo: 'Reporte de Pagos Clientes',
+            desc: 'Cobros realizados y pendientes por cliente',
+            accion:    () => pdfPagos(pagos),
+            xlsAccion: () => xlsPagos(pagos),
         },
         {
             id: 'gastos-periodos', ico: <TrendingDown size={22} />, color: 'b',
             titulo: 'Gastos por Periodos',
-            desc: 'Gastos de una máquina desglosados por periodo — elige uno específico o todos',
+            desc: 'Gastos de una máquina desglosados por periodo',
             control: (
                 <div style={{ display: 'flex', gap: '6px' }}>
                     <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
@@ -909,7 +953,7 @@ function Reportes() {
         {
             id: 'ingresos-periodos', ico: <TrendingUp size={22} />, color: 'r',
             titulo: 'Ingresos por Periodos',
-            desc: 'Ingresos de una máquina desglosados por periodo — elige uno específico o todos',
+            desc: 'Ingresos de una máquina desglosados por periodo',
             control: (
                 <div style={{ display: 'flex', gap: '6px' }}>
                     <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
@@ -937,7 +981,7 @@ function Reportes() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
-                <div><h1>Reportes</h1><p>Genera y descarga reportes en PDF</p></div>
+                <div><h1>Reportes</h1><p>Genera y descarga reportes en PDF o Excel</p></div>
             </div>
 
             <div className="content"><div className="pad">
@@ -959,14 +1003,32 @@ function Reportes() {
                         {r.control && (
                             <div style={{ marginRight: '8px' }}>{r.control}</div>
                         )}
-                        <button
-                            className="rbtn"
-                            onClick={() => ejecutar(r.id, r.accion)}
-                            disabled={generando === r.id}
-                            style={{ marginLeft: r.control ? '0' : 'auto', opacity: generando === r.id ? 0.6 : 1 }}
-                        >
-                            {generando === r.id ? <><Clock size={13} style={{marginRight:'4px',verticalAlign:'middle'}} />Generando...</> : '↓ PDF'}
-                        </button>
+                        <div style={{ display: 'flex', gap: '6px', marginLeft: r.control ? '0' : 'auto', flexShrink: 0 }}>
+                            <button
+                                className="rbtn"
+                                onClick={() => ejecutar(r.id + '-pdf', r.accion)}
+                                disabled={!!generando}
+                                style={{ opacity: generando ? 0.6 : 1 }}
+                                title="Descargar PDF"
+                            >
+                                {generando === r.id + '-pdf'
+                                    ? <><Clock size={13} style={{marginRight:'4px',verticalAlign:'middle'}} />PDF...</>
+                                    : '↓ PDF'}
+                            </button>
+                            {r.xlsAccion && (
+                                <button
+                                    className="rbtn"
+                                    onClick={() => ejecutar(r.id + '-xls', r.xlsAccion)}
+                                    disabled={!!generando}
+                                    style={{ opacity: generando ? 0.6 : 1, background: '#1d6f42', borderColor: '#1d6f42' }}
+                                    title="Descargar Excel"
+                                >
+                                    {generando === r.id + '-xls'
+                                        ? <><Clock size={13} style={{marginRight:'4px',verticalAlign:'middle'}} />XLS...</>
+                                        : <><FileSpreadsheet size={13} style={{marginRight:'4px',verticalAlign:'middle'}} />Excel</>}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 ))}
 
