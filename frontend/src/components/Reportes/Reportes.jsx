@@ -890,44 +890,9 @@ function Reportes() {
             },
         },
         {
-            id: 'flota', ico: <HardHat size={22} />, color: 'b',
-            titulo: 'Resumen de Flota',
-            desc: 'Comparativo de ingresos, gastos y utilidad de todas las máquinas',
-            accion:    () => pdfResumenMaquinas(maquinas, ingresos, gastos, combustibles, mantenimientos),
-            xlsAccion: () => xlsResumenFlota(maquinas, ingresos, gastos, combustibles, mantenimientos),
-        },
-        {
-            id: 'operadores', ico: <HardHat size={22} />, color: 'r',
-            titulo: 'Reporte de Operadores',
-            desc: 'Horas trabajadas, salarios y liquidaciones por operador',
-            accion:    () => pdfOperadores(horas, salarios, maquinas),
-            xlsAccion: () => xlsOperadores(horas, salarios, maquinas),
-        },
-        {
-            id: 'mantenimientos', ico: <Wrench size={22} />, color: 'b',
-            titulo: 'Reporte de Mantenimientos',
-            desc: 'Historial y costos de mantenimiento por máquina',
-            accion:    () => pdfMantenimientos(mantenimientos),
-            xlsAccion: () => xlsMantenimientos(mantenimientos),
-        },
-        {
-            id: 'combustible', ico: <Fuel size={22} />, color: 'r',
-            titulo: 'Reporte de Combustible',
-            desc: 'Consumo en galones y gasto por máquina',
-            accion:    () => pdfCombustible(combustibles),
-            xlsAccion: () => xlsCombustible(combustibles),
-        },
-        {
-            id: 'pagos', ico: <CreditCard size={22} />, color: 'b',
-            titulo: 'Reporte de Pagos Clientes',
-            desc: 'Cobros realizados y pendientes por cliente',
-            accion:    () => pdfPagos(pagos),
-            xlsAccion: () => xlsPagos(pagos),
-        },
-        {
             id: 'gastos-periodos', ico: <TrendingDown size={22} />, color: 'b',
             titulo: 'Gastos por Periodos',
-            desc: 'Gastos de una máquina desglosados por periodo',
+            desc: 'Gastos de una máquina desglosados por periodo — elige uno específico o todos',
             control: (
                 <div style={{ display: 'flex', gap: '6px' }}>
                     <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
@@ -953,7 +918,7 @@ function Reportes() {
         {
             id: 'ingresos-periodos', ico: <TrendingUp size={22} />, color: 'r',
             titulo: 'Ingresos por Periodos',
-            desc: 'Ingresos de una máquina desglosados por periodo',
+            desc: 'Ingresos de una máquina desglosados por periodo — elige uno específico o todos',
             control: (
                 <div style={{ display: 'flex', gap: '6px' }}>
                     <select className="bs" style={{ padding: '6px 10px', fontSize: '12px' }}
