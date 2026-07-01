@@ -9,8 +9,7 @@ import {
 import { BarChart2, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase, TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import {
-    xlsMensual, xlsMaquina, xlsOperadores, xlsMantenimientos,
-    xlsCombustible, xlsPagos, xlsResumenFlota,
+    xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo,
 } from '../../utils/excelReportes';
 
 // ── helpers ────────────────────────────────────────────────────
@@ -913,7 +912,8 @@ function Reportes() {
                     </select>
                 </div>
             ),
-            accion: () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
+            accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
+            xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
         },
         {
             id: 'ingresos-periodos', ico: <TrendingUp size={22} />, color: 'r',
@@ -939,7 +939,8 @@ function Reportes() {
                     </select>
                 </div>
             ),
-            accion: () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
+            accion:    () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
+            xlsAccion: () => xlsIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
         },
     ];
 

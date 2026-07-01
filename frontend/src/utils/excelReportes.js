@@ -611,3 +611,184 @@ export async function xlsResumenFlota(maquinas, ingresos, gastos, combustibles, 
     ws.views = [{ state: 'frozen', ySplit: 6 }];
     await guardar(wb, 'reporte-flota.xlsx');
 }
+
+export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const sinPeriodo  = filtrando ? [] : gasMaq.filter(x => !x.faenaId);
+    const totalGastos = filtrando
+        ? gasMaq.filter(x => String(x.faenaId) === String(faenaIdFiltro)).reduce((a, x) => a + (x.monto || 0), 0)
+        : gasMaq.reduce((a, x) => a + (x.monto || 0), 0);
+
+    const periodoLabel = filtrando ? (faenasMaq[0]?.nombreObra || 'Periodo') : 'Todos los periodos';
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MaquiControl';
+    const N = 4;
+    const colsGas = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Descripción', width: 34 },
+        { header: 'Categoría', width: 20 },
+        { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
+    ];
+
+    const ws = wb.addWorksheet('Resumen');
+    let r = addCabecera(ws, 'Gastos por Periodos', `${maqNombre}  ·  ${periodoLabel}`, N);
+    r = addKPIs(ws, r, N, [
+        { label: 'Máquina',      valor: maqNombre, tipo: 'neu' },
+        { label: 'Periodos',     valor: String(faenasMaq.length), tipo: 'neu' },
+        { label: 'Total gastos', valor: fmt(totalGastos), tipo: 'gas' },
+        { label: filtrando ? 'Estado' : 'Sin periodo',
+          valor: filtrando ? (faenasMaq[0]?.estado || '—') : fmt(sinPeriodo.reduce((a,x)=>a+(x.monto||0),0)),
+          tipo: 'neu' },
+    ]);
+    r = addSep(ws, r, N);
+    setColWidths(ws, colsGas);
+    ws.views = [{ state: 'frozen', ySplit: 6 }];
+
+    faenasMaq.forEach((f, idx) => {
+        const gasF     = gasMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subTotal = gasF.reduce((a, x) => a + (x.monto || 0), 0);
+        const estado   = f.estado === 'activa' ? 'ACTIVO' : 'Cerrado';
+        const rango    = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        const sheetName = `P${faenasMaq.length - idx}`.slice(0, 31);
+        const wsP = wb.addWorksheet(sheetName);
+        let rp = addCabecera(wsP, `${f.nombreObra || 'Periodo'} · ${estado}`, `${maqNombre}  ·  ${rango}`, N);
+        rp = addKPIs(wsP, rp, N, [
+            { label: 'Máquina', valor: maqNombre, tipo: 'neu' },
+            { label: 'Período', valor: f.nombreObra || '—', tipo: 'neu' },
+            { label: 'Total gastos', valor: fmt(subTotal), tipo: 'gas' },
+            { label: 'Estado', valor: estado, tipo: f.estado === 'activa' ? 'ing' : 'neu' },
+        ]);
+        rp = addSep(wsP, rp, N);
+        addTabla(wsP, rp, colsGas,
+            gasF.map(x => [x.fecha||'—', x.descripcion||'—', x.categoria||'—', fmt(x.monto)]),
+            gasF.length ? ['', '', 'SUBTOTAL', fmt(subTotal)] : null
+        );
+        setColWidths(wsP, colsGas);
+        wsP.views = [{ state: 'frozen', ySplit: 6 }];
+
+        // También listar en resumen
+        r = addSeccion(ws, r, N, `P${faenasMaq.length - idx}: ${f.nombreObra || '—'}  ·  ${rango}  ·  ${estado}`);
+        r = addTabla(ws, r, colsGas,
+            gasF.map(x => [x.fecha||'—', x.descripcion||'—', x.categoria||'—', fmt(x.monto)]),
+            gasF.length ? ['', '', 'SUBTOTAL', fmt(subTotal)] : null
+        );
+    });
+
+    if (!filtrando && sinPeriodo.length) {
+        const wsSin = wb.addWorksheet('Sin periodo');
+        let rs = addCabecera(wsSin, 'Sin periodo asignado', maqNombre, N);
+        rs = addSep(wsSin, rs, N);
+        addTabla(wsSin, rs, colsGas,
+            sinPeriodo.map(x => [x.fecha||'—', x.descripcion||'—', x.categoria||'—', fmt(x.monto)]),
+            ['', '', 'TOTAL', fmt(sinPeriodo.reduce((a,x)=>a+(x.monto||0),0))]
+        );
+        setColWidths(wsSin, colsGas);
+        r = addSeccion(ws, r, N, `SIN PERIODO ASIGNADO (${sinPeriodo.length})`);
+        addTabla(ws, r, colsGas,
+            sinPeriodo.map(x => [x.fecha||'—', x.descripcion||'—', x.categoria||'—', fmt(x.monto)]),
+            null
+        );
+    }
+
+    const sufijo = filtrando ? `-p${faenaIdFiltro}` : '';
+    await guardar(wb, `gastos-periodos-${maqNombre.replace(/\s+/g,'-')}${sufijo}.xlsx`);
+}
+
+export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
+    const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const sinPeriodo = filtrando ? [] : ingMaq.filter(x => !x.faenaId);
+    const totalIng   = filtrando
+        ? ingMaq.filter(x => String(x.faenaId) === String(faenaIdFiltro)).reduce((a, x) => a + (x.total || 0), 0)
+        : ingMaq.reduce((a, x) => a + (x.total || 0), 0);
+
+    const periodoLabel = filtrando ? (faenasMaq[0]?.nombreObra || 'Periodo') : 'Todos los periodos';
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MaquiControl';
+    const N = 6;
+    const colsIng = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Descripción', width: 28 },
+        { header: 'Tipo', width: 18 },
+        { header: 'Cantidad', width: 12, halign: 'center' },
+        { header: 'Valor unit.', width: 16, halign: 'right' },
+        { header: 'Total', width: 16, color: C.VERDE, bold: true, halign: 'right' },
+    ];
+
+    const ws = wb.addWorksheet('Resumen');
+    let r = addCabecera(ws, 'Ingresos por Periodos', `${maqNombre}  ·  ${periodoLabel}`, N);
+    r = addKPIs(ws, r, N, [
+        { label: 'Máquina',        valor: maqNombre, tipo: 'neu' },
+        { label: 'Periodos',       valor: String(faenasMaq.length), tipo: 'neu' },
+        { label: 'Total ingresos', valor: fmt(totalIng), tipo: 'ing' },
+        { label: filtrando ? 'Estado' : 'Sin periodo',
+          valor: filtrando ? (faenasMaq[0]?.estado || '—') : String(sinPeriodo.length),
+          tipo: 'neu' },
+    ]);
+    r = addSep(ws, r, N);
+    setColWidths(ws, colsIng);
+    ws.views = [{ state: 'frozen', ySplit: 6 }];
+
+    faenasMaq.forEach((f, idx) => {
+        const ingF     = ingMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subTotal = ingF.reduce((a, x) => a + (x.total || 0), 0);
+        const estado   = f.estado === 'activa' ? 'ACTIVO' : 'Cerrado';
+        const rango    = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        const sheetName = `P${faenasMaq.length - idx}`.slice(0, 31);
+        const wsP = wb.addWorksheet(sheetName);
+        let rp = addCabecera(wsP, `${f.nombreObra || 'Periodo'} · ${estado}`, `${maqNombre}  ·  ${rango}`, N);
+        rp = addKPIs(wsP, rp, N, [
+            { label: 'Máquina', valor: maqNombre, tipo: 'neu' },
+            { label: 'Período', valor: f.nombreObra || '—', tipo: 'neu' },
+            { label: 'Total ingresos', valor: fmt(subTotal), tipo: 'ing' },
+            { label: 'Estado', valor: estado, tipo: f.estado === 'activa' ? 'ing' : 'neu' },
+        ]);
+        rp = addSep(wsP, rp, N);
+        addTabla(wsP, rp, colsIng,
+            ingF.map(x => [x.fecha||'—', x.descripcion||'—', x.tipoTrabajo||'—', fmtN(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+            ingF.length ? ['', '', '', '', 'SUBTOTAL', fmt(subTotal)] : null
+        );
+        setColWidths(wsP, colsIng);
+        wsP.views = [{ state: 'frozen', ySplit: 6 }];
+
+        r = addSeccion(ws, r, N, `P${faenasMaq.length - idx}: ${f.nombreObra || '—'}  ·  ${rango}  ·  ${estado}`);
+        r = addTabla(ws, r, colsIng,
+            ingF.map(x => [x.fecha||'—', x.descripcion||'—', x.tipoTrabajo||'—', fmtN(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+            ingF.length ? ['', '', '', '', 'SUBTOTAL', fmt(subTotal)] : null
+        );
+    });
+
+    if (!filtrando && sinPeriodo.length) {
+        const wsSin = wb.addWorksheet('Sin periodo');
+        let rs = addCabecera(wsSin, 'Sin periodo asignado', maqNombre, N);
+        rs = addSep(wsSin, rs, N);
+        addTabla(wsSin, rs, colsIng,
+            sinPeriodo.map(x => [x.fecha||'—', x.descripcion||'—', x.tipoTrabajo||'—', fmtN(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+            ['', '', '', '', 'TOTAL', fmt(sinPeriodo.reduce((a,x)=>a+(x.total||0),0))]
+        );
+        setColWidths(wsSin, colsIng);
+        r = addSeccion(ws, r, N, `SIN PERIODO ASIGNADO (${sinPeriodo.length})`);
+        addTabla(ws, r, colsIng,
+            sinPeriodo.map(x => [x.fecha||'—', x.descripcion||'—', x.tipoTrabajo||'—', fmtN(x.cantidad), fmt(x.valorUnitario), fmt(x.total)]),
+            null
+        );
+    }
+
+    const sufijo = filtrando ? `-p${faenaIdFiltro}` : '';
+    await guardar(wb, `ingresos-periodos-${maqNombre.replace(/\s+/g,'-')}${sufijo}.xlsx`);
+}
