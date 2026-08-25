@@ -3,6 +3,7 @@ import {
     getFaenas, createFaena, updateFaena, cerrarFaena, reabrirFaena, deleteFaena,
     getMaquinas,
     getIngresos, getGastos, getSalarios, getMantenimientos, getCombustible,
+    createIngreso, createGasto,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -89,11 +90,7 @@ function Faenas() {
         cargar();
     };
 
-    const toggleDetalle = async (f) => {
-        if (expandida === f.id) { setExpandida(null); return; }
-        setExpandida(f.id);
-        if (detalle[f.id]) return;
-        setCargandoDet(true);
+    const cargarDetalle = async (f) => {
         try {
             const [ing, gas, sal, man, com] = await Promise.all([
                 getIngresos(), getGastos(), getSalarios(), getMantenimientos(), getCombustible(),
@@ -110,7 +107,23 @@ function Faenas() {
                 },
             }));
         } catch (e) { console.error(e); }
+    };
+
+    const toggleDetalle = async (f) => {
+        if (expandida === f.id) { setExpandida(null); return; }
+        setExpandida(f.id);
+        if (detalle[f.id]) return;
+        setCargandoDet(true);
+        await cargarDetalle(f);
         setCargandoDet(false);
+    };
+
+    // Tras registrar un ingreso/gasto olvidado en un periodo, refresca su detalle.
+    // Si el periodo ya estaba cerrado, además recalcula el resumen guardado (silencioso)
+    // para que la utilidad neta mostrada en la cabecera no quede desactualizada.
+    const refrescarFaena = async (f) => {
+        if (f.estado === 'cerrada') await cerrarFaena(f.id).catch(console.error);
+        await Promise.all([cargar(), cargarDetalle(f)]);
     };
 
     const activas  = faenas.filter(f => f.estado === 'activa');
@@ -221,7 +234,7 @@ function Faenas() {
                         </div>
                         {activas.map(f => (
                             <TarjetaFaena key={f.id} f={f} expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
-                                onToggle={toggleDetalle} onEditar={abrirEditar}
+                                onToggle={toggleDetalle} onEditar={abrirEditar} onRefrescar={refrescarFaena}
                                 onCerrar={handleCerrar} onEliminar={handleEliminar} />
                         ))}
                     </>
@@ -235,7 +248,7 @@ function Faenas() {
                         </div>
                         {cerradas.map(f => (
                             <TarjetaFaena key={f.id} f={f} expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
-                                onToggle={toggleDetalle} onEditar={abrirEditar}
+                                onToggle={toggleDetalle} onEditar={abrirEditar} onRefrescar={refrescarFaena}
                                 onCerrar={null} onReabrir={handleReabrir} onEliminar={handleEliminar} />
                         ))}
                     </>
@@ -251,10 +264,50 @@ function Faenas() {
     );
 }
 
-function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar }) {
+function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar, onRefrescar }) {
+    const toast = useToast();
     const abierta = expandida === f.id;
     const det = detalle[f.id];
     const activa = f.estado === 'activa';
+
+    const [formRapido, setFormRapido] = useState(null); // null | 'ingreso' | 'gasto'
+    const [datoRapido, setDatoRapido] = useState({ fecha: hoy(), descripcion: '', monto: '' });
+    const [guardandoRapido, setGuardandoRapido] = useState(false);
+
+    const abrirFormRapido = (tipo) => {
+        setFormRapido(tipo);
+        setDatoRapido({ fecha: hoy(), descripcion: '', monto: '' });
+    };
+
+    const guardarRapido = async () => {
+        if (!datoRapido.descripcion.trim() || !datoRapido.monto) {
+            return toast('Completa descripción y monto', 'e');
+        }
+        setGuardandoRapido(true);
+        try {
+            if (formRapido === 'ingreso') {
+                await createIngreso({
+                    maquinaNombre: f.maquinaNombre, faenaId: f.id,
+                    tipoTrabajo: 'Otro', cantidad: 1, valorUnitario: parseFloat(datoRapido.monto),
+                    total: parseFloat(datoRapido.monto),
+                    descripcion: datoRapido.descripcion, fecha: datoRapido.fecha,
+                });
+            } else {
+                await createGasto({
+                    maquinaNombre: f.maquinaNombre, faenaId: f.id,
+                    categoria: 'Otro', monto: parseFloat(datoRapido.monto),
+                    descripcion: datoRapido.descripcion, fecha: datoRapido.fecha,
+                });
+            }
+            toast(formRapido === 'ingreso' ? 'Ingreso registrado' : 'Gasto registrado');
+            setFormRapido(null);
+            await onRefrescar(f);
+        } catch (e) {
+            console.error(e);
+            toast('Error al guardar — intenta de nuevo', 'e');
+        }
+        setGuardandoRapido(false);
+    };
 
     const totalIngDet  = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
     const totalGasDet  = det ? det.gastos.reduce((a, x) => a + (x.monto || 0), 0) : 0;
@@ -359,6 +412,44 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
                                         {fmt(utilDet)}
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Registrar ingreso/gasto olvidado — funciona con el periodo activo o cerrado */}
+                            <div style={{ marginBottom: '14px' }}>
+                                {!formRapido && (
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => abrirFormRapido('ingreso')}>
+                                            <Plus size={12} style={{ verticalAlign: 'middle' }} /> Ingreso olvidado
+                                        </button>
+                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => abrirFormRapido('gasto')}>
+                                            <Plus size={12} style={{ verticalAlign: 'middle' }} /> Gasto olvidado
+                                        </button>
+                                    </div>
+                                )}
+                                {formRapido && (
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', background: '#f8f9fa', padding: '10px', borderRadius: '8px' }}>
+                                        <div>
+                                            <label className="fl">Fecha</label>
+                                            <input className="fi" type="date" value={datoRapido.fecha}
+                                                onChange={e => setDatoRapido({ ...datoRapido, fecha: e.target.value })} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: '160px' }}>
+                                            <label className="fl">Descripción</label>
+                                            <input className="fi" value={datoRapido.descripcion}
+                                                placeholder={formRapido === 'ingreso' ? 'Ej: Trabajo del 12' : 'Ej: Repuesto'}
+                                                onChange={e => setDatoRapido({ ...datoRapido, descripcion: e.target.value })} />
+                                        </div>
+                                        <div>
+                                            <label className="fl">Monto</label>
+                                            <input className="fi" type="number" value={datoRapido.monto}
+                                                onChange={e => setDatoRapido({ ...datoRapido, monto: e.target.value })} />
+                                        </div>
+                                        <button className="bp" style={{ fontSize: '12px' }} disabled={guardandoRapido} onClick={guardarRapido}>
+                                            <Check size={12} style={{ verticalAlign: 'middle' }} /> Guardar
+                                        </button>
+                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => setFormRapido(null)}>Cancelar</button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Tablas de registros */}
