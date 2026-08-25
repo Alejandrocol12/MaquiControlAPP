@@ -115,6 +115,7 @@ export const getFaenaActiva        = (maquinaNombre) => API.get(`/faenas/maquina
 export const createFaena           = (data)          => API.post('/faenas', data);
 export const updateFaena           = (id, data)      => API.put(`/faenas/${id}`, data);
 export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/cerrar`);
+export const reabrirFaena          = (id)            => API.post(`/faenas/${id}/reabrir`);
 export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
 
 // Ubicación de máquinas

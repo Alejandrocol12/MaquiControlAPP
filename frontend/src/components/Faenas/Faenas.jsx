@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
-    getFaenas, createFaena, updateFaena, cerrarFaena, deleteFaena,
+    getFaenas, createFaena, updateFaena, cerrarFaena, reabrirFaena, deleteFaena,
     getMaquinas,
     getIngresos, getGastos, getSalarios, getMantenimientos, getCombustible,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import {
-    Briefcase, Plus, Check, Trash2, StopCircle, ChevronDown, ChevronUp,
-    TrendingUp, TrendingDown, BarChart2, Calendar, Tractor, Pencil, X,
+    Briefcase, Plus, Check, Trash2, StopCircle, RotateCcw, ChevronDown, ChevronUp,
+    TrendingUp, TrendingDown, BarChart2, Calendar, Tractor, Pencil,
     Clock, Wrench, Fuel,
 } from 'lucide-react';
 
@@ -72,6 +72,13 @@ function Faenas() {
         if (!await confirm(`¿Cerrar el periodo "${f.nombreObra}"?\nSe calculará el resumen financiero y quedará archivado.`)) return;
         await cerrarFaena(f.id).catch(console.error);
         toast('Periodo cerrado — resumen guardado');
+        cargar();
+    };
+
+    const handleReabrir = async (f) => {
+        if (!await confirm(`¿Reabrir el periodo "${f.nombreObra}"?\nVolverá a "En campo" y podrás registrar más ingresos, gastos o mantenimientos. El resumen se recalculará cuando lo cierres de nuevo.`)) return;
+        await reabrirFaena(f.id).catch(console.error);
+        toast('Periodo reabierto');
         cargar();
     };
 
@@ -228,8 +235,8 @@ function Faenas() {
                         </div>
                         {cerradas.map(f => (
                             <TarjetaFaena key={f.id} f={f} expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
-                                onToggle={toggleDetalle} onEditar={null}
-                                onCerrar={null} onEliminar={handleEliminar} />
+                                onToggle={toggleDetalle} onEditar={abrirEditar}
+                                onCerrar={null} onReabrir={handleReabrir} onEliminar={handleEliminar} />
                         ))}
                     </>
                 )}
@@ -244,7 +251,7 @@ function Faenas() {
     );
 }
 
-function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onEliminar }) {
+function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar }) {
     const abierta = expandida === f.id;
     const det = detalle[f.id];
     const activa = f.estado === 'activa';
@@ -252,7 +259,9 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
     const totalIngDet  = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
     const totalGasDet  = det ? det.gastos.reduce((a, x) => a + (x.monto || 0), 0) : 0;
     const totalManDet  = det ? det.mantenimientos.reduce((a, x) => a + (x.costo || 0), 0) : 0;
-    const utilDet      = totalIngDet - totalGasDet - totalManDet;
+    // totalGasDet ya incluye los costos de mantenimiento (se registran también como Gasto);
+    // totalManDet es solo informativo para la tarjeta, no se resta aparte.
+    const utilDet      = totalIngDet - totalGasDet;
 
     return (
         <div style={{
@@ -292,7 +301,7 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
 
                 {/* Acciones */}
                 <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                    {activa && onEditar && (
+                    {onEditar && (
                         <button className="icon-btn" title="Editar" onClick={() => onEditar(f)}>
                             <Pencil size={14} />
                         </button>
@@ -302,6 +311,13 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
                             style={{ color: '#c0392b' }}
                             onClick={() => onCerrar(f)}>
                             <StopCircle size={14} />
+                        </button>
+                    )}
+                    {!activa && onReabrir && (
+                        <button className="icon-btn" title="Reabrir periodo"
+                            style={{ color: '#2980b9' }}
+                            onClick={() => onReabrir(f)}>
+                            <RotateCcw size={14} />
                         </button>
                     )}
                     <button className="icon-btn" title="Eliminar" onClick={() => onEliminar(f)}>
@@ -319,28 +335,28 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
                     {!det && cargandoDet && <p style={{ fontSize: '12px', color: '#6b7a8d' }}>Cargando registros...</p>}
                     {det && (
                         <>
-                            {/* Resumen financiero en tiempo real (activa) o guardado (cerrada) */}
+                            {/* Resumen financiero calculado en vivo a partir de los registros del periodo */}
                             <div className="g4" style={{ marginBottom: '14px' }}>
                                 <div className="card green" style={{ padding: '10px 14px' }}>
                                     <span className="ci" style={{ fontSize: '18px' }}><TrendingUp size={18} /></span>
                                     <div className="cl" style={{ fontSize: '11px' }}>Ingresos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(activa ? totalIngDet : f.totalIngresos)}</div>
+                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalIngDet)}</div>
                                 </div>
                                 <div className="card red" style={{ padding: '10px 14px' }}>
                                     <span className="ci" style={{ fontSize: '18px' }}><TrendingDown size={18} /></span>
                                     <div className="cl" style={{ fontSize: '11px' }}>Gastos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(activa ? totalGasDet : f.totalGastos)}</div>
+                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalGasDet)}</div>
                                 </div>
                                 <div className="card" style={{ padding: '10px 14px', background: '#fff3e0' }}>
                                     <span className="ci" style={{ fontSize: '18px' }}><Wrench size={18} /></span>
                                     <div className="cl" style={{ fontSize: '11px' }}>Mantenimientos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(activa ? totalManDet : f.totalMantenimientos)}</div>
+                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalManDet)}</div>
                                 </div>
                                 <div className="card gold" style={{ padding: '10px 14px' }}>
                                     <span className="ci" style={{ fontSize: '18px' }}><BarChart2 size={18} /></span>
                                     <div className="cl" style={{ fontSize: '11px' }}>Utilidad</div>
-                                    <div className="cv" style={{ fontSize: '18px', color: (activa ? utilDet : f.utilidadNeta) >= 0 ? '#27ae60' : '#e74c3c' }}>
-                                        {fmt(activa ? utilDet : f.utilidadNeta)}
+                                    <div className="cv" style={{ fontSize: '18px', color: utilDet >= 0 ? '#27ae60' : '#e74c3c' }}>
+                                        {fmt(utilDet)}
                                     </div>
                                 </div>
                             </div>
