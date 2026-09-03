@@ -57,12 +57,16 @@ function Faenas() {
         if (!editandoId && !form.maquinaNombre) return toast('Selecciona una máquina', 'e');
         if (!form.nombreObra?.trim()) return toast('Escribe el nombre de la obra', 'e');
 
-        if (editandoId) {
-            await updateFaena(editandoId, form).catch(console.error);
-            toast('Periodo actualizado');
-        } else {
-            await createFaena(form).catch(console.error);
-            toast('Periodo abierto');
+        try {
+            if (editandoId) {
+                await updateFaena(editandoId, form);
+                toast('Periodo actualizado');
+            } else {
+                await createFaena(form);
+                toast('Periodo abierto');
+            }
+        } catch (e) {
+            return toast(e.response?.data?.error || 'No se pudo guardar el periodo', 'e');
         }
         setMostrarForm(false);
         setEditandoId(null);
@@ -78,9 +82,13 @@ function Faenas() {
 
     const handleReabrir = async (f) => {
         if (!await confirm(`¿Reabrir el periodo "${f.nombreObra}"?\nVolverá a "En campo" y podrás registrar más ingresos, gastos o mantenimientos. El resumen se recalculará cuando lo cierres de nuevo.`)) return;
-        await reabrirFaena(f.id).catch(console.error);
-        toast('Periodo reabierto');
-        cargar();
+        try {
+            await reabrirFaena(f.id);
+            toast('Periodo reabierto');
+            cargar();
+        } catch (e) {
+            toast(e.response?.data?.error || 'No se pudo reabrir el periodo', 'e');
+        }
     };
 
     const handleEliminar = async (f) => {

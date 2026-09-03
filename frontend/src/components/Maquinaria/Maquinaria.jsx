@@ -509,7 +509,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         if (maq.estado !== 'Activa') {
             toast(`Máquina en estado "${maq.estado}" — actualiza el estado si ya está operativa`, 'w');
         }
-        await createFaena({ ...formFaena, maquinaNombre: maq.nombre }).catch(console.error);
+        try {
+            await createFaena({ ...formFaena, maquinaNombre: maq.nombre });
+        } catch (e) {
+            return toast(e.response?.data?.error || 'No se pudo abrir el periodo', 'e');
+        }
         toast('Periodo abierto — los registros quedan en cero');
         setMostrarFormFaena(false);
         setFormFaena({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
