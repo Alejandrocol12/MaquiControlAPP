@@ -118,11 +118,10 @@ function Faenas() {
         setCargandoDet(false);
     };
 
-    // Tras registrar un ingreso/gasto olvidado en un periodo, refresca su detalle.
-    // Si el periodo ya estaba cerrado, además recalcula el resumen guardado (silencioso)
-    // para que la utilidad neta mostrada en la cabecera no quede desactualizada.
+    // Tras registrar un ingreso/gasto olvidado, refresca la lista y el detalle del periodo.
+    // El backend ya recalcula el resumen guardado automáticamente si el periodo está
+    // cerrado (ver FaenaService.recalcularTotalesSiCerrada), sin volver a cerrar la faena.
     const refrescarFaena = async (f) => {
-        if (f.estado === 'cerrada') await cerrarFaena(f.id).catch(console.error);
         await Promise.all([cargar(), cargarDetalle(f)]);
     };
 
@@ -165,9 +164,14 @@ function Faenas() {
                     <div className="card gold">
                         <span className="ci"><BarChart2 size={22} /></span>
                         <div className="cl">Utilidad acumulada</div>
-                        <div className="cv" style={{ color: '#27ae60' }}>
-                            {fmt(cerradas.reduce((a, f) => a + (f.utilidadNeta || 0), 0))}
-                        </div>
+                        {(() => {
+                            const utilAcum = cerradas.reduce((a, f) => a + (f.utilidadNeta || 0), 0);
+                            return (
+                                <div className="cv" style={{ color: utilAcum >= 0 ? '#27ae60' : '#e74c3c' }}>
+                                    {fmt(utilAcum)}
+                                </div>
+                            );
+                        })()}
                         <div className="cs">periodos cerrados</div>
                     </div>
                 </div>
