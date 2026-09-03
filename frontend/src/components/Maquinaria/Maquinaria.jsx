@@ -247,10 +247,15 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Registro trabajo
     const [tipoTrabajo, setTipoTrabajo] = useState('Horas');
     useEffect(() => {
-        if (tipoTrabajo === 'Horas') setValorUnitario(String(maq.valorHoraMaquina || ''));
-        else setValorUnitario('');
+        if (tipoTrabajo === 'Horas') {
+            setValorUnitario(String(maq.valorHoraMaquina || ''));
+            setHorometroFin(String(maq.horometroActual || ''));
+        } else {
+            setValorUnitario('');
+        }
     }, [tipoTrabajo]);
     const [cantidad, setCantidad] = useState('');
+    const [horometroFin, setHorometroFin] = useState(String(maq.horometroActual || ''));
     const [valorUnitario, setValorUnitario] = useState(String(maq.valorHoraMaquina || ''));
     const [fechaTrabajo, setFechaTrabajo] = useState(hoy());
     const [descTrabajo, setDescTrabajo] = useState('');
@@ -383,16 +388,24 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const pagComb = usePaginacion(combOrdenados, 20);
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
-    const totalTrabajo = parseFloat(cantidad || 0) * parseFloat(valorUnitario || 0);
-    const nuevoHoro = tipoTrabajo === 'Horas' ? (maq.horometroActual || 0) + parseFloat(cantidad || 0) : maq.horometroActual;
+    // Para 'Horas' las horas se derivan del horómetro (fin - inicio), no se digitan a mano
+    const horasCalculadas = parseFloat(horometroFin || 0) - (maq.horometroActual || 0);
+    const cantidadEfectiva = tipoTrabajo === 'Horas' ? horasCalculadas : parseFloat(cantidad || 0);
+    const totalTrabajo = cantidadEfectiva * parseFloat(valorUnitario || 0);
+    const nuevoHoro = tipoTrabajo === 'Horas' ? parseFloat(horometroFin || 0) : maq.horometroActual;
     const totalComb = parseFloat(galones || 0) * parseFloat(precioPorGalon || 0);
 
     const registrarTrabajo = () => {
-        if (!cantidad || !valorUnitario) return toast('Completa cantidad y valor unitario', 'e');
+        if (tipoTrabajo === 'Horas') {
+            if (!horometroFin || !valorUnitario) return toast('Completa el horómetro final y el valor unitario', 'e');
+            if (horasCalculadas <= 0) return toast('El horómetro final debe ser mayor al inicial', 'e');
+        } else if (!cantidad || !valorUnitario) {
+            return toast('Completa cantidad y valor unitario', 'e');
+        }
         const payload = {
-            maquinaNombre: maq.nombre, tipoTrabajo, cantidad: parseFloat(cantidad),
+            maquinaNombre: maq.nombre, tipoTrabajo, cantidad: cantidadEfectiva,
             valorUnitario: parseFloat(valorUnitario),
-            total: parseFloat(cantidad) * parseFloat(valorUnitario),
+            total: cantidadEfectiva * parseFloat(valorUnitario),
             fecha: fechaTrabajo, descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`
         };
         const tempId = `tmp_${Date.now()}`;
@@ -402,7 +415,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             const maqActualizada = { ...maq, horometroActual: nuevoHoro };
             setMaq(maqActualizada);
             onActualizar(maqActualizada);
+            setHorometroFin(String(nuevoHoro));
         }
+        const horometroInicioAlRegistrar = maq.horometroActual || 0;
         setCantidad(''); setValorUnitario(''); setDescTrabajo('');
         toast('Trabajo registrado');
 
@@ -419,9 +434,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         operadorNombre:  maq.operadorNombre,
                         maquinaNombre:   maq.nombre,
                         fecha:           fechaTrabajo,
-                        horas:           parseFloat(cantidad),
+                        horas:           cantidadEfectiva,
                         valorHora:       maq.valorHoraOperador || 0,
-                        horometroInicio: maq.horometroActual || 0,
+                        horometroInicio: horometroInicioAlRegistrar,
                         horometroFin:    nuevoHoro,
                     }));
                 }
@@ -456,8 +471,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const eliminarIngreso = async (id) => {
         if (!await confirm('¿Eliminar este ingreso?')) return;
         const prev = ingresos;
+        const item = ingresos.find(i => i.id === id);
         setIngresos(p => p.filter(i => i.id !== id));
-        deleteIngreso(id).catch(() => { setIngresos(prev); toast('Error al eliminar', 'e'); });
+        // El backend revierte el horómetro de la máquina; reflejamos el mismo ajuste aquí
+        let maqAnterior = null;
+        if (item?.tipoTrabajo === 'Horas' && item.cantidad) {
+            maqAnterior = maq;
+            const maqActualizada = { ...maq, horometroActual: (maq.horometroActual || 0) - item.cantidad };
+            setMaq(maqActualizada);
+            onActualizar(maqActualizada);
+        }
+        deleteIngreso(id).catch(() => {
+            setIngresos(prev);
+            if (maqAnterior) { setMaq(maqAnterior); onActualizar(maqAnterior); }
+            toast('Error al eliminar', 'e');
+        });
     };
     const eliminarGasto = async (id) => {
         if (!await confirm('¿Eliminar este gasto?')) return;
@@ -617,24 +645,33 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     );
                                 })}
                             </div>
+                            {tipoTrabajo === 'Horas' ? (
+                                <div className="fg2">
+                                    <div><label className="fl">Horómetro inicial</label><input className="fi" type="number" value={maq.horometroActual || 0} disabled /></div>
+                                    <div><label className="fl">Horómetro final</label><input className="fi" type="number" value={horometroFin} onChange={e => setHorometroFin(e.target.value)} placeholder="Ej: 110.5" /></div>
+                                </div>
+                            ) : (
+                                <div className="fg2">
+                                    <div><label className="fl">Cantidad ({tipoTrabajo})</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
+                                </div>
+                            )}
                             <div className="fg2">
-                                <div><label className="fl">Cantidad ({tipoTrabajo})</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
                                 <div><label className="fl">Valor unitario ($)</label><MoneyInput className="fi" value={valorUnitario} onChange={e => setValorUnitario(e.target.value)} placeholder="Ej: 120.000" /></div>
+                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={fechaTrabajo} onChange={e => setFechaTrabajo(e.target.value)} /></div>
                             </div>
                             <div className="fg2">
-                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={fechaTrabajo} onChange={e => setFechaTrabajo(e.target.value)} /></div>
-                                <div><label className="fl">Descripción (opcional)</label><input className="fi" value={descTrabajo} onChange={e => setDescTrabajo(e.target.value)} placeholder="Ej: Obra Av. 30" /></div>
+                                <div style={{ gridColumn: '1 / -1' }}><label className="fl">Descripción (opcional)</label><input className="fi" value={descTrabajo} onChange={e => setDescTrabajo(e.target.value)} placeholder="Ej: Obra Av. 30" /></div>
                             </div>
                             <div className="rsum">
                                 <h4 style={{display:'flex',alignItems:'center',gap:'6px'}}><ClipboardList size={16} /> Resumen antes de guardar</h4>
                                 <div className="rr"><span>Tipo</span><span>{tipoTrabajo}</span></div>
-                                <div className="rr"><span>Cantidad</span><span>{cantidad || 0} unidades</span></div>
+                                <div className="rr"><span>{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : 'Cantidad'}</span><span>{cantidadEfectiva || 0} {tipoTrabajo === 'Horas' ? 'hrs' : 'unidades'}</span></div>
                                 <div className="rr"><span>Valor unitario</span><span>{fmt(parseFloat(valorUnitario || 0))}</span></div>
-                                {tipoTrabajo === 'Horas' && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{maq.horometroActual || 0} → {nuevoHoro} hrs</span></div>}
+                                {tipoTrabajo === 'Horas' && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{maq.horometroActual || 0} → {horometroFin || 0} hrs</span></div>}
                                 <div className="rr"><span>Total ingreso</span><span className="pos">{fmt(totalTrabajo)}</span></div>
                             </div>
                             <div className="rbox">
-                                <div><div className="rl">Total calculado</div><div className="rv">{fmt(totalTrabajo)}</div><div className="rf">{cantidad || 0} × {fmt(parseFloat(valorUnitario || 0))} = {fmt(totalTrabajo)}</div></div>
+                                <div><div className="rl">Total calculado</div><div className="rv">{fmt(totalTrabajo)}</div><div className="rf">{cantidadEfectiva || 0} × {fmt(parseFloat(valorUnitario || 0))} = {fmt(totalTrabajo)}</div></div>
                                 <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#f5a623', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingUp size={13} /> Ingresos + Horómetro</div></div>
                             </div>
                             <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} onClick={registrarTrabajo}>
@@ -676,6 +713,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <ThIng campo="fecha">Fecha</ThIng>
                             <ThIng campo="descripcion" className="w2">Descripción</ThIng>
                             <ThIng campo="tipoTrabajo">Tipo</ThIng>
+                            <ThIng campo="cantidad">Horas/Cant.</ThIng>
                             <ThIng campo="total">Total</ThIng>
                             <span>Acc.</span>
                         </div>
@@ -683,6 +721,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <div className="tr" key={i.id}>
                                 <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
                                 <span><span className="b hrs">{i.tipoTrabajo}</span></span>
+                                <span>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
                                 <span className="pos">{fmt(i.total)}</span>
                                 <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
                             </div>

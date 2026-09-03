@@ -434,12 +434,13 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} /></div>
                             <a onClick={abrirNuevo}>+ Agregar</a>
                         </div>
-                        <div className="tr hdr"><ThIng campo="fecha">Fecha</ThIng><ThIng campo="descripcion" className="w2">Descripción</ThIng><ThIng campo="maquinaNombre">Máquina</ThIng><ThIng campo="tipoTrabajo">Tipo</ThIng><ThIng campo="total">Total</ThIng><span>Acc.</span></div>
+                        <div className="tr hdr"><ThIng campo="fecha">Fecha</ThIng><ThIng campo="descripcion" className="w2">Descripción</ThIng><ThIng campo="maquinaNombre">Máquina</ThIng><ThIng campo="tipoTrabajo">Tipo</ThIng><ThIng campo="cantidad">Horas/Cant.</ThIng><ThIng campo="total">Total</ThIng><span>Acc.</span></div>
                         {ingFiltrados.length === 0 && <p className="vacio">Sin registros</p>}
                         {pagIng.paginados.map(i => (
                             <div className="tr" key={i.id}>
                                 <span>{fmtFecha(i.fecha)}</span><span className="w2">{i.descripcion}</span><span>{i.maquinaNombre}</span>
                                 <span><span className="b hrs">{i.tipoTrabajo}</span></span>
+                                <span>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
                                 <span className="pos">{fmt(i.total)}</span>
                                 <span style={{ display: 'flex', gap: '4px' }}>
                                     <button className="icon-btn" onClick={() => abrirEditar(i)}><Pencil size={14} /></button>
