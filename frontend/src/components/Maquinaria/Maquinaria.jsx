@@ -16,6 +16,7 @@ import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users, ChevronLeft,
+    Target,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -27,6 +28,71 @@ const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Bulldozer')  return <GiBulldozer size={size} />;
     return <Tractor size={size} />;
 };
+
+const isoLocal   = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const parseLocal = (str) => { const [y, m, d] = str.split('-').map(Number); return new Date(y, m - 1, d); };
+
+// Pronostica las horas que la máquina alcanzará a trabajar antes de fin de mes, a partir
+// de su propio patrón histórico: qué días de la semana suele trabajar y cuántas horas hace
+// esos días (no asume un calendario fijo de días hábiles — se basa en los datos reales).
+function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina) {
+    const conFecha = ingresosHoras.filter(i => i.fecha);
+    if (conFecha.length === 0) return null;
+
+    const hoyD = new Date();
+    const hoyStr = isoLocal(hoyD);
+    const inicioMesStr = `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-01`;
+    const finMes = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
+
+    const horasEsteMes = conFecha
+        .filter(i => i.fecha >= inicioMesStr && i.fecha <= hoyStr)
+        .reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+
+    // Ventana de historial para el patrón semanal: hasta 60 días atrás, o desde el primer registro
+    const primerRegistro = parseLocal(conFecha.map(i => i.fecha).sort()[0]);
+    const limite60 = new Date(hoyD); limite60.setDate(limite60.getDate() - 60);
+    const ventanaInicio = primerRegistro > limite60 ? primerRegistro : limite60;
+
+    const horasPorFecha = {};
+    conFecha.forEach(i => { horasPorFecha[i.fecha] = (horasPorFecha[i.fecha] || 0) + (Number(i.cantidad) || 0); });
+
+    const ocurrencias = Array(7).fill(0);
+    const diasTrabajados = Array(7).fill(0);
+    const sumaHoras = Array(7).fill(0);
+    for (let d = new Date(ventanaInicio); d <= hoyD; d.setDate(d.getDate() + 1)) {
+        const dow = d.getDay();
+        ocurrencias[dow]++;
+        const horas = horasPorFecha[isoLocal(d)] || 0;
+        if (horas > 0) { diasTrabajados[dow]++; sumaHoras[dow] += horas; }
+    }
+
+    if (diasTrabajados.reduce((a, b) => a + b, 0) < 3) return null; // historial insuficiente
+
+    // Horas esperadas por cada ocurrencia de ese día de la semana = frecuencia con que se
+    // trabaja ese día × promedio de horas cuando sí se trabaja (naturalmente maneja "solo
+    // trabajamos la mitad de los sábados" sin necesidad de reglas fijas)
+    const horasEsperadasPorDia = Array(7).fill(0).map((_, dow) => {
+        const frecuencia = ocurrencias[dow] > 0 ? diasTrabajados[dow] / ocurrencias[dow] : 0;
+        const promedio    = diasTrabajados[dow] > 0 ? sumaHoras[dow] / diasTrabajados[dow] : 0;
+        return frecuencia * promedio;
+    });
+
+    let horasRestantes = 0, diasRestantes = 0;
+    for (let d = new Date(hoyD); d <= finMes; d.setDate(d.getDate() + 1)) {
+        if (isoLocal(d) === hoyStr) continue; // hoy ya está contado en horasEsteMes
+        horasRestantes += horasEsperadasPorDia[d.getDay()];
+        diasRestantes++;
+    }
+
+    const totalProyectado = horasEsteMes + horasRestantes;
+    return {
+        horasEsteMes: Math.round(horasEsteMes * 10) / 10,
+        horasRestantes: Math.round(horasRestantes * 10) / 10,
+        totalProyectado: Math.round(totalProyectado * 10) / 10,
+        ingresoProyectado: Math.round(totalProyectado * (valorHoraMaquina || 0)),
+        diasRestantes,
+    };
+}
 
 const TIPOS_TRABAJO = {
     Excavadora: ['Horas', 'Hectáreas', 'M³'],
@@ -371,6 +437,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const totalIngresos = ingFaena.reduce((a, i) => a + (i.total || 0), 0);
     const totalGastos   = gasFaena.reduce((a, g) => a + (g.monto || 0), 0);
 
+    // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
+    const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
+
     const ingFiltrados  = ingFaena.filter(i =>
         !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
     );
@@ -608,6 +677,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <div className="card gold"><span className="ci"><TrendingUp size={22} /></span><div className="cl">Utilidad</div><div className="cv" style={{ color: totalIngresos - totalGastos >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(totalIngresos - totalGastos)}</div><div className="cs">ingresos − gastos</div></div>
                             <div className="card blue"><span className="ci"><Clock size={22} /></span><div className="cl">Horas periodo</div><div className="cv xl" style={{ color: '#2980b9' }}>{horasFaena.toLocaleString('es-CO')}</div><div className="cs">trabajadas en este periodo</div></div>
                         </div>
+
+                        {pronostico ? (
+                            <div className="ale" style={{ background: '#eef4ff', borderColor: '#2980b9', marginBottom: '16px' }}>
+                                <Target size={18} color="#2980b9" />
+                                <div>
+                                    <p>Pronóstico a fin de mes: <strong>{pronostico.totalProyectado.toLocaleString('es-CO')} hrs</strong> ({fmt(pronostico.ingresoProyectado)})</p>
+                                    <span className="ale-desc">
+                                        {pronostico.horasEsteMes.toLocaleString('es-CO')} hrs ya trabajadas este mes + ~{pronostico.horasRestantes.toLocaleString('es-CO')} hrs proyectadas en los {pronostico.diasRestantes} días que quedan, según el patrón histórico de esta máquina.
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="vacio" style={{ marginBottom: '16px' }}>Aún no hay suficiente historial de horas trabajadas para pronosticar fin de mes (se necesitan al menos 3 días registrados).</p>
+                        )}
+
                         <div className="g2">
                             <div className="tbl">
                                 <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Últimos Ingresos</strong></div>
