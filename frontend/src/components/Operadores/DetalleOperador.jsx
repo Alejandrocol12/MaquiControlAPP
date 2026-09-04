@@ -89,6 +89,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [anticipoInput, setAnticipoInput] = useState('');
     const [mostrarAnticipoForm, setMostrarAnticipoForm] = useState(false);
 
+    const [editandoFechaPeriodo, setEditandoFechaPeriodo] = useState(false);
+    const [fechaPeriodoInput, setFechaPeriodoInput] = useState('');
+
     const [editForm, setEditForm] = useState({
         nombre: operador.nombre || '',
         cedula: operador.cedula || '',
@@ -300,6 +303,29 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             }).catch(console.error);
     };
 
+    const guardarFechaPeriodo = () => {
+        if (!fechaPeriodoInput) return toast('Selecciona una fecha', 'e');
+        if (!periodoActivo) return toast('No hay periodo activo', 'e');
+
+        updatePeriodoAPI(periodoActivo.id, {
+            estado: periodoActivo.estado,
+            anticipos: periodoActivo.anticipos || 0,
+            fechaFin: periodoActivo.fechaFin || null,
+            horasTotal: periodoActivo.horasTotal,
+            salarioBruto: periodoActivo.salarioBruto,
+            salarioNeto: periodoActivo.salarioNeto,
+            nota: periodoActivo.nota || null,
+            fechaInicio: fechaPeriodoInput,
+            // Una fecha manual reemplaza el ancla por horaId — de lo contrario seguiria
+            // contando horas solo desde el momento en que se creo el periodo.
+            desdeHoraId: null,
+        }).then(() => refrescarPeriodos())
+            .then(() => {
+                toast('Fecha de inicio del periodo actualizada');
+                setEditandoFechaPeriodo(false);
+            }).catch(console.error);
+    };
+
     const registrarAnticipo = () => {
         const val = parseFloat(anticipoInput || 0);
         if (!val || val <= 0) return toast('Ingresa un monto valido', 'e');
@@ -439,8 +465,24 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             {periodoActivo && (
                                 <div className="ale" style={{ background: '#fff8e7', borderColor: '#f5a623' }}>
                                     <Calendar size={18} />
-                                    <div>
-                                        <p>Periodo activo desde <strong>{fmtFecha(periodoActivo.fechaInicio)}</strong></p>
+                                    <div style={{ flex: 1 }}>
+                                        {editandoFechaPeriodo ? (
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                <input className="fi" type="date" style={{ margin: 0, maxWidth: '160px' }}
+                                                    value={fechaPeriodoInput} onChange={(e) => setFechaPeriodoInput(e.target.value)} />
+                                                <button className="bp" style={{ fontSize: '12px' }} onClick={guardarFechaPeriodo}>
+                                                    <CheckCircle size={12} style={{ verticalAlign: 'middle' }} /> Guardar
+                                                </button>
+                                                <button className="bs" style={{ fontSize: '12px' }} onClick={() => setEditandoFechaPeriodo(false)}>Cancelar</button>
+                                            </div>
+                                        ) : (
+                                            <p>Periodo activo desde <strong>{fmtFecha(periodoActivo.fechaInicio)}</strong>
+                                                <button className="icon-btn" style={{ marginLeft: '6px' }} title="Cambiar fecha de inicio"
+                                                    onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}>
+                                                    <Pencil size={12} />
+                                                </button>
+                                            </p>
+                                        )}
                                         <span className="ale-desc">
                                             {horasPeriodo} hrs · {fmt(salarioBruto)} bruto · {fmt(anticipos)} anticipos → neto <strong>{fmt(salarioNeto)}</strong>
                                         </span>

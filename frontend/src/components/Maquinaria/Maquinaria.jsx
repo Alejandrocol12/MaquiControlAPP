@@ -389,7 +389,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
     // Para 'Horas' las horas se derivan del horómetro (fin - inicio), no se digitan a mano
-    const horasCalculadas = parseFloat(horometroFin || 0) - (maq.horometroActual || 0);
+    // Redondeado a 1 decimal para evitar arrastrar errores de coma flotante (ej: 11.199999999999999)
+    const horasCalculadas = Math.round((parseFloat(horometroFin || 0) - (maq.horometroActual || 0)) * 10) / 10;
     const cantidadEfectiva = tipoTrabajo === 'Horas' ? horasCalculadas : parseFloat(cantidad || 0);
     const totalTrabajo = cantidadEfectiva * parseFloat(valorUnitario || 0);
     const nuevoHoro = tipoTrabajo === 'Horas' ? parseFloat(horometroFin || 0) : maq.horometroActual;
