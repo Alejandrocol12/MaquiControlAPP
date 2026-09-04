@@ -51,7 +51,7 @@ export default function VistaCompartida({ token }) {
         </div>
     );
 
-    const { nombre, maquina, resumen, faenas, gastos = [], mantenimientos } = datos;
+    const { nombre, periodoNombre, maquina, resumen, faenas, gastos = [], mantenimientos } = datos;
     const utilPos = resumen.utilidadNeta >= 0;
 
     return (
@@ -86,6 +86,12 @@ export default function VistaCompartida({ token }) {
                                     <span className="ed" /> {maquina.estado}
                                 </span>
                             </p>
+                            {periodoNombre && (
+                                <p style={{ margin: '4px 0 0', color: '#f5a623', fontSize: '12px', fontWeight: '600' }}>
+                                    <Briefcase size={11} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                    Mostrando solo el periodo: {periodoNombre}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>

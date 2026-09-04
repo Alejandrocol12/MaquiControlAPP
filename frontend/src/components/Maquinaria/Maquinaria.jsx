@@ -5,7 +5,7 @@ import {
     getIngresos, getGastos, createIngreso, createGasto, updateGasto,
     createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible,
     createHora, getOperadoresAPI,
-    getFaenaActiva, createFaena, cerrarFaena,
+    getFaenaActiva, createFaena, cerrarFaena, getFaenas,
     crearEnlace, getEnlaces, revocarEnlace,
     leerFacturaIA,
 } from '../../api';
@@ -279,6 +279,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [enlaces, setEnlaces] = useState([]);
     const [nombreEnlace, setNombreEnlace] = useState('');
     const [cargandoEnlaces, setCargandoEnlaces] = useState(false);
+    const [faenasCompartir, setFaenasCompartir] = useState([]);
+    const [alcanceCompartir, setAlcanceCompartir] = useState(''); // '' = toda la máquina, o el id de una faena
 
     // Búsqueda en tablas
     const [buscarIng, setBuscarIng] = useState('');
@@ -401,16 +403,22 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const abrirCompartir = () => {
         setModalCompartir(true);
+        setAlcanceCompartir('');
         setCargandoEnlaces(true);
         getEnlaces().then(r => {
             const propios = (r.data || []).filter(e => e.maquinaNombre === maq.nombre);
             setEnlaces(propios);
         }).catch(() => {}).finally(() => setCargandoEnlaces(false));
+        getFaenas().then(r => {
+            setFaenasCompartir((r.data || []).filter(f => f.maquinaNombre === maq.nombre));
+        }).catch(() => {});
     };
 
     const crearNuevoEnlace = () => {
-        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || `Enlace de ${maq.nombre}` })
-            .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); toast('Enlace creado'); })
+        const faenaElegida = alcanceCompartir ? faenasCompartir.find(f => String(f.id) === alcanceCompartir) : null;
+        const etiquetaPorDefecto = faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
+        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: alcanceCompartir || null })
+            .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); setAlcanceCompartir(''); toast('Enlace creado'); })
             .catch(() => toast('Error al crear enlace', 'e'));
     };
 
@@ -1264,6 +1272,16 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         Genera un enlace que muestra los datos de <strong>{maq.nombre}</strong> en modo solo lectura. Ideal para socios o contadores.
                     </p>
 
+                    <label className="fl">¿Qué vas a compartir?</label>
+                    <select className="fsel" value={alcanceCompartir} onChange={e => setAlcanceCompartir(e.target.value)}>
+                        <option value="">Toda la máquina (todos los periodos)</option>
+                        {faenasCompartir.map(f => (
+                            <option key={f.id} value={String(f.id)}>
+                                Solo el periodo: {f.nombreObra} {f.estado === 'activa' ? '(en campo)' : '(cerrado)'}
+                            </option>
+                        ))}
+                    </select>
+
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                         <input
                             className="fi"
@@ -1287,6 +1305,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div key={e.token} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
+                                        <div style={{ fontSize: '11px', color: e.faenaId ? '#f5a623' : '#9aa5b4', fontWeight: e.faenaId ? '600' : '400' }}>
+                                            {e.faenaId
+                                                ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
+                                                : 'Toda la máquina'}
+                                        </div>
                                         <div style={{ fontSize: '11px', color: '#9aa5b4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                             {window.location.origin}/?token={e.token}
                                         </div>
