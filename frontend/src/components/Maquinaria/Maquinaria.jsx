@@ -417,7 +417,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const crearNuevoEnlace = () => {
         const faenaElegida = alcanceCompartir ? faenasCompartir.find(f => String(f.id) === alcanceCompartir) : null;
         const etiquetaPorDefecto = faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
-        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: alcanceCompartir || null })
+        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: alcanceCompartir ? Number(alcanceCompartir) : null })
             .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); setAlcanceCompartir(''); toast('Enlace creado'); })
             .catch(() => toast('Error al crear enlace', 'e'));
     };
