@@ -256,6 +256,43 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     );
 }
 
+function FiltroRango({ rangoFiltro, setRangoFiltro, fechaDesde, setFechaDesde, fechaHasta, setFechaHasta }) {
+    return (
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {[
+                { key: 'periodo', label: 'Periodo activo' },
+                { key: 'todo',    label: 'Todo' },
+                { key: 'mes',     label: 'Este mes' },
+                { key: 'ultimo',  label: 'Mes anterior' },
+                { key: 'anio',    label: 'Este año' },
+                { key: 'rango',   label: 'Personalizado' },
+            ].map(f => (
+                <button key={f.key}
+                    onClick={() => setRangoFiltro(f.key)}
+                    style={{
+                        padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', border: 'none',
+                        background: rangoFiltro === f.key ? '#1a2d42' : '#f0f2f5',
+                        color: rangoFiltro === f.key ? '#fff' : '#6b7a8d',
+                        transition: 'all .15s',
+                    }}>
+                    {f.label}
+                </button>
+            ))}
+            {rangoFiltro === 'rango' && (
+                <>
+                    <input type="date" className="fi"
+                        style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
+                        value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                    <span style={{ fontSize: '12px', color: '#6b7a8d' }}>→</span>
+                    <input type="date" className="fi"
+                        style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
+                        value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                </>
+            )}
+        </div>
+    );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DETALLE MÁQUINA
 // ══════════════════════════════════════════════════════════════
@@ -286,6 +323,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [buscarIng, setBuscarIng] = useState('');
     const [buscarGas, setBuscarGas] = useState('');
     const [buscarComb, setBuscarComb] = useState('');
+
+    // Rango de fechas para las tablas de Ingresos/Gastos/Combustible (independiente del periodo activo)
+    const [rangoFiltro, setRangoFiltro] = useState('periodo'); // 'periodo' | 'todo' | 'mes' | 'ultimo' | 'anio' | 'rango'
+    const [fechaDesdeMaq, setFechaDesdeMaq] = useState('');
+    const [fechaHastaMaq, setFechaHastaMaq] = useState('');
 
     // Socios
     const [socios, setSocios] = useState(() => {
@@ -454,15 +496,51 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const gasFiltrados  = gasFaena.filter(g =>
         !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
     );
-    const combFiltrados = combFaena.filter(c =>
+    const { sorted: ingOrdenados, Th: ThIng } = useSortable(ingFiltrados, 'fecha', 'desc');
+    const { sorted: gasOrdenados }            = useSortable(gasFiltrados, 'fecha', 'desc');
+    const pagIngs = usePaginacion(ingOrdenados, 20);
+
+    // Tablas de Ingresos/Gastos/Combustible (tabs 2-4): respetan rangoFiltro además del periodo
+    // activo — "periodo" reproduce exactamente lo de arriba, el resto navega todo el historial
+    // de la máquina por fecha, sin depender de si hay un periodo activo.
+    const porFechaMaq = (arr) => {
+        if (rangoFiltro === 'todo') return arr;
+        if (rangoFiltro === 'rango') {
+            return arr.filter(x => {
+                const f = x.fecha || '';
+                if (fechaDesdeMaq && f < fechaDesdeMaq) return false;
+                if (fechaHastaMaq && f > fechaHastaMaq) return false;
+                return true;
+            });
+        }
+        const hoyD = new Date();
+        let prefix;
+        if (rangoFiltro === 'mes')    prefix = hoyD.toISOString().slice(0, 7);
+        else if (rangoFiltro === 'ultimo') { const d = new Date(hoyD); d.setMonth(d.getMonth() - 1); prefix = d.toISOString().slice(0, 7); }
+        else if (rangoFiltro === 'anio')   prefix = String(hoyD.getFullYear());
+        return prefix ? arr.filter(x => x.fecha?.startsWith(prefix)) : arr;
+    };
+    const ingBaseF  = rangoFiltro === 'periodo' ? ingFaena  : porFechaMaq(ingresos);
+    const gasBaseF  = rangoFiltro === 'periodo' ? gasFaena  : porFechaMaq(gastos);
+    const combBaseF = rangoFiltro === 'periodo' ? combFaena : porFechaMaq(combustibles);
+    const ingFiltradosF  = ingBaseF.filter(i =>
+        !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
+    );
+    const gasFiltradosF  = gasBaseF.filter(g =>
+        !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
+    );
+    const combFiltradosF = combBaseF.filter(c =>
         !buscarComb || String(c.galones).includes(buscarComb) || c.fecha?.includes(buscarComb)
     );
-    const { sorted: ingOrdenados,  Th: ThIng  } = useSortable(ingFiltrados,  'fecha', 'desc');
-    const { sorted: gasOrdenados,  Th: ThGas  } = useSortable(gasFiltrados,  'fecha', 'desc');
-    const { sorted: combOrdenados, Th: ThComb } = useSortable(combFiltrados, 'fecha', 'desc');
-    const pagIngs = usePaginacion(ingOrdenados, 20);
-    const pagGas  = usePaginacion(gasOrdenados, 20);
-    const pagComb = usePaginacion(combOrdenados, 20);
+    const { sorted: ingOrdenadosF,  Th: ThIngF  } = useSortable(ingFiltradosF,  'fecha', 'desc');
+    const { sorted: gasOrdenadosF,  Th: ThGasF  } = useSortable(gasFiltradosF,  'fecha', 'desc');
+    const { sorted: combOrdenadosF, Th: ThCombF } = useSortable(combFiltradosF, 'fecha', 'desc');
+    const pagIngsF  = usePaginacion(ingOrdenadosF, 20);
+    const pagGasF   = usePaginacion(gasOrdenadosF, 20);
+    const pagCombF  = usePaginacion(combOrdenadosF, 20);
+    const totalIngF  = ingOrdenadosF.reduce((a, i) => a + (Number(i.total) || 0), 0);
+    const totalGasF  = gasOrdenadosF.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const totalCombF = combOrdenadosF.reduce((a, c) => a + (Number(c.total) || 0), 0);
 
     const tiposPermitidos = TIPOS_TRABAJO[maq.tipo] || ['Horas'];
     // Para 'Horas' las horas se derivan del horómetro (fin - inicio), no se digitan a mano
@@ -801,31 +879,36 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
-                    <div className="tbl tbl-r">
-                        <div className="th">
-                            <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
-                            <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
-                        </div>
-                        <div className="tr hdr">
-                            <ThIng campo="fecha">Fecha</ThIng>
-                            <ThIng campo="descripcion" className="w2">Descripción</ThIng>
-                            <ThIng campo="tipoTrabajo">Tipo</ThIng>
-                            <ThIng campo="cantidad">Horas/Cant.</ThIng>
-                            <ThIng campo="total">Total</ThIng>
-                            <span>Acc.</span>
-                        </div>
-                        {pagIngs.paginados.map(i => (
-                            <div className="tr" key={i.id}>
-                                <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
-                                <span><span className="b hrs">{i.tipoTrabajo}</span></span>
-                                <span>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
-                                <span className="pos">{fmt(i.total)}</span>
-                                <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
+                    <>
+                        <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
+                            fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
+                            fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
+                        <div className="tbl tbl-r">
+                            <div className="th">
+                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalIngF)}`}</strong>
+                                <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
                             </div>
-                        ))}
-                        {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
-                        <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={20} />
-                    </div>
+                            <div className="tr hdr">
+                                <ThIngF campo="fecha">Fecha</ThIngF>
+                                <ThIngF campo="descripcion" className="w2">Descripción</ThIngF>
+                                <ThIngF campo="tipoTrabajo">Tipo</ThIngF>
+                                <ThIngF campo="cantidad">Horas/Cant.</ThIngF>
+                                <ThIngF campo="total">Total</ThIngF>
+                                <span>Acc.</span>
+                            </div>
+                            {pagIngsF.paginados.map(i => (
+                                <div className="tr" key={i.id}>
+                                    <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
+                                    <span><span className="b hrs">{i.tipoTrabajo}</span></span>
+                                    <span>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
+                                    <span className="pos">{fmt(i.total)}</span>
+                                    <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
+                                </div>
+                            ))}
+                            {ingOrdenadosF.length === 0 && <p className="vacio">Sin ingresos en este rango</p>}
+                            <Paginacion pagina={pagIngsF.pagina} total={pagIngsF.total} ir={pagIngsF.ir} totalItems={ingOrdenadosF.length} porPagina={20} />
+                        </div>
+                    </>
                 )}
 
                 {/* TAB 3 — GASTOS */}
@@ -917,19 +1000,22 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
                             </div>
                         </div>
+                        <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
+                            fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
+                            fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
                         <div className="tbl tbl-r">
                             <div className="th">
-                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
+                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalGasF)}`}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
                             </div>
                             <div className="tr hdr">
-                                <ThGas campo="fecha">Fecha</ThGas>
-                                <ThGas campo="descripcion" className="w2">Descripción</ThGas>
-                                <ThGas campo="categoria">Categoría</ThGas>
-                                <ThGas campo="monto">Total</ThGas>
+                                <ThGasF campo="fecha">Fecha</ThGasF>
+                                <ThGasF campo="descripcion" className="w2">Descripción</ThGasF>
+                                <ThGasF campo="categoria">Categoría</ThGasF>
+                                <ThGasF campo="monto">Total</ThGasF>
                                 <span>Acc.</span>
                             </div>
-                            {pagGas.paginados.map(g => (
+                            {pagGasF.paginados.map(g => (
                                 <div className="tr" key={g.id}>
                                     <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
                                     <span>{g.categoria}</span>
@@ -962,8 +1048,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     </span>
                                 </div>
                             ))}
-                            {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
-                            <Paginacion pagina={pagGas.pagina} total={pagGas.total} ir={pagGas.ir} totalItems={gasOrdenados.length} porPagina={20} />
+                            {gasOrdenadosF.length === 0 && <p className="vacio">Sin gastos en este rango</p>}
+                            <Paginacion pagina={pagGasF.pagina} total={pagGasF.total} ir={pagGasF.ir} totalItems={gasOrdenadosF.length} porPagina={20} />
                         </div>
                     </>
                 )}
@@ -990,20 +1076,23 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <Fuel size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Registrar Carga
                             </button>
                         </div>
+                        <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
+                            fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
+                            fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
                         <div className="tbl tbl-r">
                             <div className="th">
-                                <strong>Combustible — {faenaActiva ? faenaActiva.nombreObra : 'sin periodo'}</strong>
+                                <strong>Combustible — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalCombF)}`}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarComb} onChange={e => setBuscarComb(e.target.value)} /></div>
                             </div>
                             <div className="tr hdr">
-                                <ThComb campo="fecha">Fecha</ThComb>
-                                <ThComb campo="galones">Galones</ThComb>
-                                <ThComb campo="precioPorGalon">$/Galón</ThComb>
+                                <ThCombF campo="fecha">Fecha</ThCombF>
+                                <ThCombF campo="galones">Galones</ThCombF>
+                                <ThCombF campo="precioPorGalon">$/Galón</ThCombF>
                                 <span>Horómetro</span>
-                                <ThComb campo="total">Total</ThComb>
+                                <ThCombF campo="total">Total</ThCombF>
                                 <span>Acc.</span>
                             </div>
-                            {pagComb.paginados.map(c => (
+                            {pagCombF.paginados.map(c => (
                                 <div className="tr" key={c.id}>
                                     <span>{c.fecha}</span><span>{c.galones} gal</span>
                                     <span>{fmt(c.precioPorGalon)}</span>
@@ -1012,8 +1101,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <span><button className="icon-btn" onClick={() => eliminarComb(c.id)}><Trash2 size={14} /></button></span>
                                 </div>
                             ))}
-                            {combOrdenados.length === 0 && <p className="vacio">Sin cargas en este periodo</p>}
-                            <Paginacion pagina={pagComb.pagina} total={pagComb.total} ir={pagComb.ir} totalItems={combOrdenados.length} porPagina={20} />
+                            {combOrdenadosF.length === 0 && <p className="vacio">Sin cargas en este rango</p>}
+                            <Paginacion pagina={pagCombF.pagina} total={pagCombF.total} ir={pagCombF.ir} totalItems={combOrdenadosF.length} porPagina={20} />
                         </div>
                     </>
                 )}
