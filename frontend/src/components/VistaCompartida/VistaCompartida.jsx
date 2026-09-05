@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getDatosPublicos } from '../../api';
-import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search } from 'lucide-react';
+import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search, Clock } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 
@@ -19,6 +19,7 @@ export default function VistaCompartida({ token }) {
     const [error, setError] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [buscarGas, setBuscarGas] = useState('');
+    const [buscarIng, setBuscarIng] = useState('');
 
     useEffect(() => {
         const prev = document.documentElement.style.overflow;
@@ -51,7 +52,7 @@ export default function VistaCompartida({ token }) {
         </div>
     );
 
-    const { nombre, periodoNombre, maquina, resumen, faenas, gastos = [], mantenimientos } = datos;
+    const { nombre, periodoNombre, maquina, resumen, faenas, ingresos = [], gastos = [], mantenimientos } = datos;
     const utilPos = resumen.utilidadNeta >= 0;
 
     return (
@@ -107,6 +108,7 @@ export default function VistaCompartida({ token }) {
                         color={utilPos ? '#2980b9' : '#e74c3c'}
                     />
                     <SummaryCard icon={<Briefcase size={18} color="#8e44ad" />} label="Periodos" value={resumen.totalFaenas} color="#8e44ad" />
+                    <SummaryCard icon={<Clock size={18} color="#2980b9" />} label="Horas periodo" value={(resumen.totalHoras || 0).toLocaleString('es-CO')} color="#2980b9" />
                 </div>
 
                 {/* Tabla de periodos */}
@@ -155,6 +157,9 @@ export default function VistaCompartida({ token }) {
                         </div>
                     )}
                 </div>
+
+                {/* Historial de ingresos */}
+                <IngresosSection ingresos={ingresos} buscar={buscarIng} setBuscar={setBuscarIng} />
 
                 {/* Historial de gastos */}
                 <GastosSection gastos={gastos} buscar={buscarGas} setBuscar={setBuscarGas} />
@@ -212,6 +217,81 @@ const CATEGORIA_COLORS = {
     'Reparación':  { bg: '#fdecea', color: '#e74c3c' },
     'Otros':       { bg: '#f0f4f8', color: '#6b7a8d' },
 };
+
+function IngresosSection({ ingresos, buscar, setBuscar }) {
+    const q = buscar.toLowerCase();
+    const filtrados = ingresos.filter(i =>
+        (i.descripcion || '').toLowerCase().includes(q) ||
+        (i.tipoTrabajo || '').toLowerCase().includes(q)
+    );
+    const totalFiltrado = filtrados.reduce((s, i) => s + (i.total || 0), 0);
+
+    return (
+        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <TrendingUp size={16} color="#1a2d42" />
+                    <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Historial de ingresos</span>
+                    <span style={{ background: '#f0f4f8', color: '#6b7a8d', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px' }}>
+                        {ingresos.length}
+                    </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '200px' }}>
+                    <Search size={13} color="#9aa5b4" />
+                    <input
+                        value={buscar}
+                        onChange={e => setBuscar(e.target.value)}
+                        placeholder="Buscar por descripción o tipo…"
+                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#1a2d42', width: '100%' }}
+                    />
+                </div>
+            </div>
+
+            {ingresos.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin ingresos registrados</p>
+            ) : filtrados.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin resultados para "{buscar}"</p>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                        <thead>
+                            <tr style={{ background: '#f8fafc' }}>
+                                {['Fecha', 'Descripción', 'Tipo', 'Horas/Cant.', 'Total'].map(h => (
+                                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filtrados.map((i, idx) => (
+                                <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
+                                    <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(i.fecha)}</td>
+                                    <td style={{ padding: '10px 14px', color: '#1a2d42' }}>{i.descripcion || '—'}</td>
+                                    <td style={{ padding: '10px 14px' }}>
+                                        <span style={{ background: '#e8f0fb', color: '#2563eb', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600' }}>
+                                            {i.tipoTrabajo || '—'}
+                                        </span>
+                                    </td>
+                                    <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>
+                                        {i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}
+                                    </td>
+                                    <td style={{ padding: '10px 14px', color: '#27ae60', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(i.total)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot>
+                            <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                                <td colSpan={4} style={{ padding: '10px 14px', fontWeight: '700', color: '#1a2d42', fontSize: '13px' }}>
+                                    {buscar ? `Total filtrado (${filtrados.length} de ${ingresos.length})` : `Total (${ingresos.length} ingresos)`}
+                                </td>
+                                <td style={{ padding: '10px 14px', fontWeight: '700', color: '#27ae60', whiteSpace: 'nowrap' }}>{fmt(totalFiltrado)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}
 
 function GastosSection({ gastos, buscar, setBuscar }) {
     const q = buscar.toLowerCase();
