@@ -967,9 +967,9 @@ function Reportes() {
                             <p>{r.desc}</p>
                         </div>
                         {r.control && (
-                            <div style={{ marginRight: '8px' }}>{r.control}</div>
+                            <div className="rep-control" style={{ marginRight: '8px' }}>{r.control}</div>
                         )}
-                        <div style={{ display: 'flex', gap: '6px', marginLeft: r.control ? '0' : 'auto', flexShrink: 0 }}>
+                        <div className="rep-acciones" style={{ display: 'flex', gap: '6px', marginLeft: r.control ? '0' : 'auto', flexShrink: 0 }}>
                             <button
                                 className="rbtn"
                                 onClick={() => ejecutar(r.id + '-pdf', r.accion)}

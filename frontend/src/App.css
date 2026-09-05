@@ -450,10 +450,16 @@ body{font-family:'Barlow',sans-serif;background:#e8ecf1;color:#1a2d42;}
   .tabs{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;}
   .tab{white-space:nowrap;flex-shrink:0;}
 
-  /* tablas scroll horizontal */
+  /* tablas scroll horizontal — NO aplica a .tbl-r, que ya colapsa a tarjetas arriba */
   .tbl,.tabla{overflow-x:auto;}
-  .tr,.tabla-row{min-width:520px;}
-  .tr.hdr,.tabla-row.hdr{min-width:520px;}
+  .tbl:not(.tbl-r) .tr,.tabla .tabla-row{min-width:520px;}
+  .tbl:not(.tbl-r) .tr.hdr,.tabla .tabla-row.hdr{min-width:520px;}
+
+  /* filas de Reportes (icono + texto + selector + botones) — permitir que bajen de línea */
+  .rep{flex-wrap:wrap;row-gap:10px;}
+  .rep-control{width:100%;order:3;margin-right:0!important;}
+  .rep-control .fsel{margin-bottom:0;}
+  .rep-acciones{order:4;width:100%;margin-left:0!important;justify-content:flex-end;}
 
   /* cards */
   .card{padding:14px 16px;}
