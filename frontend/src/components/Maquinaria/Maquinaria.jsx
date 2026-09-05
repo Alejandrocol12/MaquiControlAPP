@@ -594,6 +594,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         valorHora:       maq.valorHoraOperador || 0,
                         horometroInicio: horometroInicioAlRegistrar,
                         horometroFin:    nuevoHoro,
+                        ingresoId:       res?.data?.id ?? null,
                     }));
                 }
             }
