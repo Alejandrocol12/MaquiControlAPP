@@ -508,8 +508,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             </div>
 
                             {mostrarAnticipoForm && (
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px' }}>
-                                    <MoneyInput className="fi" style={{ margin: 0, maxWidth: '180px' }} placeholder="Monto anticipo ($)" value={anticipoInput} onChange={(e) => setAnticipoInput(e.target.value)} />
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
+                                    <MoneyInput className="fi" style={{ margin: 0, maxWidth: '180px', flex: '1 1 160px' }} placeholder="Monto anticipo ($)" value={anticipoInput} onChange={(e) => setAnticipoInput(e.target.value)} />
                                     <button className="bp" onClick={registrarAnticipo}>Guardar</button>
                                     <button className="bs" onClick={() => { setMostrarAnticipoForm(false); setAnticipoInput(''); }}>Cancelar</button>
                                 </div>
