@@ -8,6 +8,7 @@ import {
     getFaenaActiva, createFaena, cerrarFaena, getFaenas,
     crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
+    subirFotoMaquina, deleteFotoMaquina,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -16,12 +17,13 @@ import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users, ChevronLeft,
-    Target, Eye,
+    Target, Eye, Camera,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { useSortable } from '../../utils/useSortable';
+import FotoMaquina from '../../utils/FotoMaquina';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -118,6 +120,9 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     const [maqActual, setMaqActual] = useState(null);
     const [form, setForm] = useState(FORM_VACIO);
     const [operadoresAPI, setOperadoresAPI] = useState([]);
+    const [fotoFile, setFotoFile] = useState(null);
+    const [fotoPreview, setFotoPreview] = useState(null);
+    const [fotoEliminar, setFotoEliminar] = useState(false);
 
     useEffect(() => {
         cargar();
@@ -126,13 +131,38 @@ function Maquinaria({ vistaInicial = 'lista' }) {
 
     const cargar = () => getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
 
-    const abrirEditar = (m, e) => { e.stopPropagation(); setForm({ ...m }); setMaqActual(m); setVista('editar'); };
+    const abrirEditar = (m, e) => { e.stopPropagation(); setForm({ ...m }); setMaqActual(m); setVista('editar'); setFotoFile(null); setFotoPreview(null); setFotoEliminar(false); };
     const abrirDetalle = (m) => { setMaqActual(m); setVista('detalle'); };
     const hc = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+    const elegirFoto = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setFotoFile(file);
+        setFotoEliminar(false);
+        setFotoPreview(URL.createObjectURL(file));
+    };
+
+    const quitarFoto = () => {
+        setFotoFile(null);
+        setFotoPreview(null);
+        setFotoEliminar(true);
+    };
+
     const guardar = () => {
         const op = vista === 'nueva' ? createMaquina(form) : updateMaquina(maqActual.id, form);
-        op.then(() => { cargar(); setVista('lista'); setForm(FORM_VACIO); }).catch(console.error);
+        op.then(async (res) => {
+            const id = vista === 'nueva' ? res.data.id : maqActual.id;
+            if (fotoFile) {
+                const fd = new FormData();
+                fd.append('file', fotoFile);
+                await subirFotoMaquina(id, fd).catch(console.error);
+            } else if (fotoEliminar) {
+                await deleteFotoMaquina(id).catch(console.error);
+            }
+            cargar(); setVista('lista'); setForm(FORM_VACIO);
+            setFotoFile(null); setFotoPreview(null); setFotoEliminar(false);
+        }).catch(console.error);
     };
 
     const eliminar = async (id, e) => {
@@ -163,6 +193,32 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                 <div className="fc">
                     <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><Tractor size={18} /> Datos de la máquina</h3>
                     <p className="fd">Todos los campos marcados son obligatorios</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                        <div style={{
+                            width: 72, height: 72, borderRadius: '12px', overflow: 'hidden', flexShrink: 0,
+                            background: '#f0f2f5', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            border: '1px solid #e2e6ea',
+                        }}>
+                            {fotoPreview ? (
+                                <img src={fotoPreview} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (!fotoEliminar && maqActual?.tieneFoto) ? (
+                                <FotoMaquina maquina={maqActual} size={72} radius="12px" />
+                            ) : (
+                                <Camera size={26} color="#a9b3bf" />
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label className="bs" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                                <Camera size={13} /> {fotoPreview || maqActual?.tieneFoto ? 'Cambiar foto' : 'Subir foto'}
+                                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={elegirFoto} />
+                            </label>
+                            {(fotoPreview || (!fotoEliminar && maqActual?.tieneFoto)) && (
+                                <button type="button" className="bs" style={{ fontSize: '12px', color: '#e74c3c' }} onClick={quitarFoto}>
+                                    <Trash2 size={13} style={{marginRight:'4px',verticalAlign:'middle'}} /> Quitar foto
+                                </button>
+                            )}
+                        </div>
+                    </div>
                     <div className="fg2">
                         <div><label className="fl">Nombre *</label><input className="fi" name="nombre" value={form.nombre} onChange={hc} placeholder="Ej: Excavadora CAT 320" /></div>
                         <div><label className="fl">Tipo *</label>
@@ -217,14 +273,15 @@ function Maquinaria({ vistaInicial = 'lista' }) {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
                 <div><h1>Maquinaria</h1><p>Máquinas registradas</p></div>
-                <button className="bp" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
+                <button className="bp" onClick={() => { setForm(FORM_VACIO); setFotoFile(null); setFotoPreview(null); setFotoEliminar(false); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
             </div>
             <div className="content"><div className="pad">
                 <div className="gm">
                     {maquinas.map(m => (
                         <div className="mcard" key={m.id} onClick={() => abrirDetalle(m)}>
                             <div className="mch">
-                                <div className="mci"><IcoMaquina tipo={m.tipo} size={22} /></div>
+                                <FotoMaquina maquina={m} size={40} radius="10px"
+                                    fallback={<div className="mci"><IcoMaquina tipo={m.tipo} size={22} /></div>} />
                                 <div>
                                     <div className="mcn">{m.nombre}</div>
                                     <div className="mct">{m.tipo} · {m.placa}</div>
@@ -245,7 +302,7 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                             </div>
                         </div>
                     ))}
-                    <div className="nueva" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}>
+                    <div className="nueva" onClick={() => { setForm(FORM_VACIO); setFotoFile(null); setFotoPreview(null); setFotoEliminar(false); setVista('nueva'); }}>
                         <Plus size={22} />
                         <span style={{ fontSize: '13px', fontWeight: '600' }}>Nueva Máquina</span>
                     </div>

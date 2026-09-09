@@ -11,3 +11,28 @@
     color: #6b7a8d;
     margin-bottom: 20px;
 }
+
+/* ── KPI cards con gradiente (colores de marca) ── */
+.dash-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px;}
+.dash-kpi{border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.14);}
+.dash-kpi .dk-ico{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.dash-kpi .dk-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;opacity:.9;}
+.dash-kpi .dk-value{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;margin:4px 0 3px;line-height:1.1;}
+.dash-kpi .dk-sub{font-size:12px;opacity:.9;}
+.dash-kpi.dk-green{background:linear-gradient(135deg,#2ecc71,#1e8449);}
+.dash-kpi.dk-red{background:linear-gradient(135deg,#e74c3c,#a93226);}
+.dash-kpi.dk-gold{background:linear-gradient(135deg,#f5a623,#c9790f);}
+
+/* ── Anillo de progreso "En campo" ── */
+.dash-ring-wrap{display:flex;align-items:center;gap:16px;}
+.dash-ring{width:60px;height:60px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;position:relative;background:conic-gradient(#2980b9 calc(var(--pct,0)*1%), #e9ecf2 0);}
+.dash-ring span{background:#fff;width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#1a2d42;font-family:'Barlow Condensed',sans-serif;}
+body.dark .dash-ring span{background:#1e293b;color:#f1f5f9;}
+body.dark .dash-ring{background:conic-gradient(#2980b9 calc(var(--pct,0)*1%), #334155 0);}
+
+/* ── Foto/miniatura en filas de "Máquinas en campo" ── */
+.dash-campo-foto{width:34px;height:34px;border-radius:8px;overflow:hidden;flex-shrink:0;}
+
+@media (max-width:920px){
+  .dash-kpis{grid-template-columns:1fr;}
+}
