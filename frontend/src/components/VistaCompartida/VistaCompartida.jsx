@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getDatosPublicos } from '../../api';
-import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search, Clock } from 'lucide-react';
+import { getDatosPublicos, registrarVista } from '../../api';
+import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search, Clock, User } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 
@@ -21,6 +21,10 @@ export default function VistaCompartida({ token }) {
     const [buscarGas, setBuscarGas] = useState('');
     const [buscarIng, setBuscarIng] = useState('');
 
+    const nombreGuardado = localStorage.getItem(`mc_visitante_${token}`);
+    const [mostrarPrompt, setMostrarPrompt] = useState(!nombreGuardado);
+    const [nombreInput, setNombreInput] = useState('');
+
     useEffect(() => {
         const prev = document.documentElement.style.overflow;
         document.documentElement.style.overflow = 'auto';
@@ -36,6 +40,22 @@ export default function VistaCompartida({ token }) {
             .then(d => { setDatos(d); setCargando(false); })
             .catch(() => { setError('Enlace inválido o revocado.'); setCargando(false); });
     }, [token]);
+
+    useEffect(() => {
+        // Si ya sabemos el nombre de este visitante (o que prefirió no darlo), registra la
+        // visita en silencio sin volver a preguntarle cada vez que abre el mismo enlace.
+        if (nombreGuardado) {
+            registrarVista(token, nombreGuardado === '__anon__' ? '' : nombreGuardado);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
+
+    const confirmarNombre = (nombre) => {
+        const limpio = nombre.trim();
+        localStorage.setItem(`mc_visitante_${token}`, limpio || '__anon__');
+        registrarVista(token, limpio);
+        setMostrarPrompt(false);
+    };
 
     if (cargando) return (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px', background: '#f5f7fa' }}>
@@ -57,6 +77,35 @@ export default function VistaCompartida({ token }) {
 
     return (
         <div style={{ minHeight: '100vh', background: '#f5f7fa', fontFamily: 'Inter, sans-serif' }}>
+            {mostrarPrompt && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,42,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}>
+                    <div style={{ background: '#fff', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
+                        <User size={32} color="#f5a623" style={{ marginBottom: '10px' }} />
+                        <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#1a2d42' }}>¿Cómo te llamas?</h3>
+                        <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#6b7a8d' }}>
+                            Para que {nombre || 'quien te compartió esto'} sepa que revisaste la información.
+                        </p>
+                        <input
+                            autoFocus
+                            className="fi"
+                            style={{ marginBottom: '12px', textAlign: 'center' }}
+                            placeholder="Tu nombre"
+                            value={nombreInput}
+                            onChange={e => setNombreInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && confirmarNombre(nombreInput)}
+                        />
+                        <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '10px', marginBottom: '8px' }}
+                            onClick={() => confirmarNombre(nombreInput)} disabled={!nombreInput.trim()}>
+                            Continuar
+                        </button>
+                        <button style={{ background: 'none', border: 'none', color: '#9aa5b4', fontSize: '12px', cursor: 'pointer' }}
+                            onClick={() => confirmarNombre('')}>
+                            Prefiero no decirlo
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header */}
             <div style={{ background: '#1a2d42', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

@@ -145,9 +145,16 @@ export const leerFacturaIA = (formData) => API.post('/ia/leer-factura', formData
 export const crearEnlace    = (data)  => API.post('/compartido', data);
 export const getEnlaces     = ()      => API.get('/compartido');
 export const revocarEnlace  = (token) => API.delete(`/compartido/${token}`);
+export const getVistasEnlace = (token) => API.get(`/compartido/${token}/vistas`);
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 export const getDatosPublicos = (token) =>
     fetch(`${BASE_URL}/publico/${token}`).then(r => { if (!r.ok) throw r; return r.json(); });
+export const registrarVista = (token, nombre) =>
+    fetch(`${BASE_URL}/publico/${token}/vista`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre }),
+    }).catch(() => {});
 
 // Usuarios (solo admin)
 export const getUsuarios         = ()         => API.get('/usuarios');

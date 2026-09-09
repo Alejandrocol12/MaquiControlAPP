@@ -6,7 +6,7 @@ import {
     createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible,
     createHora, getOperadoresAPI,
     getFaenaActiva, createFaena, cerrarFaena, getFaenas,
-    crearEnlace, getEnlaces, revocarEnlace,
+    crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
 } from '../../api';
 import { useToast } from '../../utils/toast';
@@ -16,7 +16,7 @@ import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users, ChevronLeft,
-    Target,
+    Target, Eye,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -318,6 +318,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [cargandoEnlaces, setCargandoEnlaces] = useState(false);
     const [faenasCompartir, setFaenasCompartir] = useState([]);
     const [alcanceCompartir, setAlcanceCompartir] = useState(''); // '' = toda la máquina, o el id de una faena
+    const [vistasAbiertas, setVistasAbiertas] = useState(null); // token del enlace cuyas visitas se están mostrando
+    const [vistasPorToken, setVistasPorToken] = useState({});
+    const [cargandoVistas, setCargandoVistas] = useState(false);
 
     // Búsqueda en tablas
     const [buscarIng, setBuscarIng] = useState('');
@@ -473,6 +476,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const copiarLink = (token) => {
         const url = `${window.location.origin}${window.location.pathname}?token=${token}`;
         navigator.clipboard.writeText(url).then(() => toast('Enlace copiado'));
+    };
+
+    const toggleVistas = (token) => {
+        if (vistasAbiertas === token) { setVistasAbiertas(null); return; }
+        setVistasAbiertas(token);
+        if (vistasPorToken[token]) return;
+        setCargandoVistas(true);
+        getVistasEnlace(token)
+            .then(r => setVistasPorToken(prev => ({ ...prev, [token]: r.data || [] })))
+            .catch(() => setVistasPorToken(prev => ({ ...prev, [token]: [] })))
+            .finally(() => setCargandoVistas(false));
     };
 
     // Filtrar por faena activa
@@ -1392,24 +1406,47 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {enlaces.map(e => (
-                                <div key={e.token} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
-                                        <div style={{ fontSize: '11px', color: e.faenaId ? '#f5a623' : '#9aa5b4', fontWeight: e.faenaId ? '600' : '400' }}>
-                                            {e.faenaId
-                                                ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
-                                                : 'Toda la máquina'}
+                                <div key={e.token} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
+                                            <div style={{ fontSize: '11px', color: e.faenaId ? '#f5a623' : '#9aa5b4', fontWeight: e.faenaId ? '600' : '400' }}>
+                                                {e.faenaId
+                                                    ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
+                                                    : 'Toda la máquina'}
+                                            </div>
+                                            <div style={{ fontSize: '11px', color: '#9aa5b4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {window.location.origin}/?token={e.token}
+                                            </div>
                                         </div>
-                                        <div style={{ fontSize: '11px', color: '#9aa5b4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {window.location.origin}/?token={e.token}
-                                        </div>
+                                        <button className="bs" onClick={() => toggleVistas(e.token)} title="Ver quién lo ha visitado" style={{ padding: '6px 10px' }}>
+                                            <Eye size={13} />
+                                        </button>
+                                        <button className="bs" onClick={() => copiarLink(e.token)} title="Copiar enlace" style={{ padding: '6px 10px' }}>
+                                            <Copy size={13} />
+                                        </button>
+                                        <button onClick={() => revocar(e.token)} title="Revocar" style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#e74c3c' }}>
+                                            <Trash size={13} />
+                                        </button>
                                     </div>
-                                    <button className="bs" onClick={() => copiarLink(e.token)} title="Copiar enlace" style={{ padding: '6px 10px' }}>
-                                        <Copy size={13} />
-                                    </button>
-                                    <button onClick={() => revocar(e.token)} title="Revocar" style={{ background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: '#e74c3c' }}>
-                                        <Trash size={13} />
-                                    </button>
+                                    {vistasAbiertas === e.token && (
+                                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #e2e8f0' }}>
+                                            {cargandoVistas && !vistasPorToken[e.token] ? (
+                                                <p style={{ fontSize: '12px', color: '#9aa5b4', margin: 0 }}>Cargando visitas…</p>
+                                            ) : (vistasPorToken[e.token] || []).length === 0 ? (
+                                                <p style={{ fontSize: '12px', color: '#9aa5b4', margin: 0 }}>Nadie ha abierto este enlace todavía.</p>
+                                            ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                                                    {vistasPorToken[e.token].map(v => (
+                                                        <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                                            <span style={{ color: '#1a2d42', fontWeight: '600' }}>{v.nombreVisitante}</span>
+                                                            <span style={{ color: '#9aa5b4' }}>{new Date(v.fecha).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
