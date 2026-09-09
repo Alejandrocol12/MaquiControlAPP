@@ -14,6 +14,15 @@ const IcoMaquina = ({ tipo, size = 22 }) => {
     return <Tractor size={size} />;
 };
 
+const generarId = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+const obtenerVisitanteId = (token) => {
+    const key = `mc_visitante_id_${token}`;
+    let id = localStorage.getItem(key);
+    if (!id) { id = generarId(); localStorage.setItem(key, id); }
+    return id;
+};
+
 export default function VistaCompartida({ token }) {
     const [datos, setDatos] = useState(null);
     const [error, setError] = useState(null);
@@ -24,6 +33,7 @@ export default function VistaCompartida({ token }) {
     const nombreGuardado = localStorage.getItem(`mc_visitante_${token}`);
     const [mostrarPrompt, setMostrarPrompt] = useState(!nombreGuardado);
     const [nombreInput, setNombreInput] = useState('');
+    const visitanteId = obtenerVisitanteId(token);
 
     useEffect(() => {
         const prev = document.documentElement.style.overflow;
@@ -45,7 +55,7 @@ export default function VistaCompartida({ token }) {
         // Si ya sabemos el nombre de este visitante (o que prefirió no darlo), registra la
         // visita en silencio sin volver a preguntarle cada vez que abre el mismo enlace.
         if (nombreGuardado) {
-            registrarVista(token, nombreGuardado === '__anon__' ? '' : nombreGuardado);
+            registrarVista(token, nombreGuardado === '__anon__' ? '' : nombreGuardado, visitanteId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [token]);
@@ -53,7 +63,7 @@ export default function VistaCompartida({ token }) {
     const confirmarNombre = (nombre) => {
         const limpio = nombre.trim();
         localStorage.setItem(`mc_visitante_${token}`, limpio || '__anon__');
-        registrarVista(token, limpio);
+        registrarVista(token, limpio, visitanteId);
         setMostrarPrompt(false);
     };
 
