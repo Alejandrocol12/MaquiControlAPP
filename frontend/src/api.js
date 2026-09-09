@@ -34,9 +34,6 @@ export const apiRegister = (data) => API.post('/auth/register', data);
 export const apiMe       = ()     => API.get('/auth/me');
 
 // Maquinaria
-export const subirFotoMaquina = (id, formData) => API.post(`/maquinaria/${id}/foto`, formData);
-export const getFotoMaquina   = (id)           => API.get(`/maquinaria/${id}/foto`, { responseType: 'blob' });
-export const deleteFotoMaquina = (id)          => API.delete(`/maquinaria/${id}/foto`);
 export const getMaquinas    = ()         => API.get('/maquinaria');
 export const getMaquina     = (id)       => API.get(`/maquinaria/${id}`);
 export const createMaquina  = (data)     => API.post('/maquinaria', data);

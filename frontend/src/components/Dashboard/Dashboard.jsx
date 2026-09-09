@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { getMaquinas, getIngresos, getGastos, getSalarios, getFaenas, getPagos } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
-import { Tractor, TrendingUp, TrendingDown, AlertTriangle, BarChart2, CreditCard, Clock } from 'lucide-react';
+import { Tractor, TrendingUp, TrendingDown, AlertTriangle, Briefcase, BarChart2, CreditCard, Clock } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { useCountUp } from '../../utils/useCountUp';
-import FotoMaquina from '../../utils/FotoMaquina';
 import './Dashboard.css';
 
 // #8: color único por tipo de máquina
@@ -182,24 +181,26 @@ function Dashboard({ onIrMaquinaria }) {
                 <div className="st" style={{ marginTop: 0 }}>
                     Resumen — {labelFiltro}
                 </div>
-                <div className="dash-kpis">
-                    <div className="dash-kpi dk-green">
-                        <div className="dk-ico"><TrendingUp size={18} /></div>
-                        <div className="dk-label">Ingresos</div>
-                        <div className="dk-value"><AnimatedNumber value={totIngMes} prefix="$" /></div>
-                        <div className="dk-sub">{ingFiltrados.length} registros</div>
+                <div className="g3" style={{ marginBottom: '20px' }}>
+                    <div className="card green">
+                        <span className="ci"><TrendingUp size={22} /></span>
+                        <div className="cl">Ingresos</div>
+                        <div className="cv"><AnimatedNumber value={totIngMes} prefix="$" /></div>
+                        <div className="cs">{ingFiltrados.length} registros</div>
                     </div>
-                    <div className="dash-kpi dk-red">
-                        <div className="dk-ico"><TrendingDown size={18} /></div>
-                        <div className="dk-label">Egresos</div>
-                        <div className="dk-value"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
-                        <div className="dk-sub">gastos + salarios</div>
+                    <div className="card red">
+                        <span className="ci"><TrendingDown size={22} /></span>
+                        <div className="cl">Egresos</div>
+                        <div className="cv"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
+                        <div className="cs">gastos + salarios</div>
                     </div>
-                    <div className="dash-kpi dk-gold">
-                        <div className="dk-ico"><BarChart2 size={18} /></div>
-                        <div className="dk-label">Utilidad</div>
-                        <div className="dk-value"><AnimatedNumber value={utilidadMes} prefix="$" /></div>
-                        <div className="dk-sub">ingresos − egresos</div>
+                    <div className="card gold">
+                        <span className="ci"><BarChart2 size={22} /></span>
+                        <div className="cl">Utilidad</div>
+                        <div className="cv">
+                            <AnimatedNumber value={utilidadMes} prefix="$" style={{ color: utilidadMes >= 0 ? '#27ae60' : '#e74c3c' }} />
+                        </div>
+                        <div className="cs">ingresos − egresos</div>
                     </div>
                 </div>
 
@@ -207,15 +208,10 @@ function Dashboard({ onIrMaquinaria }) {
                 {/* ── MÉTRICAS OPERATIVAS ── */}
                 <div className="g2" style={{ marginBottom: '20px' }}>
                     <div className="card blue">
-                        <div className="dash-ring-wrap">
-                            <div className="dash-ring" style={{ '--pct': maquinas.length ? Math.round((periodosActivos.length / maquinas.length) * 100) : 0 }}>
-                                <span><AnimatedNumber value={periodosActivos.length} /></span>
-                            </div>
-                            <div>
-                                <div className="cl">En campo</div>
-                                <div className="cs">{maquinas.length} máquinas en total · {maquinas.filter(m => m.estado === 'Activa').length} activas</div>
-                            </div>
-                        </div>
+                        <span className="ci"><Briefcase size={22} /></span>
+                        <div className="cl">En campo</div>
+                        <div className="cv"><AnimatedNumber value={periodosActivos.length} /></div>
+                        <div className="cs">{maquinas.length} máquinas en total · {maquinas.filter(m => m.estado === 'Activa').length} activas</div>
                     </div>
                     <div className="card" style={{ background: totalPorCobrar > 0 ? '#fff8e7' : '#f8f9fa', borderColor: totalPorCobrar > 0 ? '#f5a623' : '#dee2e6' }}>
                         <span className="ci"><CreditCard size={22} /></span>
@@ -249,11 +245,9 @@ function Dashboard({ onIrMaquinaria }) {
                             {periodosActivos.map(f => {
                                 const ingF = ingresos.filter(i => String(i.faenaId) === String(f.id)).reduce((a, i) => a + (Number(i.total) || 0), 0);
                                 const gasF = gastos.filter(g => String(g.faenaId) === String(f.id)).reduce((a, g) => a + (Number(g.monto) || 0), 0);
-                                const maq = maquinas.find(m => m.nombre === f.maquinaNombre);
                                 return (
                                     <div key={f.id} style={{ background: '#fff8e7', border: '1px solid #f5a623', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                                        <FotoMaquina maquina={maq} size={34} radius="8px"
-                                            fallback={<span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#27ae60', display: 'inline-block', flexShrink: 0 }}></span>} />
+                                        <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#27ae60', display: 'inline-block', flexShrink: 0 }}></span>
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontWeight: '700', fontSize: '13px' }}>{f.maquinaNombre}</div>
                                             <div style={{ fontSize: '12px', color: '#6b7a8d' }}>{f.nombreObra}{f.cliente ? ` — ${f.cliente}` : ''}</div>
@@ -295,8 +289,7 @@ function Dashboard({ onIrMaquinaria }) {
                             return (
                                 <div className="mcard" key={m.id}>
                                     <div className="mch">
-                                        <FotoMaquina maquina={m} size={40} radius="10px"
-                                            fallback={<AvatarMaquina tipo={m.tipo} size={40} />} />
+                                        <AvatarMaquina tipo={m.tipo} size={40} />
                                         <div>
                                             <div className="mcn">{m.nombre}</div>
                                             <div className="mct" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
