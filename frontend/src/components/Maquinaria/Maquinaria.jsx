@@ -332,6 +332,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [fechaDesdeMaq, setFechaDesdeMaq] = useState('');
     const [fechaHastaMaq, setFechaHastaMaq] = useState('');
 
+    // "¿Cuántas horas se han hecho desde tal fecha?" — usa todo el historial de la máquina
+    const [fechaDesdeHoras, setFechaDesdeHoras] = useState('');
+
     // Socios
     const [socios, setSocios] = useState(() => {
         try { return JSON.parse(localStorage.getItem(`mc_socios_${maquina.id}`) || '[]'); }
@@ -504,6 +507,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
 
+    // Horas trabajadas desde una fecha elegida, sobre todo el historial de la máquina
+    const ingHorasDesde = fechaDesdeHoras
+        ? ingresos.filter(i => i.tipoTrabajo === 'Horas' && i.fecha && i.fecha >= fechaDesdeHoras)
+        : [];
+    const horasDesdeFecha = ingHorasDesde.reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+
     const ingFiltrados  = ingFaena.filter(i =>
         !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
     );
@@ -572,11 +581,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         } else if (!cantidad || !valorUnitario) {
             return toast('Completa cantidad y valor unitario', 'e');
         }
+        const horometroInicioAlRegistrar = maq.horometroActual || 0;
         const payload = {
             maquinaNombre: maq.nombre, tipoTrabajo, cantidad: cantidadEfectiva,
             valorUnitario: parseFloat(valorUnitario),
             total: cantidadEfectiva * parseFloat(valorUnitario),
-            fecha: fechaTrabajo, descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`
+            fecha: fechaTrabajo, descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`,
+            ...(tipoTrabajo === 'Horas' ? { horometroInicio: horometroInicioAlRegistrar, horometroFin: nuevoHoro } : {}),
         };
         const tempId = `tmp_${Date.now()}`;
         const optimista = { ...payload, id: tempId, faenaId: faenaActiva?.id ?? null };
@@ -587,7 +598,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             onActualizar(maqActualizada);
             setHorometroFin(String(nuevoHoro));
         }
-        const horometroInicioAlRegistrar = maq.horometroActual || 0;
         setCantidad(''); setValorUnitario(''); setDescTrabajo('');
         toast('Trabajo registrado');
 
@@ -895,6 +905,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
                     <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#eef4ff', border: '1px solid #2980b9', borderRadius: '10px', padding: '10px 16px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                            <Clock size={16} color="#2980b9" />
+                            <span style={{ fontSize: '12px', color: '#1a2d42', fontWeight: 600 }}>Horas trabajadas desde</span>
+                            <input type="date" className="fi" style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
+                                value={fechaDesdeHoras} onChange={e => setFechaDesdeHoras(e.target.value)} />
+                            {fechaDesdeHoras && (
+                                <span style={{ marginLeft: 'auto', fontSize: '15px', fontWeight: 800, color: '#2980b9', fontFamily: "'Barlow Condensed', sans-serif" }}>
+                                    {horasDesdeFecha.toLocaleString('es-CO')} hrs <span style={{ fontSize: '11px', fontWeight: 400, color: '#6b7a8d' }}>({ingHorasDesde.length} registros)</span>
+                                </span>
+                            )}
+                        </div>
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
                             fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
@@ -915,7 +936,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div className="tr" key={i.id}>
                                     <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
                                     <span><span className="b hrs">{i.tipoTrabajo}</span></span>
-                                    <span>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
+                                    <span>
+                                        {i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}
+                                        {i.tipoTrabajo === 'Horas' && i.horometroInicio != null && i.horometroFin != null && (
+                                            <span style={{ display: 'block', fontSize: '10px', color: '#9aa5b4', fontWeight: 400 }}>
+                                                {i.horometroInicio.toLocaleString('es-CO')} → {i.horometroFin.toLocaleString('es-CO')}
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="pos">{fmt(i.total)}</span>
                                     <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
                                 </div>
