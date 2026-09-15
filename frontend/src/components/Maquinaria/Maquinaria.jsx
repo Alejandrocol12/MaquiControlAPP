@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     getMaquinas, createMaquina, updateMaquina, deleteMaquina,
+    backfillHorometroIngresos,
     getIngresos, getGastos, createIngreso, createGasto, updateGasto,
     createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible,
     createHora, getOperadoresAPI,
@@ -141,6 +142,14 @@ function Maquinaria({ vistaInicial = 'lista' }) {
             deleteMaquina(id).then(() => { cargar(); toast('Máquina eliminada'); }).catch(console.error);
     };
 
+    const recuperarHorometro = async () => {
+        const ok = await confirm('Esto rellena el horómetro inicio/final de ingresos viejos de tipo Horas, solo cuando el dato exacto ya existe guardado (registros con operador asignado). No estima nada. ¿Continuar?');
+        if (!ok) return;
+        backfillHorometroIngresos()
+            .then(r => toast(`${r.data.actualizados} ingresos actualizados con su horómetro`, 's'))
+            .catch(() => toast('Error al recuperar el horómetro', 'e'));
+    };
+
     if (vista === 'detalle' && maqActual) {
         return <DetalleMaquina
             maquina={maqActual}
@@ -217,7 +226,12 @@ function Maquinaria({ vistaInicial = 'lista' }) {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
                 <div><h1>Maquinaria</h1><p>Máquinas registradas</p></div>
-                <button className="bp" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
+                <div className="tb-r">
+                    <button className="bs" onClick={recuperarHorometro} title="Rellena el horómetro de ingresos viejos cuando el dato exacto ya existe guardado">
+                        <Clock size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /><span className="tb-label">Recuperar horómetro</span>
+                    </button>
+                    <button className="bp" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
+                </div>
             </div>
             <div className="content"><div className="pad">
                 <div className="gm">

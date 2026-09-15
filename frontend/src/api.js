@@ -54,6 +54,7 @@ export const getIngresos    = ()         => API.get('/ingresos');
 export const createIngreso  = (data)     => API.post('/ingresos', data);
 export const updateIngreso  = (id, data) => API.put(`/ingresos/${id}`, data);
 export const deleteIngreso  = (id)       => API.delete(`/ingresos/${id}`);
+export const backfillHorometroIngresos = () => API.post('/ingresos/backfill-horometro');
 
 // Salarios
 export const getSalarios    = ()         => API.get('/salarios');
