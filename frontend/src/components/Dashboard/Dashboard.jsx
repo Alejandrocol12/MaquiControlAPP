@@ -308,13 +308,14 @@ function Dashboard({ onIrMaquinaria }) {
                                                 <span className="db-fleet-ico" style={{ background: tipoColor(m.tipo) }}><IcoMaquina tipo={m.tipo} size={17} /></span>
                                                 <div><div className="db-fleet-name">{m.nombre}</div><div className="db-fleet-sub">{m.placa}</div></div>
                                             </div>
-                                            <span className={`db-pill ${pillCls}`}><i></i>{m.estado}</span>
+                                            <div><span className="db-flabel">Estado</span><span className={`db-pill ${pillCls}`}><i></i>{m.estado}</span></div>
                                             <div>
+                                                <span className="db-flabel">Horas este mes</span>
                                                 <div className="db-util-track"><div className="db-util-fill" style={{ width: `${Math.round((horas / maxHorasFlota) * 100)}%` }}></div></div>
                                                 <div className="db-util-label">{horas.toLocaleString('es-CO')} hrs</div>
                                             </div>
-                                            <div className="db-fleet-horo">{(m.horometroActual || 0).toLocaleString('es-CO')}<span>hrs</span></div>
-                                            <div className={`db-fleet-op ${!m.operadorNombre ? 'empty' : ''}`}>{m.operadorNombre || 'Sin asignar'}</div>
+                                            <div><span className="db-flabel">Horómetro</span><div className="db-fleet-horo">{(m.horometroActual || 0).toLocaleString('es-CO')}<span>hrs</span></div></div>
+                                            <div><span className="db-flabel">Operador</span><div className={`db-fleet-op ${!m.operadorNombre ? 'empty' : ''}`}>{m.operadorNombre || 'Sin asignar'}</div></div>
                                         </div>
                                     );
                                 })}

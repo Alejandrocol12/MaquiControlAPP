@@ -83,13 +83,17 @@
 
 .db-scrollx{overflow-x:auto;}
 
+.db-flabel{display:none;}
+
 @media (max-width:980px){
   .db-hero{grid-template-columns:1fr;}
   .db-band2{grid-template-columns:1fr;}
 }
 @media (max-width:760px){
   .db-fleet-head-row{display:none;}
-  .db-fleet-row{grid-template-columns:1fr;row-gap:8px;}
+  .db-panel.db-scrollx > div{min-width:0!important;}
+  .db-fleet-row{grid-template-columns:1fr;row-gap:10px;min-width:0;}
+  .db-flabel{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#93a2b3;margin-bottom:4px;}
 }
 
 /* ── dark mode ── */
@@ -109,6 +113,7 @@ body.dark .db-field-num .l{color:#64748b;}
 body.dark .db-alert-text p{color:#f1f5f9;}
 body.dark .db-alert-text span{color:#94a3b8;}
 body.dark .db-fleet-head-row{border-bottom-color:#334155;color:#64748b;}
+body.dark .db-flabel{color:#64748b;}
 body.dark .db-fleet-row{border-bottom-color:#334155;}
 body.dark .db-fleet-name{color:#f1f5f9;}
 body.dark .db-fleet-sub{color:#94a3b8;}
