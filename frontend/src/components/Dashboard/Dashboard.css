@@ -27,26 +27,6 @@
 .db-sechead h2{font-size:17px;font-weight:700;color:#16283b;margin:0;font-family:'Barlow Condensed',sans-serif;}
 .db-sechead .meta{font-size:11.5px;color:#93a2b3;font-weight:500;}
 
-/* ── chart ── */
-.db-chart-card{background:#fff;border:1px solid #dbe1e9;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 24px -12px rgba(16,32,49,.18);padding:18px 22px 14px;margin-bottom:22px;}
-.db-chart-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
-.db-chart-head h2{font-size:15px;font-weight:700;font-family:'Barlow Condensed',sans-serif;margin:0;}
-.db-legend{display:flex;gap:16px;font-size:11.5px;color:#5c7086;font-weight:600;}
-.db-legend span{display:inline-flex;align-items:center;gap:6px;}
-.db-legend i{width:9px;height:9px;border-radius:2px;display:inline-block;}
-.db-chart-wrap{position:relative;height:190px;margin-top:8px;}
-.db-chart-grid{position:absolute;inset:0 0 26px 52px;}
-.db-chart-grid .gl{position:absolute;left:0;right:0;border-top:1px dashed #dbe1e9;}
-.db-chart-grid .gl span{position:absolute;left:-52px;top:-7px;width:46px;text-align:right;font-size:10px;color:#93a2b3;font-family:'IBM Plex Mono',monospace;}
-.db-chart-bars{position:absolute;left:52px;right:0;top:0;bottom:26px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 4px;}
-.db-chart-col{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:4px;height:100%;}
-.db-bar{width:15px;border-radius:3px 3px 0 0;min-height:2px;}
-.db-bar.ing{background:linear-gradient(180deg,#27ae60 0%,#1c8a4b 100%);}
-.db-bar.gas{background:linear-gradient(180deg,#e74c3c 0%,#c0392b 100%);}
-.db-bar.current{outline:2px solid #f5a623;outline-offset:1px;}
-.db-chart-months{position:absolute;left:52px;right:0;bottom:0;height:24px;display:flex;justify-content:space-between;padding:0 4px;}
-.db-chart-months span{flex:1;text-align:center;font-size:11px;color:#5c7086;font-weight:600;}
-
 /* ── two column band ── */
 .db-band2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start;margin-bottom:22px;}
 .db-panel{background:#fff;border:1px solid #dbe1e9;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 24px -12px rgba(16,32,49,.18);overflow:hidden;}
@@ -119,10 +99,6 @@ body.dark .db-kpi-sub{color:#64748b;}
 body.dark .db-kpi.profit{color:#1a1004;}
 body.dark .db-sechead h2{color:#f1f5f9;}
 body.dark .db-sechead .meta{color:#64748b;}
-body.dark .db-chart-card{background:#1e293b;border-color:#334155;box-shadow:none;}
-body.dark .db-chart-grid .gl{border-top-color:#334155;}
-body.dark .db-legend{color:#94a3b8;}
-body.dark .db-chart-months span{color:#94a3b8;}
 body.dark .db-panel{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .db-panel-head{border-bottom-color:#334155;}
 body.dark .db-panel-empty{color:#64748b;}

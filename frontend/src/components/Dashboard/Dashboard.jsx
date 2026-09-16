@@ -107,19 +107,6 @@ function Dashboard({ onIrMaquinaria }) {
         if (utilAnt !== 0) tendenciaPct = Math.round(((utilidadMes - utilAnt) / Math.abs(utilAnt)) * 100);
     }
 
-    // Ingresos vs. egresos de los últimos 6 meses calendario, para el gráfico
-    const ultimos6Meses = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date(ahora); d.setMonth(d.getMonth() - (5 - i));
-        return { prefix: d.toISOString().slice(0, 7), label: d.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
-    });
-    const chartData = ultimos6Meses.map(({ prefix, label }) => {
-        const ing = ingresos.filter(i => i.fecha?.startsWith(prefix)).reduce((a, i) => a + (Number(i.total) || 0), 0);
-        const gas = gastosOperativos.filter(g => g.fecha?.startsWith(prefix)).reduce((a, g) => a + (Number(g.monto) || 0), 0)
-            + salarios.filter(s => s.fecha?.startsWith(prefix)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
-        return { label, ing, gas, esActual: prefix === mes };
-    });
-    const chartMax = Math.max(1, ...chartData.flatMap(d => [d.ing, d.gas]));
-    const chartTope = Math.pow(10, Math.max(0, String(Math.round(chartMax)).length - 1)) * Math.ceil(chartMax / Math.pow(10, Math.max(0, String(Math.round(chartMax)).length - 1)));
 
     // Periodos activos
     const periodosActivos = faenas.filter(f => f.estado === 'activa');
@@ -251,35 +238,6 @@ function Dashboard({ onIrMaquinaria }) {
                                 {tendenciaPct >= 0 ? '+' : ''}{tendenciaPct}% vs. mes anterior
                             </div>
                         )}
-                    </div>
-                </div>
-
-                {/* ── GRÁFICO INGRESOS VS EGRESOS ── */}
-                <div className="db-chart-card">
-                    <div className="db-chart-head">
-                        <h2>Ingresos vs. egresos — últimos 6 meses</h2>
-                        <div className="db-legend">
-                            <span><i style={{ background: '#27ae60' }}></i>Ingresos</span>
-                            <span><i style={{ background: '#e74c3c' }}></i>Egresos</span>
-                        </div>
-                    </div>
-                    <div className="db-chart-wrap">
-                        <div className="db-chart-grid">
-                            <div className="gl" style={{ bottom: 0 }}><span>$0</span></div>
-                            <div className="gl" style={{ bottom: '50%' }}><span>{fmt(chartTope / 2)}</span></div>
-                            <div className="gl" style={{ bottom: '100%' }}><span>{fmt(chartTope)}</span></div>
-                        </div>
-                        <div className="db-chart-bars">
-                            {chartData.map((d, i) => (
-                                <div className="db-chart-col" key={i}>
-                                    <div className={`db-bar ing ${d.esActual ? 'current' : ''}`} style={{ height: `${Math.max((d.ing / chartTope) * 100, d.ing > 0 ? 2 : 0)}%` }} title={`Ingresos: ${fmt(d.ing)}`}></div>
-                                    <div className={`db-bar gas ${d.esActual ? 'current' : ''}`} style={{ height: `${Math.max((d.gas / chartTope) * 100, d.gas > 0 ? 2 : 0)}%` }} title={`Egresos: ${fmt(d.gas)}`}></div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="db-chart-months">
-                            {chartData.map((d, i) => <span key={i}>{d.label}</span>)}
-                        </div>
                     </div>
                 </div>
 
