@@ -10,13 +10,20 @@ import { useConfirm } from '../../utils/ConfirmModal';
 import {
     Briefcase, Plus, Check, Trash2, StopCircle, RotateCcw, ChevronDown, ChevronUp,
     TrendingUp, TrendingDown, BarChart2, Calendar, Tractor, Pencil,
-    Clock, Wrench, Fuel,
+    Clock, Wrench, Fuel, Info,
 } from 'lucide-react';
 
 import { fmtFecha } from '../../utils/fmtFecha';
+import './Faenas.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
+const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, m - 1, d); };
+const diasEntre = (a, b) => Math.max(1, Math.round((b - a) / 86400000));
+const folioDe = (f) => `OB-${(f.fechaInicio || '').slice(0, 4) || new Date().getFullYear()}-${String(f.id).padStart(3, '0')}`;
+
+const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'neutral', 'Otros': 'neutral', 'Otro': 'neutral' };
+const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { maquinaNombre: '', nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' };
 
@@ -26,6 +33,9 @@ function Faenas() {
 
     const [faenas, setFaenas]         = useState([]);
     const [maquinas, setMaquinas]     = useState([]);
+    const [ingresosAll, setIngresosAll] = useState([]);
+    const [gastosAll, setGastosAll]     = useState([]);
+    const [salariosAll, setSalariosAll] = useState([]);
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
     const [form, setForm]             = useState(FORM_VACIO);
@@ -36,10 +46,32 @@ function Faenas() {
     useEffect(() => {
         cargar();
         getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
+        getIngresos().then(r => setIngresosAll(r.data || [])).catch(() => {});
+        getGastos().then(r => setGastosAll(r.data || [])).catch(() => {});
+        getSalarios().then(r => setSalariosAll(r.data || [])).catch(() => {});
     }, []);
 
     const cargar = () =>
         getFaenas().then(r => setFaenas(r.data || [])).catch(console.error);
+
+    // Ingresos, gastos y nómina en vivo de un periodo (activo o cerrado), calculados de forma
+    // uniforme para toda la lista — la Utilidad ya descuenta la nómina de los operadores,
+    // no solo los gastos generales (antes solo se restaban los gastos). Cada salario genera
+    // también un Gasto categoría "Salario" (para el P&L de Finanzas), así que se excluye de
+    // Gastos aquí para no restar la nómina dos veces.
+    const aggFaena = (f) => {
+        const ing = ingresosAll.filter(i => String(i.faenaId) === String(f.id)).reduce((a, i) => a + (Number(i.total) || 0), 0);
+        const gas = gastosAll.filter(g => String(g.faenaId) === String(f.id) && g.categoria !== 'Salario').reduce((a, g) => a + (Number(g.monto) || 0), 0);
+        const sal = salariosAll.filter(s => String(s.faenaId) === String(f.id)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+        const util = ing - gas - sal;
+        const margen = ing > 0 ? Math.round((util / ing) * 100) : 0;
+        let dias = null;
+        if (f.fechaInicio) {
+            const fin = f.estado === 'activa' ? new Date() : (f.fechaFin ? parseLocal(f.fechaFin) : null);
+            if (fin) dias = diasEntre(parseLocal(f.fechaInicio), fin);
+        }
+        return { ing, gas, sal, util, margen, dias };
+    };
 
     const abrirNueva = () => {
         setEditandoId(null);
@@ -104,6 +136,9 @@ function Faenas() {
                 getIngresos(), getGastos(), getSalarios(), getMantenimientos(), getCombustible(),
             ]);
             const byFaena = (arr) => (arr.data || []).filter(x => String(x.faenaId) === String(f.id));
+            setIngresosAll(ing.data || []);
+            setGastosAll(gas.data || []);
+            setSalariosAll(sal.data || []);
             setDetalle(prev => ({
                 ...prev,
                 [f.id]: {
@@ -138,6 +173,12 @@ function Faenas() {
 
     const nomsMaquinas = maquinas.map(m => m.nombre);
 
+    const aggCerradas = cerradas.map(f => aggFaena(f));
+    const utilAcumulada = aggCerradas.reduce((a, x) => a + x.util, 0);
+    const utilPromedio = cerradas.length > 0 ? Math.round(utilAcumulada / cerradas.length) : 0;
+    const diasCerradas = aggCerradas.map(x => x.dias).filter(d => d != null);
+    const promedioDias = diasCerradas.length > 0 ? Math.round(diasCerradas.reduce((a, d) => a + d, 0) / diasCerradas.length) : null;
+
     return (
         <>{ConfirmUI}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -156,32 +197,32 @@ function Faenas() {
             <div className="content"><div className="pad">
 
                 {/* RESUMEN */}
-                <div className="g3">
-                    <div className="card blue">
-                        <span className="ci"><Briefcase size={22} /></span>
-                        <div className="cl">Periodos activos</div>
-                        <div className="cv">{activas.length}</div>
-                        <div className="cs">máquinas en campo</div>
+                <div className="pe-hero">
+                    <div className="pe-kpi info">
+                        <div className="pe-kpi-top"><span className="pe-kpi-label">Periodos activos</span><span className="pe-kpi-ico"><Briefcase size={14} /></span></div>
+                        <div className="pe-kpi-val">{activas.length}</div>
+                        <div className="pe-kpi-sub">máquinas en campo</div>
                     </div>
-                    <div className="card" style={{ background: '#f0f4f8' }}>
-                        <span className="ci"><Check size={22} /></span>
-                        <div className="cl">Periodos cerrados</div>
-                        <div className="cv">{cerradas.length}</div>
-                        <div className="cs">archivados</div>
+                    <div className="pe-kpi good">
+                        <div className="pe-kpi-top"><span className="pe-kpi-label">Utilidad acumulada</span><span className="pe-kpi-ico"><Check size={14} /></span></div>
+                        <div className="pe-kpi-val pe-num">{fmt(utilAcumulada)}</div>
+                        <div className="pe-kpi-sub">{cerradas.length} periodos cerrados</div>
                     </div>
-                    <div className="card gold">
-                        <span className="ci"><BarChart2 size={22} /></span>
-                        <div className="cl">Utilidad acumulada</div>
-                        {(() => {
-                            const utilAcum = cerradas.reduce((a, f) => a + (f.utilidadNeta || 0), 0);
-                            return (
-                                <div className="cv" style={{ color: utilAcum >= 0 ? '#27ae60' : '#e74c3c' }}>
-                                    {fmt(utilAcum)}
-                                </div>
-                            );
-                        })()}
-                        <div className="cs">periodos cerrados</div>
+                    <div className="pe-kpi profit">
+                        <div className="pe-kpi-top"><span className="pe-kpi-label">Utilidad promedio</span><span className="pe-kpi-ico"><BarChart2 size={14} /></span></div>
+                        <div className="pe-kpi-val pe-num">{fmt(utilPromedio)}</div>
+                        <div className="pe-kpi-sub">por periodo cerrado</div>
                     </div>
+                    <div className="pe-kpi info">
+                        <div className="pe-kpi-top"><span className="pe-kpi-label">Duración promedio</span><span className="pe-kpi-ico"><Calendar size={14} /></span></div>
+                        <div className="pe-kpi-val">{promedioDias != null ? <>{promedioDias} <span style={{ fontSize: '15px', fontWeight: 600 }}>días</span></> : '—'}</div>
+                        <div className="pe-kpi-sub">de apertura a cierre</div>
+                    </div>
+                </div>
+
+                <div className="pe-note">
+                    <Info size={16} />
+                    <p>La <strong>Utilidad</strong> de cada periodo ya descuenta la nómina de los operadores (Ingresos − Gastos − Nómina), no solo los gastos generales.</p>
                 </div>
 
                 {/* FORM */}
@@ -240,12 +281,13 @@ function Faenas() {
                 {/* FAENAS ACTIVAS */}
                 {activas.length > 0 && (
                     <>
-                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#27ae60', marginBottom: '8px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27ae60', display: 'inline-block' }}></span>
+                        <div className="pe-sec-head on">
+                            <span className="pe-sec-dot"></span>
                             EN CAMPO ({activas.length})
                         </div>
                         {activas.map(f => (
-                            <TarjetaFaena key={f.id} f={f} expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
+                            <TarjetaFaena key={f.id} f={f} agg={aggFaena(f)} promedioDias={promedioDias}
+                                expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
                                 onToggle={toggleDetalle} onEditar={abrirEditar} onRefrescar={refrescarFaena}
                                 onCerrar={handleCerrar} onEliminar={handleEliminar} />
                         ))}
@@ -255,11 +297,12 @@ function Faenas() {
                 {/* FAENAS CERRADAS */}
                 {cerradas.length > 0 && (
                     <>
-                        <div style={{ fontSize: '12px', fontWeight: '700', color: '#6b7a8d', marginBottom: '8px', marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div className="pe-sec-head off">
                             <Check size={12} /> ARCHIVADAS ({cerradas.length})
                         </div>
                         {cerradas.map(f => (
-                            <TarjetaFaena key={f.id} f={f} expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
+                            <TarjetaFaena key={f.id} f={f} agg={aggFaena(f)} promedioDias={promedioDias}
+                                expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
                                 onToggle={toggleDetalle} onEditar={abrirEditar} onRefrescar={refrescarFaena}
                                 onCerrar={null} onReabrir={handleReabrir} onEliminar={handleEliminar} />
                         ))}
@@ -276,7 +319,7 @@ function Faenas() {
     );
 }
 
-function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar, onRefrescar }) {
+function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar, onRefrescar }) {
     const toast = useToast();
     const abierta = expandida === f.id;
     const det = detalle[f.id];
@@ -321,115 +364,122 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
         setGuardandoRapido(false);
     };
 
-    const totalIngDet  = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
-    const totalGasDet  = det ? det.gastos.reduce((a, x) => a + (x.monto || 0), 0) : 0;
-    const totalManDet  = det ? det.mantenimientos.reduce((a, x) => a + (x.costo || 0), 0) : 0;
-    // totalGasDet ya incluye los costos de mantenimiento (se registran también como Gasto);
-    // totalManDet es solo informativo para la tarjeta, no se resta aparte.
-    const utilDet      = totalIngDet - totalGasDet;
+    // "Salario" es un gasto que el backend genera automáticamente por cada registro de
+    // Salarios (para que aparezca en el P&L de Finanzas) — se excluye de Gastos aquí para
+    // no restar la nómina dos veces, ya que se resta aparte como Nómina.
+    const gastosSinNomina = det ? det.gastos.filter(x => x.categoria !== 'Salario') : [];
+    const totalIngDet = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
+    const totalGasDet = gastosSinNomina.reduce((a, x) => a + (x.monto || 0), 0);
+    const totalSalDet = det ? det.salarios.reduce((a, x) => a + (x.totalNeto || 0), 0) : 0;
+    const utilDet      = totalIngDet - totalGasDet - totalSalDet;
+    const catEntries = Object.entries(gastosSinNomina.reduce((acc, g) => { const k = g.categoria || 'Otros'; acc[k] = (acc[k] || 0) + (Number(g.monto) || 0); return acc; }, {}))
+        .sort((a, b) => b[1] - a[1]);
+
+    const sobrePromedio = activa && promedioDias != null && agg.dias != null && agg.dias > promedioDias;
 
     return (
-        <div style={{
-            background: activa ? '#fff8e7' : '#f8f9fa',
-            border: `1px solid ${activa ? '#f5a623' : '#dee2e6'}`,
-            borderRadius: '10px',
-            marginBottom: '12px',
-            overflow: 'hidden',
-        }}>
+        <div className={`pe-row ${activa ? 'working' : ''}`}>
             {/* Cabecera */}
-            <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <strong style={{ fontSize: '14px' }}>{f.nombreObra}</strong>
-                        <span className={`b ${activa ? 'ok' : 'comp'}`}>{activa ? 'En campo' : 'Cerrada'}</span>
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#6b7a8d', marginTop: '3px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Tractor size={11} /> {f.maquinaNombre}
-                        </span>
+            <div className="pe-row-head" onClick={() => onToggle(f)}>
+                <div className="pe-row-id">
+                    <div className="pe-folio">{folioDe(f)}</div>
+                    <div className="pe-obra">{f.nombreObra}</div>
+                    <div className="pe-meta">
+                        <span className={`pe-pill ${activa ? 'field' : 'closed'}`}>{activa ? 'En campo' : 'Cerrada'}</span>
+                        <span><Tractor size={11} /> {f.maquinaNombre}</span>
                         {f.cliente && <span>{f.cliente}</span>}
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <Calendar size={11} /> {fmtFecha(f.fechaInicio)}{f.fechaFin ? ` → ${fmtFecha(f.fechaFin)}` : ''}
-                        </span>
+                        <span><Calendar size={11} /> {fmtFecha(f.fechaInicio)}{f.fechaFin ? ` → ${fmtFecha(f.fechaFin)}` : ''}</span>
                     </div>
                 </div>
 
-                {/* Totales si cerrada */}
-                {!activa && (
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '11px', color: '#6b7a8d' }}>Utilidad neta</div>
-                        <div style={{ fontSize: '18px', fontWeight: '800', fontFamily: "'Barlow Condensed', sans-serif", color: f.utilidadNeta >= 0 ? '#27ae60' : '#e74c3c' }}>
-                            {fmt(f.utilidadNeta)}
-                        </div>
+                <div className="pe-strip">
+                    <div className="pe-mm"><div className="pe-mm-l">Ingresos</div><div className="pe-mm-v g pe-num">{fmt(agg.ing)}</div></div>
+                    <span className="pe-arrow">−</span>
+                    <div className="pe-mm"><div className="pe-mm-l">Gastos</div><div className="pe-mm-v b pe-num">{fmt(agg.gas)}</div></div>
+                    <span className="pe-arrow">−</span>
+                    <div className="pe-mm"><div className="pe-mm-l">Nómina</div><div className="pe-mm-v i pe-num">{fmt(agg.sal)}</div></div>
+                    <div className="pe-util">
+                        <div className="pe-util-l">Utilidad real</div>
+                        <div className="pe-util-v pe-num" style={{ color: agg.util >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(agg.util)}</div>
+                        <div className="pe-margin-track"><div className="pe-margin-fill" style={{ width: `${Math.min(Math.max(agg.margen, 0), 100)}%`, background: agg.util >= 0 ? '#27ae60' : '#e74c3c' }} /></div>
+                        <div className="pe-margin-pct" style={{ color: agg.util >= 0 ? '#1c8a4b' : '#c0392b' }}>{agg.margen}% margen</div>
                     </div>
-                )}
+                </div>
 
                 {/* Acciones */}
-                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                <div className="pe-actions" onClick={e => e.stopPropagation()}>
                     {onEditar && (
-                        <button className="icon-btn" title="Editar" onClick={() => onEditar(f)}>
+                        <button className="pe-iconbtn" title="Editar" onClick={() => onEditar(f)}>
                             <Pencil size={14} />
                         </button>
                     )}
                     {activa && onCerrar && (
-                        <button className="icon-btn" title="Cerrar periodo / Rendir cuentas"
+                        <button className="pe-iconbtn" title="Cerrar periodo / Rendir cuentas"
                             style={{ color: '#c0392b' }}
                             onClick={() => onCerrar(f)}>
                             <StopCircle size={14} />
                         </button>
                     )}
                     {!activa && onReabrir && (
-                        <button className="icon-btn" title="Reabrir periodo"
+                        <button className="pe-iconbtn" title="Reabrir periodo"
                             style={{ color: '#2980b9' }}
                             onClick={() => onReabrir(f)}>
                             <RotateCcw size={14} />
                         </button>
                     )}
-                    <button className="icon-btn" title="Eliminar" onClick={() => onEliminar(f)}>
+                    <button className="pe-iconbtn" title="Eliminar" onClick={() => onEliminar(f)}>
                         <Trash2 size={14} />
                     </button>
-                    <button className="icon-btn" onClick={() => onToggle(f)}>
+                    <button className="pe-iconbtn" onClick={() => onToggle(f)}>
                         {abierta ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                 </div>
             </div>
 
+            {activa && promedioDias != null && agg.dias != null && (
+                <div className="pe-progress-line">
+                    <div className="pe-progress-track"><div className="pe-progress-fill" style={{ width: `${Math.min((agg.dias / promedioDias) * 100, 100)}%`, background: sobrePromedio ? '#c9790f' : '#93a2b3' }} /></div>
+                    <div className={`pe-progress-note ${sobrePromedio ? 'over' : ''}`}>
+                        {sobrePromedio ? '⚠ ' : ''}{agg.dias} días en campo — {sobrePromedio ? 'por encima del' : 'dentro del'} promedio histórico de {promedioDias} días para esta máquina
+                    </div>
+                </div>
+            )}
+
             {/* Detalle expandido */}
             {abierta && (
-                <div style={{ borderTop: '1px solid #e9ecef', padding: '14px 16px', background: '#fff' }}>
+                <div className="pe-panel">
                     {!det && cargandoDet && <p style={{ fontSize: '12px', color: '#6b7a8d' }}>Cargando registros...</p>}
                     {det && (
                         <>
                             {/* Resumen financiero calculado en vivo a partir de los registros del periodo */}
-                            <div className="g4" style={{ marginBottom: '14px' }}>
-                                <div className="card green" style={{ padding: '10px 14px' }}>
-                                    <span className="ci" style={{ fontSize: '18px' }}><TrendingUp size={18} /></span>
-                                    <div className="cl" style={{ fontSize: '11px' }}>Ingresos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalIngDet)}</div>
+                            <div className="pe-breakdown">
+                                <div className="pe-bcard good">
+                                    <div className="pe-bcard-l">↑ Ingresos</div>
+                                    <div className="pe-bcard-v" style={{ color: '#1c8a4b' }}>{fmt(totalIngDet)}</div>
                                 </div>
-                                <div className="card red" style={{ padding: '10px 14px' }}>
-                                    <span className="ci" style={{ fontSize: '18px' }}><TrendingDown size={18} /></span>
-                                    <div className="cl" style={{ fontSize: '11px' }}>Gastos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalGasDet)}</div>
+                                <div className="pe-bcard bad">
+                                    <div className="pe-bcard-l">↓ Gastos</div>
+                                    <div className="pe-bcard-v" style={{ color: '#c0392b' }}>{fmt(totalGasDet)}</div>
+                                    {catEntries.length > 0 && (
+                                        <div style={{ fontSize: '10.5px', color: '#93a2b3', marginTop: '4px' }}>
+                                            {catEntries.slice(0, 3).map(([k, v]) => `${k} ${fmt(v)}`).join(' · ')}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="card" style={{ padding: '10px 14px', background: '#fff3e0' }}>
-                                    <span className="ci" style={{ fontSize: '18px' }}><Wrench size={18} /></span>
-                                    <div className="cl" style={{ fontSize: '11px' }}>Mantenimientos</div>
-                                    <div className="cv" style={{ fontSize: '18px' }}>{fmt(totalManDet)}</div>
+                                <div className="pe-bcard info">
+                                    <div className="pe-bcard-l">👤 Nómina</div>
+                                    <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{fmt(totalSalDet)}</div>
                                 </div>
-                                <div className="card gold" style={{ padding: '10px 14px' }}>
-                                    <span className="ci" style={{ fontSize: '18px' }}><BarChart2 size={18} /></span>
-                                    <div className="cl" style={{ fontSize: '11px' }}>Utilidad</div>
-                                    <div className="cv" style={{ fontSize: '18px', color: utilDet >= 0 ? '#27ae60' : '#e74c3c' }}>
-                                        {fmt(utilDet)}
-                                    </div>
+                                <div className="pe-bcard gold">
+                                    <div className="pe-bcard-l">◆ Utilidad real</div>
+                                    <div className="pe-bcard-v" style={{ color: utilDet >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(utilDet)}</div>
                                 </div>
                             </div>
 
                             {/* Registrar ingreso/gasto olvidado — funciona con el periodo activo o cerrado */}
                             <div style={{ marginBottom: '14px' }}>
                                 {!formRapido && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div className="pe-quickrow">
                                         <button className="bs" style={{ fontSize: '12px' }} onClick={() => abrirFormRapido('ingreso')}>
                                             <Plus size={12} style={{ verticalAlign: 'middle' }} /> Ingreso olvidado
                                         </button>
@@ -470,10 +520,10 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
                                     cols={['Fecha', 'Descripción', 'Tipo', 'Total']}
                                     rows={det.ingresos.map(i => [fmtFecha(i.fecha), i.descripcion, i.tipoTrabajo, <span className="pos">{fmt(i.total)}</span>])} />
                             )}
-                            {det.gastos.length > 0 && (
+                            {gastosSinNomina.length > 0 && (
                                 <TablaDetalle titulo="Gastos" icono={<TrendingDown size={13} />} color="#e74c3c"
                                     cols={['Fecha', 'Descripción', 'Categoría', 'Monto']}
-                                    rows={det.gastos.map(g => [fmtFecha(g.fecha), g.descripcion, g.categoria, <span className="neg">{fmt(g.monto)}</span>])} />
+                                    rows={gastosSinNomina.map(g => [fmtFecha(g.fecha), g.descripcion, <span className={`pe-catpill pe-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span>, <span className="neg">{fmt(g.monto)}</span>])} />
                             )}
                             {det.salarios.length > 0 && (
                                 <TablaDetalle titulo="Salarios" icono={<Clock size={13} />} color="#2980b9"
@@ -490,7 +540,7 @@ function TarjetaFaena({ f, expandida, detalle, cargandoDet, onToggle, onEditar, 
                                     cols={['Fecha', 'Galones', 'Precio/Gal', 'Total']}
                                     rows={det.combustible.map(c => [fmtFecha(c.fecha), `${c.galones} gal`, fmt(c.precioPorGalon), <span className="neg">{fmt(c.total)}</span>])} />
                             )}
-                            {det.ingresos.length === 0 && det.gastos.length === 0 && det.salarios.length === 0
+                            {det.ingresos.length === 0 && gastosSinNomina.length === 0 && det.salarios.length === 0
                                 && det.mantenimientos.length === 0 && det.combustible.length === 0 && (
                                 <p className="vacio">Sin registros asociados a este periodo aún</p>
                             )}
