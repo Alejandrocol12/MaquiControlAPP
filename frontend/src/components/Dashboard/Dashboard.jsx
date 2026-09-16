@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getMaquinas, getIngresos, getGastos, getSalarios, getFaenas, getPagos } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
-import { Tractor, TrendingUp, TrendingDown, AlertTriangle, Briefcase, BarChart2, CreditCard, Clock } from 'lucide-react';
+import { Tractor, TrendingUp, TrendingDown, BarChart2, Clock } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { useCountUp } from '../../utils/useCountUp';
@@ -22,18 +22,6 @@ const IcoMaquina = ({ tipo, size = 22 }) => {
     return <Tractor size={size} />;
 };
 
-// Avatar circular de máquina con color por tipo
-const AvatarMaquina = ({ tipo, size = 38 }) => (
-    <div style={{
-        width: size, height: size, borderRadius: '50%',
-        background: tipoColor(tipo),
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#fff', flexShrink: 0,
-    }}>
-        <IcoMaquina tipo={tipo} size={size * 0.52} />
-    </div>
-);
-
 // #9: número que anima desde 0 al valor objetivo
 function AnimatedNumber({ value, prefix = '', suffix = '', style }) {
     const animated = useCountUp(value);
@@ -43,6 +31,7 @@ function AnimatedNumber({ value, prefix = '', suffix = '', style }) {
 
 const fmt    = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const mesHoy = () => new Date().toISOString().slice(0, 7);
+const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, m - 1, d); };
 
 
 function Dashboard({ onIrMaquinaria }) {
@@ -90,19 +79,47 @@ function Dashboard({ onIrMaquinaria }) {
         return prefix ? arr.filter(x => x[campo]?.startsWith(prefix)) : arr;
     };
 
+    const gastosOperativos = gastos.filter(g => g.categoria !== 'Salario');
     const ingFiltrados = filtrarPorFecha(ingresos, 'fecha');
-    const gasFiltrados = filtrarPorFecha(gastos.filter(g => g.categoria !== 'Salario'), 'fecha');
+    const gasFiltrados = filtrarPorFecha(gastosOperativos, 'fecha');
     const salFiltrados = filtrarPorFecha(salarios, 'fecha');
     const totIngMes    = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
     const totGasMes    = gasFiltrados.reduce((a, g) => a + (Number(g.monto) || 0), 0);
     const totSalMes    = salFiltrados.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
     const totEgresosMes = totGasMes + totSalMes;
     const utilidadMes  = totIngMes - totEgresosMes;
+    const margenMes    = totIngMes > 0 ? Math.round((utilidadMes / totIngMes) * 100) : 0;
 
     const labelFiltro = filtroFecha === 'mes' ? nombreMes
         : filtroFecha === 'anio' ? `Año ${ahora.getFullYear()}`
         : filtroFecha === 'todo' ? 'Total acumulado'
         : (fechaDesde || fechaHasta) ? `${fechaDesde || '...'} → ${fechaHasta || '...'}` : 'Rango personalizado';
+
+    // Tendencia vs. el mes calendario anterior — solo tiene sentido cuando se está viendo "Este mes"
+    let tendenciaPct = null;
+    if (filtroFecha === 'mes') {
+        const dAnt = new Date(ahora); dAnt.setMonth(dAnt.getMonth() - 1);
+        const prefixAnt = dAnt.toISOString().slice(0, 7);
+        const ingAnt = ingresos.filter(i => i.fecha?.startsWith(prefixAnt)).reduce((a, i) => a + (Number(i.total) || 0), 0);
+        const gasAnt = gastosOperativos.filter(g => g.fecha?.startsWith(prefixAnt)).reduce((a, g) => a + (Number(g.monto) || 0), 0)
+            + salarios.filter(s => s.fecha?.startsWith(prefixAnt)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+        const utilAnt = ingAnt - gasAnt;
+        if (utilAnt !== 0) tendenciaPct = Math.round(((utilidadMes - utilAnt) / Math.abs(utilAnt)) * 100);
+    }
+
+    // Ingresos vs. egresos de los últimos 6 meses calendario, para el gráfico
+    const ultimos6Meses = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(ahora); d.setMonth(d.getMonth() - (5 - i));
+        return { prefix: d.toISOString().slice(0, 7), label: d.toLocaleDateString('es-CO', { month: 'short' }).replace('.', '') };
+    });
+    const chartData = ultimos6Meses.map(({ prefix, label }) => {
+        const ing = ingresos.filter(i => i.fecha?.startsWith(prefix)).reduce((a, i) => a + (Number(i.total) || 0), 0);
+        const gas = gastosOperativos.filter(g => g.fecha?.startsWith(prefix)).reduce((a, g) => a + (Number(g.monto) || 0), 0)
+            + salarios.filter(s => s.fecha?.startsWith(prefix)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+        return { label, ing, gas, esActual: prefix === mes };
+    });
+    const chartMax = Math.max(1, ...chartData.flatMap(d => [d.ing, d.gas]));
+    const chartTope = Math.pow(10, Math.max(0, String(Math.round(chartMax)).length - 1)) * Math.ceil(chartMax / Math.pow(10, Math.max(0, String(Math.round(chartMax)).length - 1)));
 
     // Periodos activos
     const periodosActivos = faenas.filter(f => f.estado === 'activa');
@@ -111,7 +128,42 @@ function Dashboard({ onIrMaquinaria }) {
     const pagosPendientes = pagos.filter(p => p.estado !== 'Pagado' && (p.saldoPendiente || 0) > 0);
     const totalPorCobrar  = pagosPendientes.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
 
-    const estadoClass = (e) => e === 'Activa' ? 'ea' : e === 'En mantenimiento' ? 'em' : 'ef';
+    // Señales que sí se pueden calcular con datos reales — nada inventado
+    const gastosSinFecha = gastos.filter(g => !g.fecha);
+    const totalGastosSinFecha = gastosSinFecha.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const maquinasMantenimiento = maquinas.filter(m => m.estado === 'En mantenimiento');
+    const periodosLargos = periodosActivos
+        .map(f => ({ ...f, dias: f.fechaInicio ? Math.round((ahora - parseLocal(f.fechaInicio)) / 86400000) : 0 }))
+        .filter(f => f.dias > 30);
+
+    const alertas = [
+        gastosSinFecha.length > 0 && {
+            tipo: 'crit',
+            texto: `${gastosSinFecha.length} gasto${gastosSinFecha.length > 1 ? 's' : ''} sin fecha por ${fmt(totalGastosSinFecha)}`,
+            desc: 'No se están contando en los reportes del periodo',
+        },
+        maquinasMantenimiento.length > 0 && {
+            tipo: 'warn',
+            texto: `${maquinasMantenimiento.map(m => m.nombre).join(', ')} — en mantenimiento`,
+            desc: 'Revisar módulo de Mantenimientos',
+        },
+        totalPorCobrar > 0 && {
+            tipo: 'warn',
+            texto: `${fmt(totalPorCobrar)} pendientes de cobro`,
+            desc: `${pagosPendientes.length} pago${pagosPendientes.length > 1 ? 's' : ''} de clientes sin completar`,
+        },
+        ...periodosLargos.map(f => ({
+            tipo: 'info',
+            texto: `Periodo de ${f.maquinaNombre} lleva ${f.dias} días abierto`,
+            desc: 'Puede ser momento de rendir cuentas y cerrarlo',
+        })),
+    ].filter(Boolean);
+
+    // Horas trabajadas este mes por máquina, y su utilización relativa a la más activa de la flota
+    const horasEsteMes = (nombre) => ingresos
+        .filter(i => i.maquinaNombre === nombre && i.tipoTrabajo === 'Horas' && i.fecha?.startsWith(mes))
+        .reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+    const maxHorasFlota = Math.max(1, ...maquinas.map(m => horasEsteMes(m.nombre)));
 
     if (cargando) return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -146,12 +198,7 @@ function Dashboard({ onIrMaquinaria }) {
                     <h1>Dashboard</h1>
                     <p>Resumen general — {labelFiltro}</p>
                 </div>
-            </div>
-
-            <div className="content"><div className="pad">
-
-                {/* ── FILTRO PERÍODO ── */}
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {[
                         { key: 'mes',   label: 'Este mes' },
                         { key: 'anio',  label: 'Este año' },
@@ -170,158 +217,151 @@ function Dashboard({ onIrMaquinaria }) {
                         <>
                             <input type="date" style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid #dee2e6', borderRadius: '8px' }}
                                 value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
-                            <span style={{ fontSize: '12px', color: '#6b7a8d' }}>→</span>
+                            <span style={{ fontSize: '12px', color: '#6b7a8d', alignSelf: 'center' }}>→</span>
                             <input type="date" style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid #dee2e6', borderRadius: '8px' }}
                                 value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
                         </>
                     )}
                 </div>
+            </div>
 
-                {/* ── RESUMEN PERÍODO ── */}
-                <div className="st" style={{ marginTop: 0 }}>
-                    Resumen — {labelFiltro}
-                </div>
-                <div className="g3" style={{ marginBottom: '20px' }}>
-                    <div className="card green">
-                        <span className="ci"><TrendingUp size={22} /></span>
-                        <div className="cl">Ingresos</div>
-                        <div className="cv"><AnimatedNumber value={totIngMes} prefix="$" /></div>
-                        <div className="cs">{ingFiltrados.length} registros</div>
-                    </div>
-                    <div className="card red">
-                        <span className="ci"><TrendingDown size={22} /></span>
-                        <div className="cl">Egresos</div>
-                        <div className="cv"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
-                        <div className="cs">gastos + salarios</div>
-                    </div>
-                    <div className="card gold">
-                        <span className="ci"><BarChart2 size={22} /></span>
-                        <div className="cl">Utilidad</div>
-                        <div className="cv">
-                            <AnimatedNumber value={utilidadMes} prefix="$" style={{ color: utilidadMes >= 0 ? '#27ae60' : '#e74c3c' }} />
-                        </div>
-                        <div className="cs">ingresos − egresos</div>
-                    </div>
-                </div>
+            <div className="content"><div className="pad">
 
-
-                {/* ── MÉTRICAS OPERATIVAS ── */}
-                <div className="g2" style={{ marginBottom: '20px' }}>
-                    <div className="card blue">
-                        <span className="ci"><Briefcase size={22} /></span>
-                        <div className="cl">En campo</div>
-                        <div className="cv"><AnimatedNumber value={periodosActivos.length} /></div>
-                        <div className="cs">{maquinas.length} máquinas en total · {maquinas.filter(m => m.estado === 'Activa').length} activas</div>
+                {/* ── HERO KPI ── */}
+                <div className="db-hero">
+                    <div className="db-kpi good">
+                        <div className="db-kpi-top"><span className="db-kpi-label">Ingresos</span><span className="db-kpi-ico"><TrendingUp size={15} /></span></div>
+                        <div className="db-kpi-val db-num"><AnimatedNumber value={totIngMes} prefix="$" /></div>
+                        <div className="db-kpi-sub">{ingFiltrados.length} registros de trabajo</div>
                     </div>
-                    <div className="card" style={{ background: totalPorCobrar > 0 ? '#fff8e7' : '#f8f9fa', borderColor: totalPorCobrar > 0 ? '#f5a623' : '#dee2e6' }}>
-                        <span className="ci"><CreditCard size={22} /></span>
-                        <div className="cl">Por cobrar</div>
-                        <div className="cv">
-                            <AnimatedNumber value={totalPorCobrar} prefix="$" style={{ color: totalPorCobrar > 0 ? '#e67e22' : '#6b7a8d' }} />
-                        </div>
-                        <div className="cs">{pagosPendientes.length} pagos pendientes de clientes</div>
+                    <div className="db-kpi bad">
+                        <div className="db-kpi-top"><span className="db-kpi-label">Egresos</span><span className="db-kpi-ico"><TrendingDown size={15} /></span></div>
+                        <div className="db-kpi-val db-num"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
+                        <div className="db-kpi-sub">gastos + nómina de operadores</div>
                     </div>
-                </div>
-
-                {/* ── ALERTA MANTENIMIENTO ── */}
-                {maquinas.some(m => m.estado === 'En mantenimiento') && (
-                    <div className="ale">
-                        <AlertTriangle size={20} />
+                    <div className="db-kpi profit">
                         <div>
-                            <p>{maquinas.filter(m => m.estado === 'En mantenimiento').map(m => m.nombre).join(', ')} — en mantenimiento</p>
-                            <span className="ale-desc">Revisar módulo de Mantenimientos</span>
+                            <div className="db-kpi-top"><span className="db-kpi-label">Utilidad — {labelFiltro}</span><span className="db-kpi-ico"><BarChart2 size={15} /></span></div>
+                            <div className="db-kpi-val db-num"><AnimatedNumber value={utilidadMes} prefix="$" /></div>
+                            <div className="db-kpi-sub">margen del {margenMes}% sobre ingresos</div>
+                        </div>
+                        {tendenciaPct != null && (
+                            <div className={`db-trend ${tendenciaPct < 0 ? 'down' : ''}`}>
+                                {tendenciaPct >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                                {tendenciaPct >= 0 ? '+' : ''}{tendenciaPct}% vs. mes anterior
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* ── GRÁFICO INGRESOS VS EGRESOS ── */}
+                <div className="db-chart-card">
+                    <div className="db-chart-head">
+                        <h2>Ingresos vs. egresos — últimos 6 meses</h2>
+                        <div className="db-legend">
+                            <span><i style={{ background: '#27ae60' }}></i>Ingresos</span>
+                            <span><i style={{ background: '#e74c3c' }}></i>Egresos</span>
                         </div>
                     </div>
-                )}
-
-                {/* ── MÁQUINAS EN CAMPO ── */}
-                {periodosActivos.length > 0 && (
-                    <>
-                        <div className="st">
-                            Máquinas en campo
-                            <span style={{ fontSize: '11px', fontWeight: '400', color: '#6b7a8d' }}>({periodosActivos.length} periodos activos)</span>
+                    <div className="db-chart-wrap">
+                        <div className="db-chart-grid">
+                            <div className="gl" style={{ bottom: 0 }}><span>$0</span></div>
+                            <div className="gl" style={{ bottom: '50%' }}><span>{fmt(chartTope / 2)}</span></div>
+                            <div className="gl" style={{ bottom: '100%' }}><span>{fmt(chartTope)}</span></div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                        <div className="db-chart-bars">
+                            {chartData.map((d, i) => (
+                                <div className="db-chart-col" key={i}>
+                                    <div className={`db-bar ing ${d.esActual ? 'current' : ''}`} style={{ height: `${Math.max((d.ing / chartTope) * 100, d.ing > 0 ? 2 : 0)}%` }} title={`Ingresos: ${fmt(d.ing)}`}></div>
+                                    <div className={`db-bar gas ${d.esActual ? 'current' : ''}`} style={{ height: `${Math.max((d.gas / chartTope) * 100, d.gas > 0 ? 2 : 0)}%` }} title={`Egresos: ${fmt(d.gas)}`}></div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="db-chart-months">
+                            {chartData.map((d, i) => <span key={i}>{d.label}</span>)}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── EN CAMPO + REQUIERE ATENCIÓN ── */}
+                <div className="db-band2">
+                    <div className="db-panel">
+                        <div className="db-panel-head"><h2>En campo ahora</h2><span className="meta">{periodosActivos.length} periodo{periodosActivos.length !== 1 ? 's' : ''} activo{periodosActivos.length !== 1 ? 's' : ''}</span></div>
+                        <div className="db-panel-body">
+                            {periodosActivos.length === 0 && <div className="db-panel-empty">Ninguna máquina tiene un periodo activo</div>}
                             {periodosActivos.map(f => {
                                 const ingF = ingresos.filter(i => String(i.faenaId) === String(f.id)).reduce((a, i) => a + (Number(i.total) || 0), 0);
-                                const gasF = gastos.filter(g => String(g.faenaId) === String(f.id)).reduce((a, g) => a + (Number(g.monto) || 0), 0);
+                                const gasF = gastos.filter(g => String(g.faenaId) === String(f.id) && g.categoria !== 'Salario').reduce((a, g) => a + (Number(g.monto) || 0), 0);
+                                const dias = f.fechaInicio ? Math.max(1, Math.round((ahora - parseLocal(f.fechaInicio)) / 86400000)) : null;
                                 return (
-                                    <div key={f.id} style={{ background: '#fff8e7', border: '1px solid #f5a623', borderRadius: '10px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                                        <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#27ae60', display: 'inline-block', flexShrink: 0 }}></span>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontWeight: '700', fontSize: '13px' }}>{f.maquinaNombre}</div>
-                                            <div style={{ fontSize: '12px', color: '#6b7a8d' }}>{f.nombreObra}{f.cliente ? ` — ${f.cliente}` : ''}</div>
+                                    <div className="db-field-row" key={f.id}>
+                                        <span className="db-field-dot"></span>
+                                        <div className="db-field-info">
+                                            <div className="db-field-name">{f.maquinaNombre}</div>
+                                            <div className="db-field-meta">{f.nombreObra}{f.cliente ? ` — ${f.cliente}` : ''}</div>
+                                            <div className="db-field-days"><Clock size={10} />Desde el {fmtFecha(f.fechaInicio)}{dias != null ? ` · ${dias} día${dias !== 1 ? 's' : ''}` : ''}</div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '16px', flexShrink: 0 }}>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '10px', color: '#6b7a8d' }}>Ingresos</div>
-                                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#27ae60' }}>{fmt(ingF)}</div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '10px', color: '#6b7a8d' }}>Gastos</div>
-                                                <div style={{ fontSize: '13px', fontWeight: '700', color: '#e74c3c' }}>{fmt(gasF)}</div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '10px', color: '#6b7a8d' }}>Desde</div>
-                                                <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a2d42', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                    <Clock size={11} /> {fmtFecha(f.fechaInicio)}
-                                                </div>
-                                            </div>
+                                        <div className="db-field-nums">
+                                            <div className="db-field-num ing"><div className="l">Ingresos</div><div className="v">{fmt(ingF)}</div></div>
+                                            <div className="db-field-num gas"><div className="l">Gastos</div><div className="v">{fmt(gasF)}</div></div>
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-                    </>
-                )}
+                    </div>
 
-                {/* ── MIS MÁQUINAS ── */}
-                <div className="st">
-                    Mis Máquinas
-                    <a onClick={onIrMaquinaria}>Ver todas →</a>
+                    <div className="db-panel">
+                        <div className="db-panel-head"><h2>Requiere atención</h2><span className="meta">{alertas.length} pendiente{alertas.length !== 1 ? 's' : ''}</span></div>
+                        <div className="db-panel-body">
+                            {alertas.length === 0 && <div className="db-panel-empty">Todo al día — sin pendientes por ahora</div>}
+                            {alertas.map((a, i) => (
+                                <div className={`db-alert-row ${a.tipo}`} key={i}>
+                                    <span className="db-alert-bar"></span>
+                                    <div className="db-alert-text">
+                                        <p>{a.texto}</p>
+                                        <span>{a.desc}</span>
+                                    </div>
+                                    <span className="db-alert-tag">{a.tipo === 'crit' ? 'Crítico' : a.tipo === 'warn' ? 'Alerta' : 'Info'}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-                <div className="gm">
+
+                {/* ── FLOTA ── */}
+                <div>
+                    <div className="db-sechead">
+                        <h2>Flota — {maquinas.length} máquina{maquinas.length !== 1 ? 's' : ''}</h2>
+                        <span className="meta">Horas trabajadas este mes, relativo a tu máquina más activa · <a onClick={onIrMaquinaria} style={{ cursor: 'pointer', color: '#f5a623', fontWeight: 600 }}>Ver todas →</a></span>
+                    </div>
                     {maquinas.length === 0 ? (
                         <p className="vacio">No hay máquinas registradas</p>
                     ) : (
-                        maquinas.map(m => {
-                            const periodo = periodosActivos.find(f => f.maquinaNombre === m.nombre);
-                            return (
-                                <div className="mcard" key={m.id}>
-                                    <div className="mch">
-                                        <AvatarMaquina tipo={m.tipo} size={40} />
-                                        <div>
-                                            <div className="mcn">{m.nombre}</div>
-                                            <div className="mct" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: tipoColor(m.tipo), display: 'inline-block' }}></span>
-                                                {m.tipo} · {m.placa}
+                        <div className="db-panel db-scrollx">
+                            <div style={{ minWidth: 720 }}>
+                                <div className="db-fleet-head-row"><span>Máquina</span><span>Estado</span><span>Horas este mes</span><span>Horómetro</span><span>Operador</span></div>
+                                {maquinas.map(m => {
+                                    const horas = horasEsteMes(m.nombre);
+                                    const pillCls = m.estado === 'Activa' ? 'act' : m.estado === 'En mantenimiento' ? 'mant' : 'inact';
+                                    return (
+                                        <div className="db-fleet-row" key={m.id}>
+                                            <div className="db-fleet-id">
+                                                <span className="db-fleet-ico" style={{ background: tipoColor(m.tipo) }}><IcoMaquina tipo={m.tipo} size={17} /></span>
+                                                <div><div className="db-fleet-name">{m.nombre}</div><div className="db-fleet-sub">{m.placa}</div></div>
                                             </div>
+                                            <span className={`db-pill ${pillCls}`}><i></i>{m.estado}</span>
+                                            <div>
+                                                <div className="db-util-track"><div className="db-util-fill" style={{ width: `${Math.round((horas / maxHorasFlota) * 100)}%` }}></div></div>
+                                                <div className="db-util-label">{horas.toLocaleString('es-CO')} hrs</div>
+                                            </div>
+                                            <div className="db-fleet-horo">{(m.horometroActual || 0).toLocaleString('es-CO')}<span>hrs</span></div>
+                                            <div className={`db-fleet-op ${!m.operadorNombre ? 'empty' : ''}`}>{m.operadorNombre || 'Sin asignar'}</div>
                                         </div>
-                                    </div>
-                                    <div className="mcb">
-                                        <div className="mcs">
-                                            <span>Estado</span>
-                                            <span className={estadoClass(m.estado)}><span className="ed"></span>{m.estado}</span>
-                                        </div>
-                                        <div className="mcs">
-                                            <span>Periodo</span>
-                                            {periodo
-                                                ? <span className="b ok" style={{ fontSize: '11px' }}>{periodo.nombreObra}</span>
-                                                : <span style={{ color: '#9aa5b4', fontSize: '12px' }}>Sin periodo activo</span>
-                                            }
-                                        </div>
-                                        <div className="mcs">
-                                            <span>Horómetro</span>
-                                            <span>{(m.horometroActual || 0).toLocaleString('es-CO')} hrs</span>
-                                        </div>
-                                        <div className="mcs">
-                                            <span>Operador</span>
-                                            <span>{m.operadorNombre || '—'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
                 </div>
 
