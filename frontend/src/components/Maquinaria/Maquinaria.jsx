@@ -244,8 +244,9 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                 <div className="mq-fleet">
                     {maquinas.map(m => {
                         const info = infoPeriodo(m);
+                        const estadoCls = info ? 'working' : m.estado === 'En mantenimiento' ? 'mant' : m.estado !== 'Activa' ? 'inactiva' : '';
                         return (
-                        <div className={`mq-fcard ${info ? 'working' : ''}`} key={m.id} onClick={() => abrirDetalle(m)}>
+                        <div className={`mq-fcard ${estadoCls}`} key={m.id} onClick={() => abrirDetalle(m)}>
                             <div className="mq-fc-top">
                                 <div className="mq-fc-ico"><IcoMaquina tipo={m.tipo} size={22} /></div>
                                 <div>
@@ -858,13 +859,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                         <div className="mq-g2">
                             <div className="mq-mini">
-                                <div className="mq-mini-head" style={{ color: '#27ae60' }}><TrendingUp size={13} /> Últimos ingresos</div>
-                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{i.fecha} — {i.descripcion}</span><b className="mq-num" style={{ color: '#27ae60' }}>{fmt(i.total)}</b></div>)}
+                                <div className="mq-mini-head good"><TrendingUp size={13} /> Últimos ingresos</div>
+                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{i.fecha} — {i.descripcion}</span><b className="mq-num" style={{ color: '#1c8a4b' }}>{fmt(i.total)}</b></div>)}
                                 {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
                             </div>
                             <div className="mq-mini">
-                                <div className="mq-mini-head" style={{ color: '#e74c3c' }}><TrendingDown size={13} /> Últimos gastos</div>
-                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{g.fecha} — {g.descripcion}</span><b className="mq-num" style={{ color: '#e74c3c' }}>{fmt(g.monto)}</b></div>)}
+                                <div className="mq-mini-head bad"><TrendingDown size={13} /> Últimos gastos</div>
+                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{g.fecha} — {g.descripcion}</span><b className="mq-num" style={{ color: '#c0392b' }}>{fmt(g.monto)}</b></div>)}
                                 {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
                             </div>
                         </div>
@@ -1230,10 +1231,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                                     {/* Resumen en tiempo real */}
                                     <div className="mq-job-grid">
-                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Ingresos</div><div className="mq-job-tile-v mq-num" style={{ color: '#27ae60' }}>{fmt(totalIngresos)}</div></div>
-                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Gastos</div><div className="mq-job-tile-v mq-num" style={{ color: '#e74c3c' }}>{fmt(totalGastos)}</div></div>
-                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#2980b9' }}>{horasFaena}</div></div>
-                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Utilidad</div><div className="mq-job-tile-v mq-num" style={{ color: totalIngresos - totalGastos >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(totalIngresos - totalGastos)}</div></div>
+                                        <div className="mq-job-tile good"><div className="mq-job-tile-l">Ingresos</div><div className="mq-job-tile-v mq-num" style={{ color: '#1c8a4b' }}>{fmt(totalIngresos)}</div></div>
+                                        <div className="mq-job-tile bad"><div className="mq-job-tile-l">Gastos</div><div className="mq-job-tile-v mq-num" style={{ color: '#c0392b' }}>{fmt(totalGastos)}</div></div>
+                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{horasFaena}</div></div>
+                                        <div className="mq-job-tile gold"><div className="mq-job-tile-l">Utilidad</div><div className="mq-job-tile-v mq-num" style={{ color: totalIngresos - totalGastos >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(totalIngresos - totalGastos)}</div></div>
                                     </div>
 
                                     {promedioDiasCampo && (
