@@ -885,102 +885,87 @@ function Reportes() {
         </select>
     );
 
-    const REPORTES_GRUPOS = [
+    const REPORTES = [
         {
-            id: 'financieros', titulo: 'Financieros', sub: 'resultados de la operación', color: '#c9790f',
-            items: [
-                {
-                    id: 'mensual', ico: <BarChart2 size={19} />,
-                    titulo: 'Reporte mensual',
-                    desc: 'Ingresos, gastos, salarios y utilidad de un mes',
-                    control: (
-                        <select className="rp-select" value={mesSel} onChange={e => setMesSel(e.target.value)}>
-                            {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                        </select>
-                    ),
-                    metricLabel: `${ingMesSel.length} ing. · ${gasMesSel.length} gas.`,
-                    metricValor: utilMesSel,
-                    accion:    () => pdfMensual(mesSel, ingresos, gastos, salarios),
-                    xlsAccion: () => xlsMensual(mesSel, ingresos, gastos, salarios),
-                },
-            ],
+            id: 'mensual', ico: <BarChart2 size={19} />, color: '#c9790f',
+            titulo: 'Reporte mensual',
+            desc: 'Ingresos, gastos, salarios y utilidad de un mes',
+            control: (
+                <select className="rp-select" value={mesSel} onChange={e => setMesSel(e.target.value)}>
+                    {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                </select>
+            ),
+            metricLabel: `${ingMesSel.length} ing. · ${gasMesSel.length} gas.`,
+            metricValor: utilMesSel,
+            accion:    () => pdfMensual(mesSel, ingresos, gastos, salarios),
+            xlsAccion: () => xlsMensual(mesSel, ingresos, gastos, salarios),
         },
         {
-            id: 'operativos', titulo: 'Operativos y flota', sub: 'máquinas, gente y mantenimiento', color: '#2980b9',
-            items: [
-                {
-                    id: 'maquina', ico: <GiBulldozer size={19} />,
-                    titulo: 'Reporte por máquina',
-                    desc: 'Ingresos, gastos, combustible y horas de una máquina',
-                    control: selMaquina,
-                    metricLabel: `${ingMaqSelCount} ing. · ${gasMaqSelCount} gas.`,
-                    metricValor: totIngMaqSel,
-                    accion: () => {
-                        const maq = maquinas.find(m => m.nombre === maqSel);
-                        if (maq) pdfMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
-                    },
-                    xlsAccion: () => {
-                        const maq = maquinas.find(m => m.nombre === maqSel);
-                        if (maq) return xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
-                    },
-                },
-            ],
+            id: 'maquina', ico: <GiBulldozer size={19} />, color: '#2980b9',
+            titulo: 'Reporte por máquina',
+            desc: 'Ingresos, gastos, combustible y horas de una máquina',
+            control: selMaquina,
+            metricLabel: `${ingMaqSelCount} ing. · ${gasMaqSelCount} gas.`,
+            metricValor: totIngMaqSel,
+            accion: () => {
+                const maq = maquinas.find(m => m.nombre === maqSel);
+                if (maq) pdfMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
+            },
+            xlsAccion: () => {
+                const maq = maquinas.find(m => m.nombre === maqSel);
+                if (maq) return xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
+            },
         },
         {
-            id: 'cobros', titulo: 'Cobros y desglose', sub: 'detalle por periodo y cartera', color: '#8e44ad',
-            items: [
-                {
-                    id: 'ingresos-periodos', ico: <TrendingUp size={19} />,
-                    titulo: 'Ingresos por periodo',
-                    desc: 'Desglosa los ingresos de una máquina, periodo por periodo',
-                    control: (
-                        <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-                            <select className="rp-select" value={maqSelIngresos}
-                                onChange={e => { setMaqSelIngresos(e.target.value); setPeriodoSelIngresos(''); }}>
-                                {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                            </select>
-                            <select className="rp-select" value={periodoSelIngresos} onChange={e => setPeriodoSelIngresos(e.target.value)}>
-                                <option value=''>Todos los periodos</option>
-                                {faenas.filter(f => f.maquinaNombre === maqSelIngresos)
-                                    .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
-                                    .map((f, i, arr) => (
-                                        <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
-                                    ))}
-                            </select>
-                        </div>
-                    ),
-                    metricLabel: periodoIngLabel,
-                    metricValor: totalIngPeriodoSel,
-                    accion:    () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
-                    xlsAccion: () => xlsIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
-                },
-                {
-                    id: 'gastos-periodos', ico: <TrendingDown size={19} />,
-                    titulo: 'Gastos por periodo',
-                    desc: 'Desglosa los gastos de una máquina, periodo por periodo',
-                    control: (
-                        <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-                            <select className="rp-select" value={maqSelGastos}
-                                onChange={e => { setMaqSelGastos(e.target.value); setPeriodoSelGastos(''); }}>
-                                {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                            </select>
-                            <select className="rp-select" value={periodoSelGastos} onChange={e => setPeriodoSelGastos(e.target.value)}>
-                                <option value=''>Todos los periodos</option>
-                                {faenas.filter(f => f.maquinaNombre === maqSelGastos)
-                                    .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
-                                    .map((f, i, arr) => (
-                                        <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
-                                    ))}
-                            </select>
-                        </div>
-                    ),
-                    metricLabel: periodoGasLabel,
-                    metricValor: totalGasPeriodoSel,
-                    metricTono: 'neg',
-                    accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
-                    xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
-                },
-            ],
+            id: 'ingresos-periodos', ico: <TrendingUp size={19} />, color: '#8e44ad',
+            titulo: 'Ingresos por periodo',
+            desc: 'Desglosa los ingresos de una máquina, periodo por periodo',
+            control: (
+                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                    <select className="rp-select" value={maqSelIngresos}
+                        onChange={e => { setMaqSelIngresos(e.target.value); setPeriodoSelIngresos(''); }}>
+                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                    </select>
+                    <select className="rp-select" value={periodoSelIngresos} onChange={e => setPeriodoSelIngresos(e.target.value)}>
+                        <option value=''>Todos los periodos</option>
+                        {faenas.filter(f => f.maquinaNombre === maqSelIngresos)
+                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
+                            .map((f, i, arr) => (
+                                <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
+                            ))}
+                    </select>
+                </div>
+            ),
+            metricLabel: periodoIngLabel,
+            metricValor: totalIngPeriodoSel,
+            accion:    () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
+            xlsAccion: () => xlsIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
+        },
+        {
+            id: 'gastos-periodos', ico: <TrendingDown size={19} />, color: '#8e44ad',
+            titulo: 'Gastos por periodo',
+            desc: 'Desglosa los gastos de una máquina, periodo por periodo',
+            control: (
+                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                    <select className="rp-select" value={maqSelGastos}
+                        onChange={e => { setMaqSelGastos(e.target.value); setPeriodoSelGastos(''); }}>
+                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                    </select>
+                    <select className="rp-select" value={periodoSelGastos} onChange={e => setPeriodoSelGastos(e.target.value)}>
+                        <option value=''>Todos los periodos</option>
+                        {faenas.filter(f => f.maquinaNombre === maqSelGastos)
+                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
+                            .map((f, i, arr) => (
+                                <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
+                            ))}
+                    </select>
+                </div>
+            ),
+            metricLabel: periodoGasLabel,
+            metricValor: totalGasPeriodoSel,
+            metricTono: 'neg',
+            accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
+            xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
         },
     ];
 
@@ -999,46 +984,39 @@ function Reportes() {
                     </div>
                 )}
 
-                {!cargando && REPORTES_GRUPOS.map(grupo => (
-                    <div className="rp-group" key={grupo.id}>
-                        <div className="rp-grouphead">
-                            <span className="dot" style={{ background: grupo.color }}></span>
-                            <h2>{grupo.titulo}</h2>
-                            <span>{grupo.sub}</span>
-                        </div>
-                        <div className="rp-grid">
-                            {grupo.items.map(r => (
-                                <div className="rp-card" key={r.id}>
-                                    <div className="rp-top">
-                                        <span className="rp-ico" style={{ background: grupo.color }}>{r.ico}</span>
-                                        <div className="rp-title"><h3>{r.titulo}</h3><p>{r.desc}</p></div>
-                                    </div>
-                                    {r.control && <div className="rp-controls">{r.control}</div>}
-                                    <div className="rp-metric">
-                                        <span className="m1">{r.metricLabel}</span>
-                                        <span className={`m2 rp-num ${r.metricValorTexto ? '' : (r.metricTono === 'neg' ? 'neg' : r.metricTono === 'neu' ? '' : (r.metricValor >= 0 ? 'pos' : 'neg'))}`}>
-                                            {r.metricValorTexto || fmt(r.metricValor)}
-                                        </span>
-                                    </div>
-                                    <div className="rp-actions">
-                                        <button className="rp-btn pri" disabled={!!generando} onClick={() => ejecutar(r.id + '-pdf', r.accion)}>
-                                            {generando === r.id + '-pdf'
-                                                ? <><Clock size={13} /> PDF...</>
-                                                : <>↓ PDF</>}
-                                        </button>
-                                        {r.xlsAccion && (
-                                            <button className="rp-btn xls" disabled={!!generando} onClick={() => ejecutar(r.id + '-xls', r.xlsAccion)}>
-                                                {generando === r.id + '-xls'
-                                                    ? <><Clock size={13} /> XLS...</>
-                                                    : <><FileSpreadsheet size={13} /> Excel</>}
-                                            </button>
-                                        )}
-                                    </div>
+                {!cargando && (
+                    <div className="rp-grid">
+                        {REPORTES.map(r => (
+                            <div className="rp-card" key={r.id}>
+                                <div className="rp-top">
+                                    <span className="rp-ico" style={{ background: r.color }}>{r.ico}</span>
+                                    <div className="rp-title"><h3>{r.titulo}</h3><p>{r.desc}</p></div>
                                 </div>
-                            ))}
-                        </div>
+                                {r.control && <div className="rp-controls">{r.control}</div>}
+                                <div className="rp-metric">
+                                    <span className="m1">{r.metricLabel}</span>
+                                    <span className={`m2 rp-num ${r.metricValorTexto ? '' : (r.metricTono === 'neg' ? 'neg' : r.metricTono === 'neu' ? '' : (r.metricValor >= 0 ? 'pos' : 'neg'))}`}>
+                                        {r.metricValorTexto || fmt(r.metricValor)}
+                                    </span>
+                                </div>
+                                <div className="rp-actions">
+                                    <button className="rp-btn pri" disabled={!!generando} onClick={() => ejecutar(r.id + '-pdf', r.accion)}>
+                                        {generando === r.id + '-pdf'
+                                            ? <><Clock size={13} /> PDF...</>
+                                            : <>↓ PDF</>}
+                                    </button>
+                                    {r.xlsAccion && (
+                                        <button className="rp-btn xls" disabled={!!generando} onClick={() => ejecutar(r.id + '-xls', r.xlsAccion)}>
+                                            {generando === r.id + '-xls'
+                                                ? <><Clock size={13} /> XLS...</>
+                                                : <><FileSpreadsheet size={13} /> Excel</>}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                ))}
+                )}
 
             </div></div>
         </div>
