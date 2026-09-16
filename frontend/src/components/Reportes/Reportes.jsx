@@ -6,7 +6,7 @@ import {
     getMaquinas, getIngresos, getGastos, getSalarios,
     getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
 } from '../../api';
-import { BarChart2, HardHat, Wrench, CreditCard, Fuel, Loader, Clock, Briefcase, TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
+import { BarChart2, Loader, Clock, TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import {
     xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo,
@@ -861,29 +861,9 @@ function Reportes() {
     const gasMesSel  = gastos.filter(x => x.fecha?.startsWith(mesSel));
     const utilMesSel = ingMesSel.reduce((a, x) => a + (x.total || 0), 0) - gasMesSel.reduce((a, x) => a + (x.monto || 0), 0);
 
-    const utilFlotaTotal = maquinas.reduce((acc, m) => {
-        const ing = ingresos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.total || 0), 0);
-        const gas = gastos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.monto || 0), 0)
-            + combustibles.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.total || 0), 0)
-            + mantenimientos.filter(x => x.maquinaNombre === m.nombre).reduce((a, x) => a + (x.costo || 0), 0);
-        return acc + (ing - gas);
-    }, 0);
-
-    const periodosActivosCount = faenas.filter(f => f.estado === 'activa').length;
-    const periodosCerrados = faenas.filter(f => f.estado === 'cerrada');
-    const ingresosPeriodosCerrados = periodosCerrados.reduce((a, f) => a + (f.totalIngresos || 0), 0);
-
     const totIngMaqSel = ingresos.filter(x => x.maquinaNombre === maqSel).reduce((a, x) => a + (x.total || 0), 0);
     const gasMaqSelCount = gastos.filter(x => x.maquinaNombre === maqSel).length;
     const ingMaqSelCount = ingresos.filter(x => x.maquinaNombre === maqSel).length;
-
-    const operadoresUnicos = new Set([...horas.map(h => h.operadorNombre), ...salarios.map(s => s.operadorNombre)].filter(Boolean));
-    const totHorasOperadores = horas.reduce((a, h) => a + (h.horas || 0), 0);
-    const totSalariosNeto = salarios.reduce((a, s) => a + (s.totalNeto || 0), 0);
-
-    const totalCostoMant = mantenimientos.reduce((a, m) => a + (m.costo || 0), 0);
-    const totalGalones = combustibles.reduce((a, c) => a + (c.galones || 0), 0);
-    const totalGastoComb = combustibles.reduce((a, c) => a + (c.total || 0), 0);
 
     const periodoIngLabel = periodoSelIngresos
         ? (faenas.find(f => String(f.id) === String(periodoSelIngresos))?.nombreObra || 'Periodo')
@@ -898,9 +878,6 @@ function Reportes() {
     const totalGasPeriodoSel = periodoSelGastos
         ? gastos.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
         : gastos.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
-
-    const cobradoPagos = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
-    const pendientePagos = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
 
     const selMaquina = (
         <select className="rp-select" value={maqSel} onChange={e => setMaqSel(e.target.value)}>
@@ -926,23 +903,6 @@ function Reportes() {
                     accion:    () => pdfMensual(mesSel, ingresos, gastos, salarios),
                     xlsAccion: () => xlsMensual(mesSel, ingresos, gastos, salarios),
                 },
-                {
-                    id: 'comparativo-flota', ico: <BarChart2 size={19} />,
-                    titulo: 'Comparativo de flota',
-                    desc: 'Ingresos, gastos y utilidad de todas tus máquinas, una junto a otra',
-                    metricLabel: `${maquinas.length} máquina${maquinas.length !== 1 ? 's' : ''}`,
-                    metricValor: utilFlotaTotal,
-                    accion: () => pdfResumenMaquinas(maquinas, ingresos, gastos, combustibles, mantenimientos),
-                },
-                {
-                    id: 'periodos', ico: <Briefcase size={19} />,
-                    titulo: 'Periodos de trabajo',
-                    desc: 'Historial de periodos por máquina, activos y cerrados',
-                    metricLabel: `${faenas.length} periodos · ${periodosActivosCount} activos`,
-                    metricValor: ingresosPeriodosCerrados,
-                    metricTono: 'neu',
-                    accion: () => pdfPeriodos(faenas),
-                },
             ],
         },
         {
@@ -963,33 +923,6 @@ function Reportes() {
                         const maq = maquinas.find(m => m.nombre === maqSel);
                         if (maq) return xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
                     },
-                },
-                {
-                    id: 'operadores', ico: <HardHat size={19} />,
-                    titulo: 'Operadores',
-                    desc: 'Horas trabajadas, liquidaciones y pendientes de pago',
-                    metricLabel: `${operadoresUnicos.size} operador${operadoresUnicos.size !== 1 ? 'es' : ''} · ${fmtNum(totHorasOperadores)} hrs`,
-                    metricValor: totSalariosNeto,
-                    metricTono: 'neg',
-                    accion: () => pdfOperadores(horas, salarios, maquinas),
-                },
-                {
-                    id: 'mantenimientos', ico: <Wrench size={19} />,
-                    titulo: 'Mantenimientos',
-                    desc: 'Historial y costos de mantenimiento por máquina',
-                    metricLabel: `${mantenimientos.length} registro${mantenimientos.length !== 1 ? 's' : ''}`,
-                    metricValor: totalCostoMant,
-                    metricTono: 'neg',
-                    accion: () => pdfMantenimientos(mantenimientos),
-                },
-                {
-                    id: 'combustible', ico: <Fuel size={19} />,
-                    titulo: 'Combustible',
-                    desc: 'Consumo, galones y gasto por máquina',
-                    metricLabel: `${combustibles.length} cargas · ${fmtNum(totalGalones)} gal`,
-                    metricValor: totalGastoComb,
-                    metricTono: 'neg',
-                    accion: () => pdfCombustible(combustibles),
                 },
             ],
         },
@@ -1046,14 +979,6 @@ function Reportes() {
                     metricTono: 'neg',
                     accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
                     xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
-                },
-                {
-                    id: 'pagos', ico: <CreditCard size={19} />,
-                    titulo: 'Pagos de clientes',
-                    desc: 'Qué se ha cobrado y qué sigue pendiente',
-                    metricLabel: `${pagos.length} pago${pagos.length !== 1 ? 's' : ''}`,
-                    metricValorTexto: `${fmt(cobradoPagos)} / ${fmt(pendientePagos)}`,
-                    accion: () => pdfPagos(pagos),
                 },
             ],
         },
