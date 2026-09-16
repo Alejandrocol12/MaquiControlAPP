@@ -22,6 +22,7 @@ import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { useSortable } from '../../utils/useSortable';
+import './Maquinaria.css';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -105,10 +106,11 @@ const TODOS_TIPOS = [
 ];
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
-const estadoClass = (e) => e === 'Activa' ? 'ea' : e === 'En mantenimiento' ? 'em' : 'ef';
 const hoy = () => new Date().toISOString().split('T')[0];
 
 const CATEGORIAS_BASE_GASTO = ['Reparación', 'Repuestos', 'Lubricantes', 'Combustible', 'Mantenimiento', 'Otros'];
+const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'neutral', 'Otros': 'neutral', 'Otro': 'neutral' };
+const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
 
@@ -120,13 +122,30 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     const [maqActual, setMaqActual] = useState(null);
     const [form, setForm] = useState(FORM_VACIO);
     const [operadoresAPI, setOperadoresAPI] = useState([]);
+    const [faenasActivas, setFaenasActivas] = useState([]);
+    const [ingresosAll, setIngresosAll] = useState([]);
+    const [gastosAll, setGastosAll] = useState([]);
 
     useEffect(() => {
         cargar();
         getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
+        getFaenas().then(r => setFaenasActivas((r.data || []).filter(f => f.estado === 'activa'))).catch(() => {});
+        getIngresos().then(r => setIngresosAll(r.data || [])).catch(() => {});
+        getGastos().then(r => setGastosAll(r.data || [])).catch(() => {});
     }, []);
 
     const cargar = () => getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
+
+    // Periodo activo + utilidad en vivo de cada máquina, para que se vea desde la lista
+    // sin tener que entrar al detalle
+    const infoPeriodo = (m) => {
+        const faena = faenasActivas.find(f => f.maquinaNombre === m.nombre);
+        if (!faena) return null;
+        const ing = ingresosAll.filter(i => String(i.faenaId) === String(faena.id)).reduce((a, i) => a + (Number(i.total) || 0), 0);
+        const gas = gastosAll.filter(g => String(g.faenaId) === String(faena.id)).reduce((a, g) => a + (Number(g.monto) || 0), 0);
+        const dias = faena.fechaInicio ? Math.max(1, Math.round((new Date() - parseLocal(faena.fechaInicio)) / 86400000)) : null;
+        return { faena, ing, gas, util: ing - gas, dias };
+    };
 
     const abrirEditar = (m, e) => { e.stopPropagation(); setForm({ ...m }); setMaqActual(m); setVista('editar'); };
     const abrirDetalle = (m) => { setMaqActual(m); setVista('detalle'); };
@@ -222,32 +241,45 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                 <button className="bp" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
             </div>
             <div className="content"><div className="pad">
-                <div className="gm">
-                    {maquinas.map(m => (
-                        <div className="mcard" key={m.id} onClick={() => abrirDetalle(m)}>
-                            <div className="mch">
-                                <div className="mci"><IcoMaquina tipo={m.tipo} size={22} /></div>
+                <div className="mq-fleet">
+                    {maquinas.map(m => {
+                        const info = infoPeriodo(m);
+                        return (
+                        <div className={`mq-fcard ${info ? 'working' : ''}`} key={m.id} onClick={() => abrirDetalle(m)}>
+                            <div className="mq-fc-top">
+                                <div className="mq-fc-ico"><IcoMaquina tipo={m.tipo} size={22} /></div>
                                 <div>
-                                    <div className="mcn">{m.nombre}</div>
-                                    <div className="mct">{m.tipo} · {m.placa}</div>
+                                    <div className="mq-fc-name">{m.nombre}</div>
+                                    <div className="mq-fc-sub">{m.tipo} · {m.placa}</div>
                                 </div>
                             </div>
-                            <div className="mcb">
-                                <div className="mcs"><span>Estado</span>
-                                    <span className={estadoClass(m.estado)}><span className="ed"></span>{m.estado}</span>
+                            <div className="mq-fc-badges">
+                                <span className={`mq-pill ${m.estado === 'Activa' ? 'ok' : m.estado === 'En mantenimiento' ? 'warn' : 'off'}`}><i></i>{m.estado}</span>
+                                {info
+                                    ? <span className="mq-pill job">{info.faena.nombreObra}</span>
+                                    : <span className="mq-pill nojob">Sin periodo</span>}
+                            </div>
+                            <div className="mq-fc-rows">
+                                <div className="mq-fc-row"><span>Operador</span><b>{m.operadorNombre || '—'}</b></div>
+                                <div className="mq-fc-row"><span>Horómetro</span><b className="mq-num">{(m.horometroActual || 0).toLocaleString('es-CO')} hrs</b></div>
+                                <div className="mq-fc-row"><span>Valor/hora máquina</span><b className="mq-num">{fmt(m.valorHoraMaquina)}</b></div>
+                            </div>
+                            {info && (
+                                <div className="mq-fc-money">
+                                    <div className="mq-fc-money-head"><span>Utilidad del periodo</span><span>{info.dias} días</span></div>
+                                    <div className="mq-fc-money-val mq-num" style={{ color: info.util >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(info.util)}</div>
+                                    <div className="mq-fc-money-sub">Ingresos {fmt(info.ing)} − Gastos {fmt(info.gas)}</div>
                                 </div>
-                                <div className="mcs"><span>Operador</span><span>{m.operadorNombre || '—'}</span></div>
-                                <div className="mcs"><span>Horómetro</span><span>{(m.horometroActual || 0).toLocaleString('es-CO')} hrs</span></div>
-                                <div className="mcs"><span>Valor/hora operador</span><span>{fmt(m.valorHoraOperador)}</span></div>
-                                {m.valorHoraMaquina > 0 && <div className="mcs"><span>Valor/hora máquina</span><span style={{ color: '#27ae60', fontWeight: '600' }}>{fmt(m.valorHoraMaquina)}</span></div>}
-                                <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                                    <button className="bs" style={{ flex: 1, textAlign: 'center', fontSize: '12px' }} onClick={(e) => abrirEditar(m, e)}><Pencil size={13} style={{marginRight:'4px',verticalAlign:'middle'}} /> Editar</button>
-                                    <button className="bs" style={{ fontSize: '12px' }} onClick={(e) => eliminar(m.id, e)}><Trash2 size={13} /></button>
-                                </div>
+                            )}
+                            <div className="mq-fc-actions">
+                                <button className="mq-fbtn" onClick={(e) => abrirEditar(m, e)}><Pencil size={12} style={{marginRight:'4px',verticalAlign:'middle'}} /> Editar</button>
+                                <button className="mq-fbtn" style={{ flex: '0 0 auto', padding: '8px 10px' }} onClick={(e) => eliminar(m.id, e)}><Trash2 size={13} /></button>
+                                <button className="mq-fbtn pri" onClick={() => abrirDetalle(m)}>Abrir hoja de vida</button>
                             </div>
                         </div>
-                    ))}
-                    <div className="nueva" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}>
+                        );
+                    })}
+                    <div className="mq-newcard" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}>
                         <Plus size={22} />
                         <span style={{ fontSize: '13px', fontWeight: '600' }}>Nueva Máquina</span>
                     </div>
@@ -312,6 +344,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [faenaActiva, setFaenaActiva] = useState(null);
     const [formFaena, setFormFaena] = useState({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
     const [mostrarFormFaena, setMostrarFormFaena] = useState(false);
+    const [faenasCerradas, setFaenasCerradas] = useState([]);
 
     // Compartir
     const [modalCompartir, setModalCompartir] = useState(false);
@@ -434,10 +467,20 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     useEffect(() => { cargarTodo(); }, []);
 
-    const cargarFaena = () =>
+    const cargarFaena = () => {
         getFaenaActiva(maq.nombre)
             .then(r => setFaenaActiva(r.data))
             .catch(() => setFaenaActiva(null));
+        getFaenas()
+            .then(r => setFaenasCerradas((r.data || []).filter(f => f.maquinaNombre === maq.nombre && f.estado === 'cerrada' && f.fechaInicio && f.fechaFin)))
+            .catch(() => {});
+    };
+
+    // Promedio histórico de días en campo por periodo, para avisar si el actual ya se alargó
+    const promedioDiasCampo = faenasCerradas.length > 0
+        ? Math.round(faenasCerradas.reduce((a, f) => a + Math.max(1, Math.round((parseLocal(f.fechaFin) - parseLocal(f.fechaInicio)) / 86400000)), 0) / faenasCerradas.length)
+        : null;
+    const diasCampoActual = faenaActiva?.fechaInicio ? Math.max(1, Math.round((new Date() - parseLocal(faenaActiva.fechaInicio)) / 86400000)) : 0;
 
     const refreshGastos = () =>
         getGastos().then(r => {
@@ -742,29 +785,20 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             <div className="content"><div className="pad">
 
                 {/* HEADER */}
-                <div className="dh">
-                    <div className="dhi"><IcoMaquina tipo={maq.tipo} size={28} /></div>
-                    <div>
-                        <h2>{maq.nombre}</h2>
-                        <p>Placa: {maq.placa} · Operador: {maq.operadorNombre || '—'} · {fmt(maq.valorHoraOperador)}/hr operador · {fmt(maq.valorHoraMaquina || 0)}/hr máquina</p>
-                    </div>
-                    <div className="dhb">
-                        <span className={`b ${maq.estado === 'Activa' ? 'ok' : maq.estado === 'En mantenimiento' ? 'pend' : 'falla'}`}>
-                            <span className="ed" style={{ background: maq.estado === 'Activa' ? '#27ae60' : maq.estado === 'En mantenimiento' ? '#e8941a' : '#e74c3c' }}></span>
-                            {maq.estado}
-                        </span>
-                        <span className="b comp" style={{display:'inline-flex',alignItems:'center',gap:'4px'}}>
-                            <Clock size={12} /> {(maq.horometroActual || 0).toLocaleString('es-CO')} hrs horómetro
-                        </span>
-                        {faenaActiva
-                            ? <span className="b ok" style={{display:'inline-flex',alignItems:'center',gap:'4px'}}>
-                                <span style={{width:'7px',height:'7px',borderRadius:'50%',background:'#27ae60',display:'inline-block'}}></span>
-                                Periodo: {faenaActiva.nombreObra}
-                              </span>
-                            : <span className="b falla" style={{display:'inline-flex',alignItems:'center',gap:'4px'}}>
-                                <Briefcase size={11} /> Sin periodo activo
-                              </span>
-                        }
+                <div className="mq-dh">
+                    <div className="mq-dh-l">
+                        <div className="mq-dh-ico"><IcoMaquina tipo={maq.tipo} size={28} /></div>
+                        <div>
+                            <h2>{maq.nombre}</h2>
+                            <p>Placa {maq.placa} · Operador {maq.operadorNombre || '—'} · {fmt(maq.valorHoraOperador)}/hr operador · {fmt(maq.valorHoraMaquina || 0)}/hr máquina</p>
+                            <div className="mq-dh-badges">
+                                <span className={`mq-pill ${maq.estado === 'Activa' ? 'ok' : maq.estado === 'En mantenimiento' ? 'warn' : 'off'}`}><i></i>{maq.estado}</span>
+                                <span className="mq-pill off">{(maq.horometroActual || 0).toLocaleString('es-CO')} hrs horómetro</span>
+                                {faenaActiva
+                                    ? <span className="mq-pill job">Periodo: {faenaActiva.nombreObra}</span>
+                                    : <span className="mq-pill nojob">Sin periodo activo</span>}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -780,45 +814,57 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 )}
 
                 {/* TABS */}
-                <div className="tabs">
-                    {TABS.map((t, i) => <button key={i} className={`tab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
+                <div className="mq-dtabs">
+                    {TABS.map((t, i) => <button key={i} className={`mq-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
                 </div>
 
                 {/* TAB 0 — RESUMEN */}
                 {tab === 0 && (
                     <>
-                        <div className="g4">
-                            <div className="card green"><span className="ci"><TrendingUp size={22} /></span><div className="cl">Ingresos periodo</div><div className="cv">{fmt(totalIngresos)}</div><div className="cs">{faenaActiva ? faenaActiva.nombreObra : 'sin periodo activo'}</div></div>
-                            <div className="card red"><span className="ci"><TrendingDown size={22} /></span><div className="cl">Gastos periodo</div><div className="cv">{fmt(totalGastos)}</div><div className="cs">acumulados</div></div>
-                            <div className="card gold"><span className="ci"><TrendingUp size={22} /></span><div className="cl">Utilidad</div><div className="cv" style={{ color: totalIngresos - totalGastos >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(totalIngresos - totalGastos)}</div><div className="cs">ingresos − gastos</div></div>
-                            <div className="card blue"><span className="ci"><Clock size={22} /></span><div className="cl">Horas periodo</div><div className="cv xl" style={{ color: '#2980b9' }}>{horasFaena.toLocaleString('es-CO')}</div><div className="cs">trabajadas en este periodo</div></div>
+                        <div className="mq-hero4">
+                            <div className="mq-kpi good">
+                                <div className="mq-kpi-top"><span className="mq-kpi-label">Ingresos periodo</span><span className="mq-kpi-ico"><TrendingUp size={14} /></span></div>
+                                <div className="mq-kpi-val mq-num">{fmt(totalIngresos)}</div>
+                                <div className="mq-kpi-sub">{faenaActiva ? faenaActiva.nombreObra : 'sin periodo activo'}</div>
+                            </div>
+                            <div className="mq-kpi bad">
+                                <div className="mq-kpi-top"><span className="mq-kpi-label">Gastos periodo</span><span className="mq-kpi-ico"><TrendingDown size={14} /></span></div>
+                                <div className="mq-kpi-val mq-num">{fmt(totalGastos)}</div>
+                                <div className="mq-kpi-sub">acumulados</div>
+                            </div>
+                            <div className="mq-kpi profit">
+                                <div className="mq-kpi-top"><span className="mq-kpi-label">Utilidad</span><span className="mq-kpi-ico"><TrendingUp size={14} /></span></div>
+                                <div className="mq-kpi-val mq-num">{fmt(totalIngresos - totalGastos)}</div>
+                                <div className="mq-kpi-sub">ingresos − gastos</div>
+                            </div>
+                            <div className="mq-kpi info">
+                                <div className="mq-kpi-top"><span className="mq-kpi-label">Horas periodo</span><span className="mq-kpi-ico"><Clock size={14} /></span></div>
+                                <div className="mq-kpi-val mq-num">{horasFaena.toLocaleString('es-CO')}</div>
+                                <div className="mq-kpi-sub">trabajadas en este periodo</div>
+                            </div>
                         </div>
 
                         {pronostico ? (
-                            <div className="ale" style={{ background: '#eef4ff', borderColor: '#2980b9', marginBottom: '16px' }}>
-                                <Target size={18} color="#2980b9" />
+                            <div className="mq-insight">
+                                <Target size={18} />
                                 <div>
-                                    <p>Pronóstico a fin de mes: <strong>{pronostico.totalProyectado.toLocaleString('es-CO')} hrs</strong> ({fmt(pronostico.ingresoProyectado)})</p>
-                                    <span className="ale-desc">
-                                        {pronostico.horasEsteMes.toLocaleString('es-CO')} hrs ya trabajadas este mes + ~{pronostico.horasRestantes.toLocaleString('es-CO')} hrs proyectadas en los {pronostico.diasRestantes} días que quedan, según el patrón histórico de esta máquina.
-                                    </span>
+                                    <b>Pronóstico a fin de mes: {pronostico.totalProyectado.toLocaleString('es-CO')} hrs ({fmt(pronostico.ingresoProyectado)})</b>
+                                    <p>{pronostico.horasEsteMes.toLocaleString('es-CO')} hrs ya trabajadas este mes + ~{pronostico.horasRestantes.toLocaleString('es-CO')} hrs proyectadas en los {pronostico.diasRestantes} días que quedan, según el patrón histórico de esta máquina.</p>
                                 </div>
                             </div>
                         ) : (
                             <p className="vacio" style={{ marginBottom: '16px' }}>Aún no hay suficiente historial de horas trabajadas para pronosticar fin de mes (se necesitan al menos 3 días registrados).</p>
                         )}
 
-                        <div className="g2">
-                            <div className="tbl">
-                                <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Últimos Ingresos</strong></div>
-                                <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Total</span></div>
-                                {ingOrdenados.slice(0, 5).map(i => <div className="tr" key={i.id}><span>{i.fecha}</span><span className="w2">{i.descripcion}</span><span className="pos">{fmt(i.total)}</span></div>)}
+                        <div className="mq-g2">
+                            <div className="mq-mini">
+                                <div className="mq-mini-head" style={{ color: '#27ae60' }}><TrendingUp size={13} /> Últimos ingresos</div>
+                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{i.fecha} — {i.descripcion}</span><b className="mq-num" style={{ color: '#27ae60' }}>{fmt(i.total)}</b></div>)}
                                 {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
                             </div>
-                            <div className="tbl">
-                                <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Últimos Gastos</strong></div>
-                                <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Total</span></div>
-                                {gasOrdenados.slice(0, 5).map(g => <div className="tr" key={g.id}><span>{g.fecha}</span><span className="w2">{g.descripcion}</span><span className="neg">{fmt(g.monto)}</span></div>)}
+                            <div className="mq-mini">
+                                <div className="mq-mini-head" style={{ color: '#e74c3c' }}><TrendingDown size={13} /> Últimos gastos</div>
+                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{g.fecha} — {g.descripcion}</span><b className="mq-num" style={{ color: '#e74c3c' }}>{fmt(g.monto)}</b></div>)}
                                 {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
                             </div>
                         </div>
@@ -962,17 +1008,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 3 — GASTOS */}
                 {tab === 3 && (
                     <>
+                        <label className="mq-ai-drop" style={{ cursor: cargandoIA ? 'wait' : 'pointer' }}>
+                            <span className="mq-ai-ico">{cargandoIA ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={16} />}</span>
+                            <span className="mq-ai-text">
+                                <b>{cargandoIA ? 'Leyendo con IA...' : 'Leer con IA'}</b>
+                                <p>Sube la foto o el PDF de la factura y el formulario se llena solo — descripción, monto, categoría y fecha.</p>
+                            </span>
+                            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={leerConIA} disabled={cargandoIA} />
+                        </label>
                         <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'8px'}}>
-                                <span style={{display:'flex',alignItems:'center',gap:'8px'}}><TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}</span>
-                                <label style={{cursor: cargandoIA ? 'wait' : 'pointer'}}>
-                                    <span className={`bs${cargandoIA ? ' disabled' : ''}`} style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'6px 12px',fontSize:'12px',pointerEvents: cargandoIA ? 'none' : 'auto', background: cargandoIA ? '#f0f4f8' : undefined}}>
-                                        {cargandoIA
-                                            ? <><Loader size={12} style={{animation:'spin 1s linear infinite'}} /> Leyendo...</>
-                                            : <><Sparkles size={12} color="#8e44ad" /> Leer con IA</>}
-                                    </span>
-                                    <input type="file" accept="image/*,application/pdf" style={{display:'none'}} onChange={leerConIA} disabled={cargandoIA} />
-                                </label>
+                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
                             </h3>
                             <div className="fg2">
                                 <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
@@ -1069,7 +1115,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             {pagGasF.paginados.map(g => (
                                 <div className="tr" key={g.id}>
                                     <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
-                                    <span>{g.categoria}</span>
+                                    <span><span className={`mq-catpill mq-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span></span>
                                     <span className="neg">{fmt(g.monto)}</span>
                                     <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                         {facturasIds.has(String(g.id)) && (
@@ -1164,14 +1210,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         {faenaActiva ? (
                             <>
                                 {/* Faena activa: info + resumen + cerrar */}
-                                <div style={{ background: '#fff8e7', border: '1px solid #f5a623', borderRadius: '10px', padding: '16px', marginBottom: '14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                                <div className="mq-job-card" style={{ marginBottom: '14px' }}>
+                                    <div className="mq-job-top">
                                         <div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <div className="mq-job-name">
                                                 <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#27ae60', display: 'inline-block' }}></span>
-                                                <strong style={{ fontSize: '15px' }}>{faenaActiva.nombreObra}</strong>
+                                                {faenaActiva.nombreObra}
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#6b7a8d', marginTop: '6px', display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                                            <div className="mq-job-meta">
                                                 {faenaActiva.cliente && <span>Cliente: {faenaActiva.cliente}</span>}
                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                                     <Calendar size={11} /> Inicio: {faenaActiva.fechaInicio}
@@ -1179,28 +1225,25 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             </div>
                                             {faenaActiva.nota && <p style={{ fontSize: '12px', color: '#6b7a8d', marginTop: '4px' }}>{faenaActiva.nota}</p>}
                                         </div>
-                                        <span className="b ok">En campo</span>
+                                        <span className="mq-pill ok">En campo</span>
                                     </div>
 
                                     {/* Resumen en tiempo real */}
-                                    <div className="g4" style={{ marginTop: '14px' }}>
-                                        <div style={{ background: '#f0faf4', border: '1px solid #a8d5b5', borderRadius: '8px', padding: '10px 14px' }}>
-                                            <div style={{ fontSize: '11px', color: '#27ae60', fontWeight: '700' }}>Ingresos</div>
-                                            <div style={{ fontSize: '20px', fontWeight: '800', fontFamily: "'Barlow Condensed', sans-serif", color: '#27ae60' }}>{fmt(totalIngresos)}</div>
-                                        </div>
-                                        <div style={{ background: '#fdf3f3', border: '1px solid #f5c6c6', borderRadius: '8px', padding: '10px 14px' }}>
-                                            <div style={{ fontSize: '11px', color: '#e74c3c', fontWeight: '700' }}>Gastos</div>
-                                            <div style={{ fontSize: '20px', fontWeight: '800', fontFamily: "'Barlow Condensed', sans-serif", color: '#e74c3c' }}>{fmt(totalGastos)}</div>
-                                        </div>
-                                        <div style={{ background: '#f0f4f8', border: '1px solid #c8d6e5', borderRadius: '8px', padding: '10px 14px' }}>
-                                            <div style={{ fontSize: '11px', color: '#2980b9', fontWeight: '700' }}>Horas</div>
-                                            <div style={{ fontSize: '20px', fontWeight: '800', fontFamily: "'Barlow Condensed', sans-serif", color: '#2980b9' }}>{horasFaena}</div>
-                                        </div>
-                                        <div style={{ background: '#fffbf0', border: '1px solid #f5e0a0', borderRadius: '8px', padding: '10px 14px' }}>
-                                            <div style={{ fontSize: '11px', color: '#e67e22', fontWeight: '700' }}>Utilidad</div>
-                                            <div style={{ fontSize: '20px', fontWeight: '800', fontFamily: "'Barlow Condensed', sans-serif", color: totalIngresos - totalGastos >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(totalIngresos - totalGastos)}</div>
-                                        </div>
+                                    <div className="mq-job-grid">
+                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Ingresos</div><div className="mq-job-tile-v mq-num" style={{ color: '#27ae60' }}>{fmt(totalIngresos)}</div></div>
+                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Gastos</div><div className="mq-job-tile-v mq-num" style={{ color: '#e74c3c' }}>{fmt(totalGastos)}</div></div>
+                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#2980b9' }}>{horasFaena}</div></div>
+                                        <div className="mq-job-tile"><div className="mq-job-tile-l">Utilidad</div><div className="mq-job-tile-v mq-num" style={{ color: totalIngresos - totalGastos >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(totalIngresos - totalGastos)}</div></div>
                                     </div>
+
+                                    {promedioDiasCampo && (
+                                        <>
+                                            <div className="mq-progress-track"><div className="mq-progress-fill" style={{ width: `${Math.min((diasCampoActual / promedioDiasCampo) * 100, 100)}%` }} /></div>
+                                            <div className={`mq-progress-note ${diasCampoActual > promedioDiasCampo ? '' : 'calm'}`}>
+                                                {diasCampoActual > promedioDiasCampo ? '⚠ ' : ''}{diasCampoActual} días en campo — {diasCampoActual > promedioDiasCampo ? 'por encima del' : 'dentro del'} promedio histórico de {promedioDiasCampo} días para esta máquina
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="ale" style={{ background: '#fdf3f3', borderColor: '#e74c3c' }}>
