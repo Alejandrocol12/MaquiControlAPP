@@ -20,6 +20,7 @@ const hoy = () => new Date().toISOString().split('T')[0];
 
 const FORM_ING  = { descripcion: '', tipoTrabajo: 'Horas', cantidad: 0, valorUnitario: 0, fecha: hoy(), maquinaNombre: '' };
 const FORM_GAS  = { descripcion: '', categoria: '', monto: 0, fecha: hoy(), maquinaNombre: '' };
+const CATEGORIAS_BASE_GASTO = ['Reparación', 'Repuestos', 'Lubricantes', 'Combustible', 'Mantenimiento', 'Otros'];
 const FORM_SAL  = { operadorNombre: '', maquinaNombre: '', horasTrabajadas: 0, valorHora: 0, anticipos: 0, estado: 'Pendiente', fecha: hoy() };
 const FORM_PAG  = { cliente: '', maquinaNombre: '', descripcion: '', valorTotal: 0, valorPagado: 0, fecha: hoy() };
 
@@ -60,6 +61,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [formGas, setFormGas] = useState(FORM_GAS);
     const [formSal, setFormSal] = useState(FORM_SAL);
     const [formPag, setFormPag] = useState(FORM_PAG);
+
+    // Categorías sugeridas: la lista base + las que ya se han usado (evita variantes
+    // distintas de la misma categoría, ej. "Otro"/"Otros")
+    const categoriasGasto = Array.from(new Set([...CATEGORIAS_BASE_GASTO, ...gastos.map(g => g.categoria).filter(Boolean)]));
 
     useEffect(() => { cargarTodo(); }, []);
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
@@ -319,10 +324,12 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         <div className="fg2">
                             <div><label className="fl">Máquina *</label><SelectMaquina value={formGas.maquinaNombre} onChange={e => setFormGas({ ...formGas, maquinaNombre: e.target.value })} /></div>
                             <div><label className="fl">Categoría</label>
-                                <select className="fsel" value={formGas.categoria} onChange={e => setFormGas({ ...formGas, categoria: e.target.value })}>
-                                    <option value="">Selecciona...</option>
-                                    <option>Combustible</option><option>Mantenimiento</option><option>Repuestos</option><option>Otros</option>
-                                </select>
+                                <input className="fi" list="categorias-gasto" value={formGas.categoria}
+                                    onChange={e => setFormGas({ ...formGas, categoria: e.target.value })}
+                                    placeholder="Ej: Reparación, o escribe una nueva" />
+                                <datalist id="categorias-gasto">
+                                    {categoriasGasto.map(c => <option key={c} value={c} />)}
+                                </datalist>
                             </div>
                         </div>
                         <div className="fg2">

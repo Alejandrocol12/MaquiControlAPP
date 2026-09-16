@@ -108,6 +108,8 @@ const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const estadoClass = (e) => e === 'Activa' ? 'ea' : e === 'En mantenimiento' ? 'em' : 'ef';
 const hoy = () => new Date().toISOString().split('T')[0];
 
+const CATEGORIAS_BASE_GASTO = ['Reparación', 'Repuestos', 'Lubricantes', 'Combustible', 'Mantenimiento', 'Otros'];
+
 const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
 
 function Maquinaria({ vistaInicial = 'lista' }) {
@@ -381,6 +383,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [gastoForm, setGastoForm] = useState(GASTO_VACIO);
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds] = useState(new Set());
+    // Categorías sugeridas: la lista base + las que ya se han usado en esta máquina (evita
+    // que cada quien invente una variante distinta de la misma categoría, ej. "Otro"/"Otros")
+    const categoriasGasto = Array.from(new Set([...CATEGORIAS_BASE_GASTO, ...gastos.map(g => g.categoria).filter(Boolean)]));
     const [editandoGastoId, setEditandoGastoId] = useState(null);
     const [cargandoIA, setCargandoIA] = useState(false);
 
@@ -973,9 +978,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
                                 <div>
                                     <label className="fl">Categoría</label>
-                                    <select className="fsel" value={gastoForm.categoria} onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}>
-                                        <option>Otros</option><option>Repuestos</option><option>Lubricantes</option><option>Combustible</option><option>Reparación</option>
-                                    </select>
+                                    <input className="fi" list="categorias-gasto" value={gastoForm.categoria}
+                                        onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
+                                        placeholder="Ej: Reparación, o escribe una nueva" />
+                                    <datalist id="categorias-gasto">
+                                        {categoriasGasto.map(c => <option key={c} value={c} />)}
+                                    </datalist>
                                 </div>
                             </div>
                             <div className="fg2">
