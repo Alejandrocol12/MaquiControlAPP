@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
 import { getDatosPublicos, registrarVista } from '../../api';
-import { Tractor, Wrench, Lock, TrendingUp, TrendingDown, DollarSign, Briefcase, Receipt, Search, Clock, User } from 'lucide-react';
+import { Tractor, Wrench, Lock, TrendingUp, Briefcase, Receipt, Search, Clock, User } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
+import './VistaCompartida.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const fmtFecha = (f) => f ? new Date(f + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
-const estadoClass = (e) => e === 'Activa' ? 'ea' : e === 'En mantenimiento' ? 'em' : 'ef';
+
+const TIPO_COLOR = { 'Excavadora': '#2980b9', 'Bulldozer': '#e67e22', 'Volqueta': '#8e44ad', 'Grúa': '#c0392b' };
+const tipoColor = (tipo) => TIPO_COLOR[tipo] || '#27ae60';
+
+const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'purple', 'Otros': 'neutral', 'Otro': 'neutral' };
+const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -68,48 +74,42 @@ export default function VistaCompartida({ token }) {
     };
 
     if (cargando) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px', background: '#f5f7fa' }}>
+        <div className="vc-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px' }}>
             <GiBulldozer size={48} color="#f5a623" />
-            <p style={{ color: '#6b7a8d', fontFamily: 'Inter, sans-serif' }}>Cargando vista compartida…</p>
+            <p style={{ color: '#6b7a8d' }}>Cargando vista compartida…</p>
         </div>
     );
 
     if (error) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px', background: '#f5f7fa' }}>
+        <div className="vc-root" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '16px' }}>
             <Lock size={48} color="#e74c3c" />
-            <p style={{ color: '#e74c3c', fontWeight: '600', fontFamily: 'Inter, sans-serif' }}>{error}</p>
-            <p style={{ color: '#9aa5b4', fontSize: '13px', fontFamily: 'Inter, sans-serif' }}>Este enlace puede haber expirado o ser incorrecto.</p>
+            <p style={{ color: '#e74c3c', fontWeight: '700' }}>{error}</p>
+            <p style={{ color: '#93a2b3', fontSize: '13px' }}>Este enlace puede haber expirado o ser incorrecto.</p>
         </div>
     );
 
     const { nombre, periodoNombre, maquina, resumen, faenas, ingresos = [], gastos = [], mantenimientos } = datos;
-    const utilPos = resumen.utilidadNeta >= 0;
+    const estadoTono = maquina.estado === 'Activa' ? 'ok' : maquina.estado === 'En mantenimiento' ? 'warn' : 'off';
 
     return (
-        <div style={{ minHeight: '100vh', background: '#f5f7fa', fontFamily: 'Inter, sans-serif' }}>
+        <div className="vc-root">
             {mostrarPrompt && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(13,27,42,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px' }}>
-                    <div style={{ background: '#fff', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '360px', textAlign: 'center' }}>
-                        <User size={32} color="#f5a623" style={{ marginBottom: '10px' }} />
-                        <h3 style={{ margin: '0 0 6px', fontSize: '16px', color: '#1a2d42' }}>¿Cómo te llamas?</h3>
-                        <p style={{ margin: '0 0 16px', fontSize: '13px', color: '#6b7a8d' }}>
-                            Para que {nombre || 'quien te compartió esto'} sepa que revisaste la información.
-                        </p>
+                <div className="vc-modal-mask">
+                    <div className="vc-modal">
+                        <User size={30} color="#f5a623" />
+                        <h3>¿Cómo te llamas?</h3>
+                        <p>Para que {nombre || 'quien te compartió esto'} sepa que revisaste la información.</p>
                         <input
                             autoFocus
-                            className="fi"
-                            style={{ marginBottom: '12px', textAlign: 'center' }}
                             placeholder="Tu nombre"
                             value={nombreInput}
                             onChange={e => setNombreInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && confirmarNombre(nombreInput)}
                         />
-                        <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '10px', marginBottom: '8px' }}
-                            onClick={() => confirmarNombre(nombreInput)} disabled={!nombreInput.trim()}>
+                        <button className="vc-modal-btn" onClick={() => confirmarNombre(nombreInput)} disabled={!nombreInput.trim()}>
                             Continuar
                         </button>
-                        <button style={{ background: 'none', border: 'none', color: '#9aa5b4', fontSize: '12px', cursor: 'pointer' }}
-                            onClick={() => confirmarNombre('')}>
+                        <button className="vc-modal-skip" onClick={() => confirmarNombre('')}>
                             Prefiero no decirlo
                         </button>
                     </div>
@@ -117,98 +117,75 @@ export default function VistaCompartida({ token }) {
             )}
 
             {/* Header */}
-            <div style={{ background: '#1a2d42', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <GiBulldozer size={26} color="#f5a623" />
-                    <span style={{ color: '#fff', fontWeight: '700', fontSize: '18px' }}>
-                        Maqui<span style={{ color: '#f5a623' }}>Control</span>
-                    </span>
+            <div className="vc-header">
+                <div className="vc-brand">
+                    <GiBulldozer size={24} color="#f5a623" />
+                    Maqui<span>Control</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.08)', padding: '6px 12px', borderRadius: '20px' }}>
-                    <Lock size={12} color="#9aa5b4" />
-                    <span style={{ color: '#9aa5b4', fontSize: '12px', fontWeight: '500' }}>Solo lectura</span>
-                </div>
+                <div className="vc-lock"><Lock size={12} /> Solo lectura</div>
             </div>
 
-            <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px 16px' }}>
-                {/* Nombre del enlace y máquina */}
-                <div style={{ marginBottom: '24px' }}>
-                    <p style={{ color: '#9aa5b4', fontSize: '13px', marginBottom: '4px' }}>{nombre}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ background: '#f5a623', borderRadius: '10px', padding: '10px', color: '#fff', display: 'flex' }}>
-                            <IcoMaquina tipo={maquina.tipo} size={24} />
+            <div className="vc-wrap">
+                <p className="vc-linklabel">{nombre}</p>
+
+                {/* Identidad de la máquina */}
+                <div className="vc-identity">
+                    <div className="vc-identity-ico" style={{ background: tipoColor(maquina.tipo) }}>
+                        <IcoMaquina tipo={maquina.tipo} size={26} />
+                    </div>
+                    <div>
+                        <h1>{maquina.nombre}</h1>
+                        <div className="vc-identity-meta">
+                            <span>{maquina.tipo} · {maquina.placa} · {(maquina.horometroActual || 0).toLocaleString('es-CO')} hrs</span>
+                            <span className={`vc-pill ${estadoTono}`}><i></i>{maquina.estado}</span>
                         </div>
-                        <div>
-                            <h1 style={{ margin: 0, fontSize: '22px', color: '#1a2d42', fontWeight: '700' }}>{maquina.nombre}</h1>
-                            <p style={{ margin: '2px 0 0', color: '#6b7a8d', fontSize: '13px' }}>
-                                {maquina.tipo} · {maquina.placa} · {(maquina.horometroActual || 0).toLocaleString('es-CO')} hrs
-                                <span style={{ marginLeft: '10px' }} className={estadoClass(maquina.estado)}>
-                                    <span className="ed" /> {maquina.estado}
-                                </span>
-                            </p>
-                            {periodoNombre && (
-                                <p style={{ margin: '4px 0 0', color: '#f5a623', fontSize: '12px', fontWeight: '600' }}>
-                                    <Briefcase size={11} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                                    Mostrando solo el periodo: {periodoNombre}
-                                </p>
-                            )}
-                        </div>
+                        {periodoNombre && (
+                            <div className="vc-periodo-tag"><Briefcase size={11} /> Mostrando solo el periodo: {periodoNombre}</div>
+                        )}
                     </div>
                 </div>
 
-                {/* Tarjetas resumen */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-                    <SummaryCard icon={<TrendingUp size={18} color="#27ae60" />} label="Total Ingresos" value={fmt(resumen.totalIngresos)} color="#27ae60" />
-                    <SummaryCard icon={<TrendingDown size={18} color="#e74c3c" />} label="Total Gastos" value={fmt(resumen.totalGastos)} color="#e74c3c" />
-                    <SummaryCard
-                        icon={<DollarSign size={18} color={utilPos ? '#2980b9' : '#e74c3c'} />}
-                        label="Utilidad neta"
-                        value={fmt(resumen.utilidadNeta)}
-                        color={utilPos ? '#2980b9' : '#e74c3c'}
-                    />
-                    <SummaryCard icon={<Briefcase size={18} color="#8e44ad" />} label="Periodos" value={resumen.totalFaenas} color="#8e44ad" />
-                    <SummaryCard icon={<Clock size={18} color="#2980b9" />} label="Horas periodo" value={(resumen.totalHoras || 0).toLocaleString('es-CO')} color="#2980b9" />
+                {/* KPI principales */}
+                <div className="vc-hero">
+                    <div className="vc-kpi good">
+                        <div className="vc-kpi-label">Total ingresos</div>
+                        <div className="vc-kpi-val vc-num">{fmt(resumen.totalIngresos)}</div>
+                    </div>
+                    <div className="vc-kpi bad">
+                        <div className="vc-kpi-label">Total gastos</div>
+                        <div className="vc-kpi-val vc-num">{fmt(resumen.totalGastos)}</div>
+                    </div>
+                    <div className="vc-kpi profit">
+                        <div className="vc-kpi-label">Utilidad neta</div>
+                        <div className="vc-kpi-val vc-num">{fmt(resumen.utilidadNeta)}</div>
+                    </div>
+                </div>
+                <div className="vc-mini2">
+                    <div className="vc-mini2-tile"><span className="l"><Briefcase size={13} /> Periodos</span><span className="v">{resumen.totalFaenas}</span></div>
+                    <div className="vc-mini2-tile"><span className="l"><Clock size={13} /> Horas del periodo</span><span className="v">{(resumen.totalHoras || 0).toLocaleString('es-CO')}</span></div>
                 </div>
 
-                {/* Tabla de periodos */}
-                <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', overflow: 'hidden' }}>
-                    <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Briefcase size={16} color="#1a2d42" />
-                        <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Periodos de trabajo</span>
+                {/* Periodos */}
+                <div className="vc-panel">
+                    <div className="vc-panel-head">
+                        <div className="vc-panel-title"><Briefcase size={16} />Periodos de trabajo</div>
                     </div>
                     {faenas.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin periodos registrados</p>
+                        <div className="vc-empty">Sin periodos registrados</div>
                     ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        {['Obra / Cliente', 'Inicio', 'Fin', 'Estado', 'Ingresos', 'Gastos', 'Utilidad'].map(h => (
-                                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
+                        <div className="vc-scrollx">
+                            <table className="vc-table">
+                                <thead><tr>{['Obra / Cliente', 'Inicio', 'Fin', 'Estado', 'Ingresos', 'Gastos', 'Utilidad'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                                 <tbody>
-                                    {faenas.map((f, i) => (
-                                        <tr key={f.id} style={{ background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                                            <td style={{ padding: '10px 14px', color: '#1a2d42' }}>
-                                                <div style={{ fontWeight: '600' }}>{f.nombreObra || '—'}</div>
-                                                <div style={{ color: '#9aa5b4', fontSize: '11px' }}>{f.cliente || ''}</div>
-                                            </td>
-                                            <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(f.fechaInicio)}</td>
-                                            <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(f.fechaFin)}</td>
-                                            <td style={{ padding: '10px 14px' }}>
-                                                <span style={{
-                                                    background: f.estado === 'activa' ? '#e8f8f0' : '#f0f4f8',
-                                                    color: f.estado === 'activa' ? '#27ae60' : '#6b7a8d',
-                                                    padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600'
-                                                }}>
-                                                    {f.estado === 'activa' ? 'Activo' : 'Cerrado'}
-                                                </span>
-                                            </td>
-                                            <td style={{ padding: '10px 14px', color: '#27ae60', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(f.totalIngresos)}</td>
-                                            <td style={{ padding: '10px 14px', color: '#e74c3c', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(f.totalGastos)}</td>
-                                            <td style={{ padding: '10px 14px', fontWeight: '700', whiteSpace: 'nowrap', color: f.utilidadNeta >= 0 ? '#2980b9' : '#e74c3c' }}>{fmt(f.utilidadNeta)}</td>
+                                    {faenas.map(f => (
+                                        <tr key={f.id}>
+                                            <td><div style={{ fontWeight: 600 }}>{f.nombreObra || '—'}</div><div style={{ color: 'var(--vc-ink-faint)', fontSize: '11px' }}>{f.cliente || ''}</div></td>
+                                            <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{fmtFecha(f.fechaInicio)}</td>
+                                            <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{fmtFecha(f.fechaFin)}</td>
+                                            <td><span className={`vc-pill ${f.estado === 'activa' ? 'ok' : 'off'}`}><i></i>{f.estado === 'activa' ? 'Activo' : 'Cerrado'}</span></td>
+                                            <td className="vc-money pos">{fmt(f.totalIngresos)}</td>
+                                            <td className="vc-money neg">{fmt(f.totalGastos)}</td>
+                                            <td className={`vc-money ${f.utilidadNeta >= 0 ? 'mut' : 'neg'}`}>{fmt(f.utilidadNeta)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -217,42 +194,25 @@ export default function VistaCompartida({ token }) {
                     )}
                 </div>
 
-                {/* Historial de ingresos */}
                 <IngresosSection ingresos={ingresos} buscar={buscarIng} setBuscar={setBuscarIng} />
-
-                {/* Historial de gastos */}
                 <GastosSection gastos={gastos} buscar={buscarGas} setBuscar={setBuscarGas} />
 
-                {/* Últimos mantenimientos */}
                 {mantenimientos.length > 0 && (
-                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Wrench size={16} color="#1a2d42" />
-                            <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Últimos mantenimientos</span>
+                    <div className="vc-panel">
+                        <div className="vc-panel-head">
+                            <div className="vc-panel-title"><Wrench size={16} />Últimos mantenimientos</div>
                         </div>
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        {['Fecha', 'Tipo', 'Descripción', 'Costo', 'Horómetro'].map(h => (
-                                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
+                        <div className="vc-scrollx">
+                            <table className="vc-table">
+                                <thead><tr>{['Fecha', 'Tipo', 'Descripción', 'Costo', 'Horómetro'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                                 <tbody>
                                     {mantenimientos.map((mt, i) => (
-                                        <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                                            <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(mt.fecha)}</td>
-                                            <td style={{ padding: '10px 14px' }}>
-                                                <span style={{
-                                                    background: mt.tipo === 'Preventivo' ? '#e8f8f0' : '#fff4e5',
-                                                    color: mt.tipo === 'Preventivo' ? '#27ae60' : '#e67e22',
-                                                    padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600'
-                                                }}>{mt.tipo}</span>
-                                            </td>
-                                            <td style={{ padding: '10px 14px', color: '#1a2d42' }}>{mt.descripcion}</td>
-                                            <td style={{ padding: '10px 14px', color: '#e74c3c', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(mt.costo)}</td>
-                                            <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{(mt.horometro || 0).toLocaleString('es-CO')} hrs</td>
+                                        <tr key={i}>
+                                            <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{fmtFecha(mt.fecha)}</td>
+                                            <td><span className={`vc-pill ${mt.tipo === 'Preventivo' ? 'ok' : 'warn'}`}><i></i>{mt.tipo}</span></td>
+                                            <td>{mt.descripcion}</td>
+                                            <td className="vc-money neg">{fmt(mt.costo)}</td>
+                                            <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{(mt.horometro || 0).toLocaleString('es-CO')} hrs</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -261,88 +221,48 @@ export default function VistaCompartida({ token }) {
                     </div>
                 )}
 
-                <p style={{ textAlign: 'center', color: '#c8d6e5', fontSize: '11px', marginTop: '32px' }}>
-                    Vista de solo lectura generada por MaquiControl · Los datos son confidenciales
-                </p>
+                <p className="vc-footer">Vista de solo lectura generada por MaquiControl · Los datos son confidenciales</p>
             </div>
         </div>
     );
 }
 
-const CATEGORIA_COLORS = {
-    'Repuestos':   { bg: '#e8f0fb', color: '#2563eb' },
-    'Lubricantes': { bg: '#f3e8fb', color: '#7c3aed' },
-    'Combustible': { bg: '#fff4e5', color: '#e67e22' },
-    'Reparación':  { bg: '#fdecea', color: '#e74c3c' },
-    'Otros':       { bg: '#f0f4f8', color: '#6b7a8d' },
-};
-
 function IngresosSection({ ingresos, buscar, setBuscar }) {
     const q = buscar.toLowerCase();
     const filtrados = ingresos.filter(i =>
-        (i.descripcion || '').toLowerCase().includes(q) ||
-        (i.tipoTrabajo || '').toLowerCase().includes(q)
+        (i.descripcion || '').toLowerCase().includes(q) || (i.tipoTrabajo || '').toLowerCase().includes(q)
     );
     const totalFiltrado = filtrados.reduce((s, i) => s + (i.total || 0), 0);
 
     return (
-        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <TrendingUp size={16} color="#1a2d42" />
-                    <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Historial de ingresos</span>
-                    <span style={{ background: '#f0f4f8', color: '#6b7a8d', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px' }}>
-                        {ingresos.length}
-                    </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '200px' }}>
-                    <Search size={13} color="#9aa5b4" />
-                    <input
-                        value={buscar}
-                        onChange={e => setBuscar(e.target.value)}
-                        placeholder="Buscar por descripción o tipo…"
-                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#1a2d42', width: '100%' }}
-                    />
-                </div>
+        <div className="vc-panel">
+            <div className="vc-panel-head">
+                <div className="vc-panel-title"><TrendingUp size={16} />Historial de ingresos <span className="vc-count">{ingresos.length}</span></div>
+                <div className="vc-search"><Search size={13} /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por descripción o tipo…" /></div>
             </div>
-
             {ingresos.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin ingresos registrados</p>
+                <div className="vc-empty">Sin ingresos registrados</div>
             ) : filtrados.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin resultados para "{buscar}"</p>
+                <div className="vc-empty">Sin resultados para "{buscar}"</div>
             ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                            <tr style={{ background: '#f8fafc' }}>
-                                {['Fecha', 'Descripción', 'Tipo', 'Horas/Cant.', 'Total'].map(h => (
-                                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
+                <div className="vc-scrollx">
+                    <table className="vc-table">
+                        <thead><tr>{['Fecha', 'Descripción', 'Tipo', 'Horas/Cant.', 'Total'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                         <tbody>
                             {filtrados.map((i, idx) => (
-                                <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                                    <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(i.fecha)}</td>
-                                    <td style={{ padding: '10px 14px', color: '#1a2d42' }}>{i.descripcion || '—'}</td>
-                                    <td style={{ padding: '10px 14px' }}>
-                                        <span style={{ background: '#e8f0fb', color: '#2563eb', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600' }}>
-                                            {i.tipoTrabajo || '—'}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>
-                                        {i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}
-                                    </td>
-                                    <td style={{ padding: '10px 14px', color: '#27ae60', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(i.total)}</td>
+                                <tr key={idx}>
+                                    <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{fmtFecha(i.fecha)}</td>
+                                    <td>{i.descripcion || '—'}</td>
+                                    <td><span className="vc-catpill vc-cat-info">{i.tipoTrabajo || '—'}</span></td>
+                                    <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</td>
+                                    <td className="vc-money pos">{fmt(i.total)}</td>
                                 </tr>
                             ))}
                         </tbody>
                         <tfoot>
-                            <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
-                                <td colSpan={4} style={{ padding: '10px 14px', fontWeight: '700', color: '#1a2d42', fontSize: '13px' }}>
-                                    {buscar ? `Total filtrado (${filtrados.length} de ${ingresos.length})` : `Total (${ingresos.length} ingresos)`}
-                                </td>
-                                <td style={{ padding: '10px 14px', fontWeight: '700', color: '#27ae60', whiteSpace: 'nowrap' }}>{fmt(totalFiltrado)}</td>
+                            <tr>
+                                <td colSpan={4}>{buscar ? `Total filtrado (${filtrados.length} de ${ingresos.length})` : `Total (${ingresos.length} ingresos)`}</td>
+                                <td className="vc-money pos">{fmt(totalFiltrado)}</td>
                             </tr>
                         </tfoot>
                     </table>
@@ -355,86 +275,43 @@ function IngresosSection({ ingresos, buscar, setBuscar }) {
 function GastosSection({ gastos, buscar, setBuscar }) {
     const q = buscar.toLowerCase();
     const filtrados = gastos.filter(g =>
-        (g.descripcion || '').toLowerCase().includes(q) ||
-        (g.categoria || '').toLowerCase().includes(q)
+        (g.descripcion || '').toLowerCase().includes(q) || (g.categoria || '').toLowerCase().includes(q)
     );
     const totalFiltrado = filtrados.reduce((s, g) => s + (g.monto || 0), 0);
 
     return (
-        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '24px', overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Receipt size={16} color="#1a2d42" />
-                    <span style={{ fontWeight: '700', color: '#1a2d42', fontSize: '14px' }}>Historial de gastos</span>
-                    <span style={{ background: '#f0f4f8', color: '#6b7a8d', fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px' }}>
-                        {gastos.length}
-                    </span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', minWidth: '200px' }}>
-                    <Search size={13} color="#9aa5b4" />
-                    <input
-                        value={buscar}
-                        onChange={e => setBuscar(e.target.value)}
-                        placeholder="Buscar por descripción o categoría…"
-                        style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '13px', color: '#1a2d42', width: '100%' }}
-                    />
-                </div>
+        <div className="vc-panel">
+            <div className="vc-panel-head">
+                <div className="vc-panel-title"><Receipt size={16} />Historial de gastos <span className="vc-count">{gastos.length}</span></div>
+                <div className="vc-search"><Search size={13} /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por descripción o categoría…" /></div>
             </div>
-
             {gastos.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin gastos registrados</p>
+                <div className="vc-empty">Sin gastos registrados</div>
             ) : filtrados.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#9aa5b4', padding: '32px', fontSize: '13px' }}>Sin resultados para "{buscar}"</p>
+                <div className="vc-empty">Sin resultados para "{buscar}"</div>
             ) : (
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                        <thead>
-                            <tr style={{ background: '#f8fafc' }}>
-                                {['Fecha', 'Descripción', 'Categoría', 'Monto'].map(h => (
-                                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#6b7a8d', fontWeight: '600', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
+                <div className="vc-scrollx">
+                    <table className="vc-table">
+                        <thead><tr>{['Fecha', 'Descripción', 'Categoría', 'Monto'].map(h => <th key={h}>{h}</th>)}</tr></thead>
                         <tbody>
-                            {filtrados.map((g, i) => {
-                                const c = CATEGORIA_COLORS[g.categoria] || CATEGORIA_COLORS['Otros'];
-                                return (
-                                    <tr key={i} style={{ background: i % 2 === 0 ? '#fff' : '#fafbfc' }}>
-                                        <td style={{ padding: '10px 14px', color: '#6b7a8d', whiteSpace: 'nowrap' }}>{fmtFecha(g.fecha)}</td>
-                                        <td style={{ padding: '10px 14px', color: '#1a2d42' }}>{g.descripcion || '—'}</td>
-                                        <td style={{ padding: '10px 14px' }}>
-                                            <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '600' }}>
-                                                {g.categoria || '—'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '10px 14px', color: '#e74c3c', fontWeight: '600', whiteSpace: 'nowrap' }}>{fmt(g.monto)}</td>
-                                    </tr>
-                                );
-                            })}
+                            {filtrados.map((g, i) => (
+                                <tr key={i}>
+                                    <td style={{ whiteSpace: 'nowrap', color: 'var(--vc-ink-soft)' }}>{fmtFecha(g.fecha)}</td>
+                                    <td>{g.descripcion || '—'}</td>
+                                    <td><span className={`vc-catpill vc-cat-${claseCategoria(g.categoria)}`}>{g.categoria || '—'}</span></td>
+                                    <td className="vc-money neg">{fmt(g.monto)}</td>
+                                </tr>
+                            ))}
                         </tbody>
                         <tfoot>
-                            <tr style={{ background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
-                                <td colSpan={3} style={{ padding: '10px 14px', fontWeight: '700', color: '#1a2d42', fontSize: '13px' }}>
-                                    {buscar ? `Total filtrado (${filtrados.length} de ${gastos.length})` : `Total (${gastos.length} gastos)`}
-                                </td>
-                                <td style={{ padding: '10px 14px', fontWeight: '700', color: '#e74c3c', whiteSpace: 'nowrap' }}>{fmt(totalFiltrado)}</td>
+                            <tr>
+                                <td colSpan={3}>{buscar ? `Total filtrado (${filtrados.length} de ${gastos.length})` : `Total (${gastos.length} gastos)`}</td>
+                                <td className="vc-money neg">{fmt(totalFiltrado)}</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             )}
-        </div>
-    );
-}
-
-function SummaryCard({ icon, label, value, color }) {
-    return (
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {icon}
-                <span style={{ fontSize: '12px', color: '#6b7a8d', fontWeight: '500' }}>{label}</span>
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color }}>{value}</div>
         </div>
     );
 }
