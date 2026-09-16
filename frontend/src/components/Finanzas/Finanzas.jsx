@@ -21,13 +21,15 @@ const hoy = () => new Date().toISOString().split('T')[0];
 
 const FORM_ING  = { descripcion: '', tipoTrabajo: 'Horas', cantidad: 0, valorUnitario: 0, fecha: hoy(), maquinaNombre: '' };
 const FORM_GAS  = { descripcion: '', categoria: '', monto: 0, fecha: hoy(), maquinaNombre: '' };
-const CATEGORIAS_BASE_GASTO = ['Reparación', 'Repuestos', 'Lubricantes', 'Combustible', 'Mantenimiento', 'Otros'];
+// Sugerencias fijas del selector de categoría — no se le agregan categorías personalizadas
+// que el usuario haya escrito antes, para que el picker no crezca sin control
+const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', 'Lubricantes'];
 const FORM_SAL  = { operadorNombre: '', maquinaNombre: '', horasTrabajadas: 0, valorHora: 0, anticipos: 0, estado: 'Pendiente', fecha: hoy() };
 const FORM_PAG  = { cliente: '', maquinaNombre: '', descripcion: '', valorTotal: 0, valorPagado: 0, fecha: hoy() };
 
 const CATEGORIA_CLASE = {
     'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange',
-    'Mantenimiento': 'golddeep', 'Salario': 'purple', 'Lubricantes': 'neutral',
+    'Mantenimiento': 'golddeep', 'Salario': 'purple', 'Lubricantes': 'purple',
     'Otros': 'neutral', 'Otro': 'neutral',
 };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
@@ -77,9 +79,6 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [formSal, setFormSal] = useState(FORM_SAL);
     const [formPag, setFormPag] = useState(FORM_PAG);
 
-    // Categorías sugeridas: la lista base + las que ya se han usado (evita variantes
-    // distintas de la misma categoría, ej. "Otro"/"Otros")
-    const categoriasGasto = Array.from(new Set([...CATEGORIAS_BASE_GASTO, ...gastos.map(g => g.categoria).filter(Boolean)]));
 
     useEffect(() => { cargarTodo(); }, []);
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
@@ -563,16 +562,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <div className="fin-fld">
                                             <label>Categoría</label>
                                             <div className="fin-catpick">
-                                                {categoriasGasto.map(c => (
-                                                    <span key={c} className={`fin-catopt ${formGas.categoria === c ? 'sel' : ''}`} onClick={() => setFormGas({ ...formGas, categoria: c })}>{c}</span>
+                                                {CATEGORIAS_SUGERIDAS_GASTO.map(c => (
+                                                    <span key={c}
+                                                        className={`fin-catopt fin-cat-${claseCategoria(c)} ${formGas.categoria === c ? 'sel' : ''}`}
+                                                        onClick={() => setFormGas({ ...formGas, categoria: c })}>{c}</span>
                                                 ))}
                                             </div>
-                                            <input className="fin-input" style={{ marginTop: '8px' }} list="categorias-gasto" value={formGas.categoria}
+                                            <input className="fin-input" style={{ marginTop: '8px' }} value={formGas.categoria}
                                                 onChange={e => setFormGas({ ...formGas, categoria: e.target.value })}
-                                                placeholder="O escribe una categoría nueva" />
-                                            <datalist id="categorias-gasto">
-                                                {categoriasGasto.map(c => <option key={c} value={c} />)}
-                                            </datalist>
+                                                placeholder="O escribe una categoría distinta" />
                                         </div>
                                         <div className="fin-fld-row">
                                             <div className="fin-fld"><label>Monto</label><MoneyInput className="fin-input money" value={formGas.monto} onChange={e => setFormGas({ ...formGas, monto: e.target.value })} /></div>

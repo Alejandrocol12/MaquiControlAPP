@@ -98,7 +98,18 @@
 .mq-cat-gold{background:rgba(245,166,35,.12);color:#c9790f;}
 .mq-cat-golddeep{background:rgba(201,121,15,.12);color:#c9790f;}
 .mq-cat-orange{background:rgba(230,126,34,.12);color:#e67e22;}
+.mq-cat-purple{background:rgba(142,68,173,.1);color:#8e44ad;}
 .mq-cat-neutral{background:#f0f2f5;color:#6b7a8d;}
+
+.mq-catpick{display:flex;flex-wrap:wrap;gap:6px;}
+.mq-catopt{padding:6px 13px;border-radius:99px;font-size:12px;font-weight:700;border:none;cursor:pointer;transition:transform .1s;}
+.mq-catopt:hover{transform:translateY(-1px);}
+.mq-catopt.mq-cat-info.sel{background:#2980b9;color:#fff;}
+.mq-catopt.mq-cat-gold.sel{background:#c9790f;color:#fff;}
+.mq-catopt.mq-cat-orange.sel{background:#e67e22;color:#fff;}
+.mq-catopt.mq-cat-purple.sel{background:#8e44ad;color:#fff;}
+.mq-catopt.mq-cat-golddeep.sel{background:#c9790f;color:#fff;}
+.mq-catopt.mq-cat-neutral.sel{background:#5c7086;color:#fff;}
 
 /* ── periodo (faena) card ── */
 .mq-job-card{background:rgba(245,166,35,.08);border:1px solid #f5a623;border-radius:12px;padding:18px 20px;}

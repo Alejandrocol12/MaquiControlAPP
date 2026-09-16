@@ -108,8 +108,10 @@ const TODOS_TIPOS = [
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
 
-const CATEGORIAS_BASE_GASTO = ['Reparación', 'Repuestos', 'Lubricantes', 'Combustible', 'Mantenimiento', 'Otros'];
-const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'neutral', 'Otros': 'neutral', 'Otro': 'neutral' };
+// Sugerencias fijas del selector de categoría — no crece con categorías personalizadas
+// que el usuario haya escrito antes
+const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', 'Lubricantes'];
+const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'purple', 'Otros': 'neutral', 'Otro': 'neutral' };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
@@ -417,9 +419,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [gastoForm, setGastoForm] = useState(GASTO_VACIO);
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds] = useState(new Set());
-    // Categorías sugeridas: la lista base + las que ya se han usado en esta máquina (evita
-    // que cada quien invente una variante distinta de la misma categoría, ej. "Otro"/"Otros")
-    const categoriasGasto = Array.from(new Set([...CATEGORIAS_BASE_GASTO, ...gastos.map(g => g.categoria).filter(Boolean)]));
     const [editandoGastoId, setEditandoGastoId] = useState(null);
     const [cargandoIA, setCargandoIA] = useState(false);
 
@@ -1021,17 +1020,19 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
                                 <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
                             </h3>
-                            <div className="fg2">
-                                <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
-                                <div>
-                                    <label className="fl">Categoría</label>
-                                    <input className="fi" list="categorias-gasto" value={gastoForm.categoria}
-                                        onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
-                                        placeholder="Ej: Reparación, o escribe una nueva" />
-                                    <datalist id="categorias-gasto">
-                                        {categoriasGasto.map(c => <option key={c} value={c} />)}
-                                    </datalist>
+                            <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
+                            <div>
+                                <label className="fl">Categoría</label>
+                                <div className="mq-catpick">
+                                    {CATEGORIAS_SUGERIDAS_GASTO.map(c => (
+                                        <span key={c}
+                                            className={`mq-catopt mq-cat-${claseCategoria(c)} ${gastoForm.categoria === c ? 'sel' : ''}`}
+                                            onClick={() => setGastoForm({ ...gastoForm, categoria: c })}>{c}</span>
+                                    ))}
                                 </div>
+                                <input className="fi" style={{ marginTop: '8px' }} value={gastoForm.categoria}
+                                    onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
+                                    placeholder="O escribe una categoría distinta" />
                             </div>
                             <div className="fg2">
                                 <div><label className="fl">Monto ($) *</label><MoneyInput className="fi" value={gastoForm.monto} onChange={e => setGastoForm({ ...gastoForm, monto: e.target.value })} placeholder="Ej: 250.000" /></div>
