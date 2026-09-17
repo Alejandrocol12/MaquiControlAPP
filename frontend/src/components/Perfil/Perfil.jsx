@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useToast } from '../../utils/toast';
 import { updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin, solicitarCambioEmail, verificarEmailViejo, confirmarCambioEmail } from '../../api';
-import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff, Shield, PlayCircle } from 'lucide-react';
+import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff, Shield, PlayCircle, HelpCircle } from 'lucide-react';
+import './Perfil.css';
 
 const AUTH_USER_KEY  = 'mc_auth_user';
 const POLICY_KEY     = 'mc_pass_policy';
@@ -41,6 +42,7 @@ const Toggle = ({ value, onChange, label }) => (
 
 function Perfil({ user, onUpdate, onIniciarTour }) {
     const toast = useToast();
+    const [tab, setTab] = useState(0);
 
     const [perfForm, setPerfForm] = useState({ nombre: user.nombre || '', empresa: user.empresa || '' });
     const [guardando, setGuardando] = useState(false);
@@ -195,6 +197,12 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
     const todoOk   = checks.every(c => c.ok) && passForm.nueva === passForm.confirmar;
     const inicial  = (user.nombre || 'U').charAt(0).toUpperCase();
 
+    const TABS = [
+        { label: 'Datos personales', ico: <User size={14} /> },
+        { label: 'Seguridad', ico: <Shield size={14} /> },
+        { label: 'Ayuda', ico: <HelpCircle size={14} /> },
+    ];
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
@@ -202,23 +210,33 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
             </div>
             <div className="content"><div className="pad">
 
-                {/* Tarjeta de usuario */}
-                <div className="perf-card">
-                    <div className="perf-av">{inicial}</div>
-                    <div>
-                        <div className="perf-name">{user.nombre}</div>
-                        <div className="perf-meta">{user.email}</div>
-                        <div className="perf-meta" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                            <Building2 size={12} style={{ color: '#9aa5b4' }} />
-                            {user.empresa || '—'}
-                            <span className="b comp" style={{ fontSize: '11px', marginLeft: '4px' }}>{user.rol}</span>
+                {/* Hero de usuario */}
+                <div className="pf-hero">
+                    <div className="pf-av">{inicial}</div>
+                    <div className="pf-hero-info">
+                        <div className="pf-hero-name">{user.nombre}</div>
+                        <div className="pf-hero-email">{user.email}</div>
+                        <div className="pf-hero-badges">
+                            <span className="pf-badge"><Building2 size={11} /> {user.empresa || 'Sin empresa'}</span>
+                            <span className="pf-badge gold">{user.rol}</span>
+                            {user.hasPin && <span className="pf-badge"><ShieldCheck size={11} /> PIN activo</span>}
                         </div>
                     </div>
                 </div>
 
+                <div className="pf-tabs">
+                    {TABS.map((t, i) => (
+                        <button key={i} className={`pf-tab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t.ico}{t.label}</button>
+                    ))}
+                </div>
+
+                {tab === 0 && <>
                 {/* Datos personales */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><User size={18} /> Datos personales</h3>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico gold"><User size={16} /></span>
+                        <div><div className="pf-sec-title">Datos personales</div><div className="pf-sec-desc">Tu nombre y empresa, visibles en reportes y vista compartida.</div></div>
+                    </div>
                     <div className="fg2">
                         <div>
                             <label className="fl">Nombre *</label>
@@ -245,33 +263,30 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                 </div>
 
                 {/* Cambiar correo */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Mail size={18} /> Cambiar correo</h3>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico info"><Mail size={16} /></span>
+                        <div><div className="pf-sec-title">Cambiar correo</div><div className="pf-sec-desc">Verificación en dos pasos: confirmas el correo actual y luego el nuevo.</div></div>
+                    </div>
 
                     {/* Indicador de pasos */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px' }}>
+                    <div className="pf-steps">
                         {[['1', 'Nuevo correo'], ['2', 'Verificar cuenta'], ['3', 'Verificar nuevo']].map(([n, label], i) => (
-                            <div key={n} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <div style={{
-                                        width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        fontSize: '11px', fontWeight: '700',
-                                        background: pasoEmail > i ? '#27ae60' : pasoEmail === i ? '#f5a623' : '#e2e8f0',
-                                        color: pasoEmail >= i ? '#fff' : '#9aa5b4',
-                                    }}>
+                            <div key={n} className="pf-step">
+                                <div className="pf-step">
+                                    <div className={`pf-step-dot ${pasoEmail > i ? 'done' : pasoEmail === i ? 'on' : ''}`}>
                                         {pasoEmail > i ? <Check size={11} /> : n}
                                     </div>
-                                    <span style={{ fontSize: '11px', color: pasoEmail === i ? '#1a2d42' : '#9aa5b4', fontWeight: pasoEmail === i ? '600' : '400' }}>{label}</span>
+                                    <span className={`pf-step-label ${pasoEmail === i ? 'on' : ''}`}>{label}</span>
                                 </div>
-                                {i < 2 && <div style={{ width: 20, height: 1, background: '#e2e8f0', flexShrink: 0 }} />}
+                                {i < 2 && <div className="pf-step-line" />}
                             </div>
                         ))}
                     </div>
 
                     {pasoEmail === 0 && (
                         <div>
-                            <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginBottom: '14px' }}>
+                            <div className="ale blue" style={{ marginBottom: '14px' }}>
                                 <Mail size={18} color="#2980b9" />
                                 <div>
                                     <p>Correo actual: <strong>{user.email}</strong></p>
@@ -294,7 +309,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
 
                     {pasoEmail === 1 && (
                         <div>
-                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                            <div className="ale green" style={{ marginBottom: '14px' }}>
                                 <Check size={18} color="#27ae60" />
                                 <div>
                                     <p>Código enviado a <strong>{user.email}</strong></p>
@@ -325,7 +340,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
 
                     {pasoEmail === 2 && (
                         <div>
-                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                            <div className="ale green" style={{ marginBottom: '14px' }}>
                                 <Check size={18} color="#27ae60" />
                                 <div>
                                     <p>Código enviado a <strong>{emailForm.nuevo}</strong></p>
@@ -354,13 +369,15 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                         </div>
                     )}
                 </div>
+                </>}
 
+                {tab === 1 && <>
                 {/* Política de contraseña */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={18} /> Política de contraseña</h3>
-                    <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '0 0 14px' }}>
-                        Define los requisitos que debe cumplir tu contraseña al cambiarla.
-                    </p>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico purple"><Shield size={16} /></span>
+                        <div><div className="pf-sec-title">Política de contraseña</div><div className="pf-sec-desc">Define los requisitos que debe cumplir tu contraseña al cambiarla.</div></div>
+                    </div>
 
                     <div style={{ marginBottom: '14px' }}>
                         <label className="fl">Longitud mínima</label>
@@ -389,12 +406,15 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                 </div>
 
                 {/* Cambiar contraseña */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Lock size={18} /> Cambiar contraseña</h3>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico bad"><Lock size={16} /></span>
+                        <div><div className="pf-sec-title">Cambiar contraseña</div><div className="pf-sec-desc">Requiere un código de verificación enviado a tu correo.</div></div>
+                    </div>
 
                     {!codigoEnviado ? (
                         <div>
-                            <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginBottom: '14px' }}>
+                            <div className="ale blue" style={{ marginBottom: '14px' }}>
                                 <Mail size={18} color="#2980b9" />
                                 <div>
                                     <p>Se enviará un código de verificación a</p>
@@ -409,7 +429,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                         </div>
                     ) : (
                         <div>
-                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                            <div className="ale green" style={{ marginBottom: '14px' }}>
                                 <Check size={18} color="#27ae60" />
                                 <div>
                                     <p>Código enviado a <strong>{user.email}</strong></p>
@@ -479,11 +499,14 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                 </div>
 
                 {/* PIN de acceso rápido */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><KeyRound size={18} /> Acceso con PIN</h3>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico good"><KeyRound size={16} /></span>
+                        <div><div className="pf-sec-title">Acceso con PIN</div><div className="pf-sec-desc">Entra más rápido desde este dispositivo con un PIN de 4 dígitos.</div></div>
+                    </div>
                     {user.hasPin ? (
                         <div>
-                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                            <div className="ale green" style={{ marginBottom: '14px' }}>
                                 <ShieldCheck size={18} color="#27ae60" />
                                 <div>
                                     <p>PIN activo — puedes entrar con 4 dígitos desde la pantalla de inicio</p>
@@ -510,7 +533,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                         </div>
                     ) : (
                         <div>
-                            <div className="ale" style={{ background: '#f0f4f8', borderColor: '#c8d6e5', marginBottom: '14px' }}>
+                            <div className="ale gray" style={{ marginBottom: '14px' }}>
                                 <KeyRound size={18} color="#6b7a8d" />
                                 <div>
                                     <p>Sin PIN configurado</p>
@@ -533,17 +556,21 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                     )}
                 </div>
 
+                </>}
+
+                {tab === 2 && <>
                 {/* Tour guiado */}
-                <div className="fc">
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><PlayCircle size={18} /> Ayuda y tutorial</h3>
-                    <p style={{ fontSize: '13px', color: '#6b7a8d', margin: '0 0 14px' }}>
-                        Recorre todos los módulos de MaquiControl con una guía paso a paso.
-                    </p>
+                <div className="pf-sec">
+                    <div className="pf-sec-head">
+                        <span className="pf-sec-ico info"><PlayCircle size={16} /></span>
+                        <div><div className="pf-sec-title">Ayuda y tutorial</div><div className="pf-sec-desc">Recorre todos los módulos de MaquiControl con una guía paso a paso.</div></div>
+                    </div>
                     <button className="bp" onClick={onIniciarTour}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content' }}>
                         <PlayCircle size={14} /> Iniciar tour guiado
                     </button>
                 </div>
+                </>}
 
             </div></div>
         </div>

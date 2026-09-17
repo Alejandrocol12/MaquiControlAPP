@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+.pf-num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+
+/* ── hero ── */
+.pf-hero{background:linear-gradient(135deg,#1a2d42,#233a53);border-radius:14px;padding:22px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:18px;box-shadow:0 10px 26px -16px rgba(16,32,49,.4);}
+.pf-av{width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#f5a623,#c9790f);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:24px;color:#241705;flex-shrink:0;}
+.pf-hero-info{flex:1;min-width:200px;}
+.pf-hero-name{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;color:#fff;line-height:1.15;}
+.pf-hero-email{font-size:12.5px;color:#9fb0c3;margin-top:2px;}
+.pf-hero-badges{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px;}
+.pf-badge{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.1);color:#dce6f0;border:1px solid rgba(255,255,255,.14);}
+.pf-badge.gold{background:rgba(245,166,35,.18);color:#ffce7a;border-color:rgba(245,166,35,.3);}
+
+/* ── tabs ── */
+.pf-tabs{display:flex;gap:4px;border-bottom:1px solid #dde4ed;overflow-x:auto;margin-bottom:18px;}
+.pf-tab{display:flex;align-items:center;gap:7px;padding:10px 14px;font-size:13px;font-weight:600;color:#6b7a8d;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer;font-family:'Barlow',sans-serif;}
+.pf-tab.on{color:#1a2d42;border-bottom-color:#f5a623;font-weight:700;}
+
+/* ── section cards ── */
+.pf-sec{background:#fff;border:1px solid #dde4ed;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);padding:20px 22px;margin-bottom:16px;}
+.pf-sec-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:16px;}
+.pf-sec-ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;}
+.pf-sec-ico.gold{background:linear-gradient(135deg,#f5a623,#c9790f);}
+.pf-sec-ico.info{background:#2980b9;}
+.pf-sec-ico.purple{background:#8e44ad;}
+.pf-sec-ico.bad{background:#e74c3c;}
+.pf-sec-ico.good{background:#27ae60;}
+.pf-sec-title{font-family:'Barlow Condensed',sans-serif;font-size:16.5px;font-weight:700;color:#1a2d42;}
+.pf-sec-desc{font-size:12.5px;color:#6b7a8d;margin-top:2px;}
+
+/* ── steps (cambiar correo) ── */
+.pf-steps{display:flex;align-items:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.pf-step{display:flex;align-items:center;gap:6px;}
+.pf-step-dot{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:#e2e8f0;color:#93a2b3;}
+.pf-step-dot.done{background:#27ae60;color:#fff;}
+.pf-step-dot.on{background:#f5a623;color:#fff;}
+.pf-step-label{font-size:11px;color:#93a2b3;font-weight:400;}
+.pf-step-label.on{color:#1a2d42;font-weight:600;}
+.pf-step-line{width:20px;height:1px;background:#e2e8f0;flex-shrink:0;}
+
+@media (max-width:760px){
+  .pf-hero{padding:18px;}
+  .pf-av{width:52px;height:52px;font-size:20px;}
+  .pf-hero-name{font-size:19px;}
+}
+
+/* ── dark mode ── */
+body.dark .pf-hero{background:linear-gradient(135deg,#0f172a,#1a2942);}
+body.dark .pf-tabs{border-bottom-color:#334155;}
+body.dark .pf-tab{color:#64748b;}
+body.dark .pf-tab.on{color:#f1f5f9;}
+body.dark .pf-sec{background:#1e293b;border-color:#334155;box-shadow:none;}
+body.dark .pf-sec-title{color:#f1f5f9;}
+body.dark .pf-sec-desc{color:#94a3b8;}
+body.dark .pf-step-dot{background:#334155;color:#64748b;}
+body.dark .pf-step-label{color:#64748b;}
+body.dark .pf-step-label.on{color:#f1f5f9;}
+body.dark .pf-step-line{background:#334155;}
