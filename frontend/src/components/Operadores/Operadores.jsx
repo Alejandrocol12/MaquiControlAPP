@@ -4,9 +4,13 @@ import { useSortable } from '../../utils/useSortable';
 import DetalleOperador from './DetalleOperador';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info } from 'lucide-react';
+import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
+import './Operadores.css';
+
+const TIPO_COLOR = { 'Excavadora': '#2980b9', 'Bulldozer': '#e67e22', 'Volqueta': '#8e44ad', 'Grúa': '#c0392b' };
+const tipoColor = (tipo) => TIPO_COLOR[tipo] || '#27ae60';
 
 const IcoMaquina = ({ tipo, size = 12 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -37,6 +41,7 @@ function Operadores() {
     const [registrando, setRegistrando] = useState(false);
     const [opSel, setOpSel]             = useState(null);
     const [periodosActivos, setPeriodosActivos] = useState({});
+    const [buscar, setBuscar]           = useState('');
 
     const cargar = async () => {
         try {
@@ -187,6 +192,14 @@ function Operadores() {
     const totalHorasGlobal = ops.reduce((a, o) => a + o.horasPeriodo, 0);
     const pendientes       = ops.filter(o => o.hayPendiente).length;
     const sinMaquina       = ops.filter(o => !o.maq).length;
+    const nominaNeta       = ops.reduce((a, o) => a + o.salarioNeto, 0);
+    const nominaPendiente  = ops.filter(o => o.hayPendiente).reduce((a, o) => a + o.salarioNeto, 0);
+    const maxHorasPeriodo  = Math.max(1, ...ops.map(o => o.horasPeriodo));
+
+    const q = buscar.toLowerCase();
+    const opsFiltrados = ops.filter(o =>
+        !q || o.nombre.toLowerCase().includes(q) || (o.cedula || '').includes(q)
+    );
 
     const { sorted: salOrdenados, Th: ThSal } = useSortable(salarios, 'operadorNombre', 'asc');
 
@@ -202,34 +215,36 @@ function Operadores() {
 
             <div className="content"><div className="pad">
 
-                {/* CARDS RESUMEN */}
-                <div className="g3">
-                    <div className="card gold">
-                        <span className="ci"><HardHat size={22} /></span>
-                        <div className="cl">Total operadores</div>
-                        <div className="cv">{operadores.length}</div>
-                        <div className="cs">{sinMaquina > 0 ? `${sinMaquina} sin máquina asignada` : 'todos asignados'}</div>
+                {/* HERO KPIs */}
+                <div className="op-hero">
+                    <div className="op-kpi gold">
+                        <div className="op-kpi-top"><span className="op-kpi-label">Personal</span><span className="op-kpi-ico"><HardHat size={14} /></span></div>
+                        <div className="op-kpi-val">{operadores.length}</div>
+                        <div className="op-kpi-sub">{sinMaquina > 0 ? `${sinMaquina} sin máquina asignada` : 'todos asignados'}</div>
                     </div>
-                    <div className="card blue">
-                        <span className="ci"><Clock size={22} /></span>
-                        <div className="cl">Horas periodo actual</div>
-                        <div className="cv">{totalHorasGlobal.toLocaleString('es-CO')}</div>
-                        <div className="cs">suma de periodos activos</div>
+                    <div className="op-kpi info">
+                        <div className="op-kpi-top"><span className="op-kpi-label">Horas del periodo</span><span className="op-kpi-ico"><Clock size={14} /></span></div>
+                        <div className="op-kpi-val op-num">{totalHorasGlobal.toLocaleString('es-CO')}</div>
+                        <div className="op-kpi-sub">en periodos activos</div>
                     </div>
-                    <div className="card red">
-                        <span className="ci"><TrendingDown size={22} /></span>
-                        <div className="cl">Salarios pendientes</div>
-                        <div className="cv">{pendientes}</div>
-                        <div className="cs">{operadores.length - pendientes} al día</div>
+                    <div className="op-kpi bad">
+                        <div className="op-kpi-top"><span className="op-kpi-label">Nómina pendiente</span><span className="op-kpi-ico"><TrendingDown size={14} /></span></div>
+                        <div className="op-kpi-val op-num">{fmt(nominaPendiente)}</div>
+                        <div className="op-kpi-sub">{pendientes} operador{pendientes !== 1 ? 'es' : ''} por liquidar</div>
+                    </div>
+                    <div className="op-kpi profit">
+                        <div className="op-kpi-top"><span className="op-kpi-label">Nómina neta del periodo</span><span className="op-kpi-ico"><HardHat size={14} /></span></div>
+                        <div className="op-kpi-val op-num">{fmt(nominaNeta)}</div>
+                        <div className="op-kpi-sub">bruto − anticipos, los {operadores.length} operadores</div>
                     </div>
                 </div>
 
                 {/* ALERTA operadores sin máquina */}
                 {sinMaquina > 0 && (
-                    <div className="ale">
+                    <div className="ale" style={{ marginBottom: '20px' }}>
                         <AlertTriangle size={18} />
                         <div>
-                            <p>{sinMaquina} operador(es) sin máquina asignada</p>
+                            <p>{sinMaquina} operador{sinMaquina !== 1 ? 'es' : ''} sin máquina asignada</p>
                             <span className="ale-desc">Ve a Maquinaria → editar máquina → asignar operador</span>
                         </div>
                     </div>
@@ -296,75 +311,96 @@ function Operadores() {
                     </div>
                 )}
 
-                {/* GRID OPERADORES */}
-                <div className="og">
-                    {ops.map(op => (
-                        <div className="oc" key={op.id} onClick={() => setOpSel(op)} style={{ cursor: 'pointer' }}>
-                            <div className="oav">{op.iniciales}</div>
-                            <div className="onm">{op.nombre}</div>
-
-                            {/* Máquina asignada */}
-                            <div className="omq">
-                                {op.maq ? <><IcoMaquina tipo={op.maq.tipo} size={12} /><span style={{marginLeft:'4px'}}>{op.maq.nombre}</span></> : <><AlertTriangle size={12} style={{verticalAlign:'middle',marginRight:'4px'}} />Sin máquina</>}
-                                {op.valorHora > 0 && ` · ${fmt(op.valorHora)}/hr`}
+                {/* ROSTER DE OPERADORES */}
+                {operadores.length > 0 && (
+                    <div className="op-panel op-scrollx">
+                        <div className="op-scroll-inner" style={{ minWidth: 760 }}>
+                            <div className="op-panel-head">
+                                <h2>Roster de operadores</h2>
+                                <div className="op-search"><Search size={14} color="#93a2b3" /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por nombre o cédula..." /></div>
                             </div>
-
-                            {/* Horas período actual */}
-                            <div className="ohr">{op.horasPeriodo.toLocaleString('es-CO')}</div>
-                            <div className="ohl">horas en período · {fmt(op.salarioBruto)} bruto</div>
-
-                            {/* Anticipos si hay */}
-                            {op.anticipos > 0 && (
-                                <div style={{ fontSize: '11px', color: '#e74c3c', marginTop: '2px' }}>
-                                    {fmt(op.anticipos)} anticipos → neto {fmt(op.salarioNeto)}
-                                </div>
-                            )}
-
-                            {/* Estado */}
-                            <div style={{ marginTop: '8px', display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <span className={`b ${op.hayPendiente ? 'pend' : 'ok'}`}>
-                                    {op.hayPendiente ? 'Salario pendiente' : 'Al día'}
-                                </span>
-                                <button className="icon-btn" title="Ver detalle" onClick={e => { e.stopPropagation(); setOpSel(op); }}><Eye size={14} /></button>
-                                <button className="icon-btn" title="Eliminar" onClick={e => { e.stopPropagation(); eliminar(op.id); }}><Trash2 size={14} /></button>
-                            </div>
-                        </div>
-                    ))}
-
-                    <div className="nueva" style={{ minHeight: '130px' }} onClick={() => setMostrarForm(true)}>
-                        <Plus size={20} />
-                        <span style={{ fontSize: '13px', fontWeight: '600' }}>Nuevo Operador</span>
-                    </div>
-                </div>
-
-                {/* TABLA RESUMEN SALARIOS */}
-                {salarios.length > 0 && (
-                    <>
-                        <div className="st" style={{ marginTop: '20px' }}>Historial de Salarios</div>
-                        <div className="tbl">
-                            <div className="th"><strong style={{display:'flex',alignItems:'center',gap:'5px'}}><Briefcase size={14} /> Liquidaciones registradas</strong></div>
-                            <div className="tr hdr">
-                                <ThSal campo="operadorNombre" className="w2">Operador</ThSal>
-                                <ThSal campo="maquinaNombre">Máquina</ThSal>
-                                <ThSal campo="horasTrabajadas">Horas</ThSal>
-                                <ThSal campo="totalBruto">Bruto</ThSal>
-                                <ThSal campo="descuentos">Descuentos</ThSal>
-                                <ThSal campo="totalNeto">Neto</ThSal>
-                                <ThSal campo="estado">Estado</ThSal>
-                            </div>
-                            {salOrdenados.map(s => (
-                                <div className="tr" key={s.id}>
-                                    <span className="w2">{s.operadorNombre}</span>
-                                    <span>{s.maquinaNombre}</span>
-                                    <span>{s.horasTrabajadas} hrs</span>
-                                    <span className="pos">{fmt(s.totalBruto)}</span>
-                                    <span className="neg">{fmt(s.descuentos || 0)}</span>
-                                    <span className="pos" style={{ fontWeight: '700' }}>{fmt(s.totalNeto)}</span>
-                                    <span><span className={`b ${s.estado === 'Pagado' ? 'ok' : 'pend'}`}>{s.estado}</span></span>
+                            <div className="op-ros-head"><span>Operador</span><span>Máquina asignada</span><span>Horas del periodo</span><span>Bruto → Anticipos → Neto</span><span>Estado</span></div>
+                            {opsFiltrados.map(op => (
+                                <div className={`op-ros-row ${!op.maq ? 'empty' : ''}`} key={op.id} onClick={() => setOpSel(op)}>
+                                    <div className="op-who">
+                                        <div className={`op-avatar ${!op.maq ? 'dim' : ''}`}>{op.iniciales}</div>
+                                        <div><div className="op-who-name">{op.nombre}</div><div className="op-who-sub">{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</div></div>
+                                    </div>
+                                    <div className="op-maq">
+                                        <span className="op-flabel">Máquina asignada</span>
+                                        {op.maq ? (
+                                            <>
+                                                <span className="op-maq-ico" style={{ background: tipoColor(op.maq.tipo) }}><IcoMaquina tipo={op.maq.tipo} size={13} /></span>
+                                                <div className="op-maq-info"><div className="t">{op.maq.nombre}</div><div className="r">{fmt(op.valorHora)}/hr</div></div>
+                                            </>
+                                        ) : (
+                                            <span className="op-unassigned"><AlertTriangle size={11} />Sin asignar</span>
+                                        )}
+                                    </div>
+                                    <div className="op-hrs">
+                                        <span className="op-flabel">Horas del periodo</span>
+                                        <div className="hv">{op.maq ? `${op.horasPeriodo.toLocaleString('es-CO')} hrs` : '— hrs'}</div>
+                                        <div className="op-util-track"><div className="op-util-fill" style={{ width: `${Math.round((op.horasPeriodo / maxHorasPeriodo) * 100)}%` }}></div></div>
+                                    </div>
+                                    <div>
+                                        <span className="op-flabel">Bruto → Anticipos → Neto</span>
+                                        {op.maq && (op.salarioBruto > 0 || op.anticipos > 0) ? (
+                                            <div className="op-pay">
+                                                <span className="g">{fmt(op.salarioBruto)}</span>
+                                                <span className="arrow">→</span>
+                                                <span className="m">−{fmt(op.anticipos)}</span>
+                                                <span className="arrow">→</span>
+                                                <span className="n">{fmt(op.salarioNeto)}</span>
+                                            </div>
+                                        ) : (
+                                            <span style={{ fontSize: '11.5px', color: '#93a2b3' }}>Sin actividad este periodo</span>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                        <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Pendiente' : 'Al día'}</span>
+                                        <div className="op-actions" onClick={e => e.stopPropagation()}>
+                                            <button className="op-iconbtn" title="Ver detalle" onClick={() => setOpSel(op)}><Eye size={14} /></button>
+                                            <button className="op-iconbtn" title="Eliminar" onClick={() => eliminar(op.id)}><Trash2 size={14} /></button>
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
+                            {opsFiltrados.length === 0 && <p className="vacio">Sin resultados para "{buscar}"</p>}
                         </div>
-                    </>
+                    </div>
+                )}
+
+                {/* HISTORIAL DE LIQUIDACIONES */}
+                {salarios.length > 0 && (
+                    <div>
+                        <div className="op-panel-head" style={{ padding: '0 0 10px', border: 'none' }}>
+                            <h2 style={{ fontSize: '16px', display: 'flex', alignItems: 'center', gap: '6px' }}><Briefcase size={15} />Historial de liquidaciones</h2>
+                        </div>
+                        <div className="op-panel op-scrollx">
+                            <div className="op-scroll-inner" style={{ minWidth: 640 }}>
+                                <div className="op-lrow-head">
+                                    <ThSal campo="operadorNombre">Operador</ThSal>
+                                    <ThSal campo="maquinaNombre">Máquina</ThSal>
+                                    <ThSal campo="horasTrabajadas">Horas</ThSal>
+                                    <ThSal campo="totalBruto">Bruto</ThSal>
+                                    <ThSal campo="descuentos">Anticipos</ThSal>
+                                    <ThSal campo="totalNeto">Neto</ThSal>
+                                    <ThSal campo="estado">Estado</ThSal>
+                                </div>
+                                {salOrdenados.map(s => (
+                                    <div className="op-lrow" key={s.id}>
+                                        <span style={{ fontWeight: 600, color: '#1a2d42' }}>{s.operadorNombre}</span>
+                                        <span style={{ color: '#6b7a8d' }}><span className="op-flabel">Máquina</span>{s.maquinaNombre}</span>
+                                        <span className="op-money op-num"><span className="op-flabel">Horas</span>{s.horasTrabajadas} hrs</span>
+                                        <span className="op-money op-num"><span className="op-flabel">Bruto</span>{fmt(s.totalBruto)}</span>
+                                        <span className="op-money op-num neg"><span className="op-flabel">Anticipos</span>−{fmt(s.descuentos || 0)}</span>
+                                        <span className="op-money op-num pos"><span className="op-flabel">Neto</span>{fmt(s.totalNeto)}</span>
+                                        <span><span className={`op-pill ${s.estado === 'Pagado' ? 'ok' : 'pend'}`}><i></i>{s.estado}</span></span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 )}
 
             </div></div>

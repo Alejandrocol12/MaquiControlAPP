@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+.do-num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+
+/* ── header ── */
+.do-dh{background:#fff;border:1px solid #dde4ed;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);padding:18px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;}
+.do-dh-ico{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#f5a623,#c9790f);display:flex;align-items:center;justify-content:center;color:#241705;flex-shrink:0;}
+.do-dh h2{font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:800;margin:0;color:#1a2d42;}
+.do-dh-meta{font-size:12.5px;color:#6b7a8d;margin-top:3px;}
+.do-dh-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+
+.do-pill{font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;}
+.do-pill i{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.do-pill.ok{background:rgba(39,174,96,.1);color:#1c8a4b;}
+.do-pill.bad{background:rgba(231,76,60,.1);color:#c0392b;}
+.do-pill.info{background:rgba(41,128,185,.1);color:#2980b9;}
+.do-pill.gold{background:rgba(245,166,35,.14);color:#c9790f;}
+
+/* ── tabs ── */
+.do-dtabs{display:flex;gap:4px;border-bottom:1px solid #dde4ed;overflow-x:auto;margin-bottom:16px;}
+.do-dtab{display:flex;align-items:center;gap:7px;padding:10px 14px;font-size:13px;font-weight:600;color:#6b7a8d;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer;font-family:'Barlow',sans-serif;}
+.do-dtab.on{color:#1a2d42;border-bottom-color:#f5a623;font-weight:700;}
+
+/* ── hero KPIs (tab Resumen) ── */
+.do-hero4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+.do-kpi{background:#fff;border:1px solid #dde4ed;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
+.do-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.do-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a8d;}
+.do-kpi-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.do-kpi.info{background:linear-gradient(180deg,rgba(41,128,185,.08),transparent 60%);border-top-color:#2980b9;}
+.do-kpi.info .do-kpi-ico{background:#2980b9;color:#fff;}
+.do-kpi.info .do-kpi-val{color:#1f6491;}
+.do-kpi.good{background:linear-gradient(180deg,rgba(39,174,96,.08),transparent 60%);border-top-color:#27ae60;}
+.do-kpi.good .do-kpi-ico{background:#27ae60;color:#fff;}
+.do-kpi.good .do-kpi-val{color:#1c8a4b;}
+.do-kpi.bad{background:linear-gradient(180deg,rgba(231,76,60,.08),transparent 60%);border-top-color:#e74c3c;}
+.do-kpi.bad .do-kpi-ico{background:#e74c3c;color:#fff;}
+.do-kpi.bad .do-kpi-val{color:#c0392b;}
+.do-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;}
+.do-kpi-sub{font-size:11.5px;color:#93a2b3;margin-top:3px;}
+.do-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);border:none;color:#241705;}
+.do-kpi.profit .do-kpi-label{color:rgba(36,23,5,.72);}
+.do-kpi.profit .do-kpi-ico{background:rgba(255,255,255,.28);color:#241705;}
+.do-kpi.profit .do-kpi-val{color:#1a1004;font-size:27px;}
+.do-kpi.profit .do-kpi-sub{color:rgba(36,23,5,.75);}
+
+@media (max-width:900px){ .do-hero4{grid-template-columns:1fr 1fr;} }
+
+/* ── dark mode ── */
+body.dark .do-dh{background:#1e293b;border-color:#334155;box-shadow:none;}
+body.dark .do-dh h2{color:#f1f5f9;}
+body.dark .do-dh-meta{color:#94a3b8;}
+body.dark .do-dtabs{border-bottom-color:#334155;}
+body.dark .do-dtab{color:#64748b;}
+body.dark .do-dtab.on{color:#f1f5f9;}
+body.dark .do-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
+body.dark .do-kpi-label{color:#94a3b8;}
+body.dark .do-kpi-sub{color:#64748b;}
+body.dark .do-kpi.profit{color:#1a1004;}

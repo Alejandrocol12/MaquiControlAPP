@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+.op-num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+
+/* ── hero KPIs ── */
+.op-hero{display:grid;grid-template-columns:1fr 1fr 1.15fr 1.2fr;gap:14px;margin-bottom:18px;}
+.op-kpi{background:#fff;border:1px solid #dde4ed;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
+.op-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.op-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a8d;}
+.op-kpi-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.op-kpi.gold{background:linear-gradient(180deg,rgba(245,166,35,.08),transparent 60%);border-top-color:#f5a623;}
+.op-kpi.gold .op-kpi-ico{background:#f5a623;color:#fff;}
+.op-kpi.info{background:linear-gradient(180deg,rgba(41,128,185,.08),transparent 60%);border-top-color:#2980b9;}
+.op-kpi.info .op-kpi-ico{background:#2980b9;color:#fff;}
+.op-kpi.info .op-kpi-val{color:#1f6491;}
+.op-kpi.bad{background:linear-gradient(180deg,rgba(231,76,60,.08),transparent 60%);border-top-color:#e74c3c;}
+.op-kpi.bad .op-kpi-ico{background:#e74c3c;color:#fff;}
+.op-kpi.bad .op-kpi-val{color:#c0392b;}
+.op-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;}
+.op-kpi-sub{font-size:11.5px;color:#93a2b3;margin-top:3px;}
+.op-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);border:none;color:#241705;}
+.op-kpi.profit .op-kpi-label{color:rgba(36,23,5,.72);}
+.op-kpi.profit .op-kpi-ico{background:rgba(255,255,255,.28);color:#241705;}
+.op-kpi.profit .op-kpi-val{color:#1a1004;font-size:27px;}
+.op-kpi.profit .op-kpi-sub{color:rgba(36,23,5,.75);}
+
+/* ── panel + roster ── */
+.op-panel{background:#fff;border:1px solid #dde4ed;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);overflow:hidden;margin-bottom:20px;}
+.op-panel-head{padding:14px 18px;border-bottom:1px solid #dde4ed;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.op-panel-head h2{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;margin:0;color:#1a2d42;}
+.op-search{display:flex;align-items:center;gap:7px;background:#f7f9fb;border:1px solid #dde4ed;border-radius:8px;padding:6px 12px;min-width:190px;}
+.op-search input{border:none;background:transparent;outline:none;font-size:12.5px;color:#1a2d42;width:100%;font-family:'Barlow',sans-serif;}
+
+.op-scrollx{overflow-x:auto;}
+.op-ros-head{display:grid;grid-template-columns:1.9fr 1.5fr 1.4fr 1.7fr .9fr;gap:14px;padding:9px 18px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#93a2b3;border-bottom:1px solid #dde4ed;min-width:760px;}
+.op-ros-row{display:grid;grid-template-columns:1.9fr 1.5fr 1.4fr 1.7fr .9fr;gap:14px;padding:13px 18px;align-items:center;border-bottom:1px solid #dde4ed;min-width:760px;cursor:pointer;}
+.op-ros-row:last-child{border-bottom:none;}
+.op-ros-row:hover{background:#fafbfc;}
+.op-ros-row.empty{opacity:.75;}
+
+.op-who{display:flex;align-items:center;gap:11px;min-width:0;}
+.op-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f5a623,#c9790f);display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13px;color:#241705;flex-shrink:0;}
+.op-avatar.dim{background:#f7f9fb;color:#93a2b3;border:1px solid #dde4ed;}
+.op-who-name{font-size:13.5px;font-weight:700;color:#1a2d42;}
+.op-who-sub{font-size:11px;color:#93a2b3;margin-top:1px;}
+
+.op-maq{display:flex;align-items:center;gap:8px;min-width:0;}
+.op-maq-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff;}
+.op-maq-info .t{font-size:12.5px;font-weight:600;color:#1a2d42;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.op-maq-info .r{font-size:10.5px;color:#93a2b3;font-family:'IBM Plex Mono',monospace;}
+.op-unassigned{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;color:#c0392b;background:rgba(231,76,60,.1);padding:4px 10px;border-radius:99px;}
+
+.op-hrs .hv{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:#1a2d42;margin-bottom:5px;}
+.op-util-track{height:5px;border-radius:99px;background:#f0f2f5;border:1px solid #dde4ed;overflow:hidden;}
+.op-util-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#2980b9,#5cb3e0);}
+
+.op-pay{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11.5px;flex-wrap:wrap;}
+.op-pay .g{color:#6b7a8d;}
+.op-pay .m{color:#c0392b;font-size:11px;}
+.op-pay .n{color:#1a2d42;font-weight:700;}
+.op-pay .arrow{color:#93a2b3;}
+
+.op-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:99px;font-size:11px;font-weight:700;width:fit-content;}
+.op-pill i{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.op-pill.ok{background:rgba(39,174,96,.1);color:#1c8a4b;}
+.op-pill.pend{background:rgba(231,76,60,.1);color:#c0392b;}
+.op-pill.none{background:#f7f9fb;color:#93a2b3;border:1px solid #dde4ed;}
+
+.op-actions{display:flex;gap:4px;}
+.op-iconbtn{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;border:none;background:transparent;color:#93a2b3;cursor:pointer;}
+.op-iconbtn:hover{background:#f0f2f5;}
+
+/* ── ledger de liquidaciones ── */
+.op-lrow-head{display:grid;grid-template-columns:1.5fr 1.3fr 1fr 1fr 1fr 1fr .9fr;gap:10px;padding:9px 18px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#93a2b3;border-bottom:1px solid #dde4ed;min-width:640px;}
+.op-lrow{display:grid;grid-template-columns:1.5fr 1.3fr 1fr 1fr 1fr 1fr .9fr;gap:10px;padding:11px 18px;align-items:center;border-bottom:1px solid #dde4ed;font-size:12.5px;min-width:640px;}
+.op-lrow:last-child{border-bottom:none;}
+.op-money{font-family:'IBM Plex Mono',monospace;font-weight:600;}
+.op-money.pos{color:#1c8a4b;}
+.op-money.neg{color:#c0392b;}
+
+.op-flabel{display:none;}
+
+@media (max-width:900px){ .op-hero{grid-template-columns:1fr 1fr;} }
+
+@media (max-width:760px){
+  .op-ros-head,.op-lrow-head{display:none;}
+  .op-scroll-inner{min-width:0!important;}
+  .op-ros-row{grid-template-columns:1fr!important;row-gap:10px;min-width:0!important;}
+  .op-lrow{grid-template-columns:1fr!important;row-gap:8px;min-width:0!important;}
+  .op-flabel{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#93a2b3;margin-bottom:4px;}
+  .op-lrow .op-money,.op-lrow>span{display:block;}
+}
+
+/* ── dark mode ── */
+body.dark .op-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
+body.dark .op-kpi-label{color:#94a3b8;}
+body.dark .op-kpi-sub{color:#64748b;}
+body.dark .op-kpi.profit{color:#1a1004;}
+body.dark .op-panel{background:#1e293b;border-color:#334155;box-shadow:none;}
+body.dark .op-panel-head{border-bottom-color:#334155;}
+body.dark .op-panel-head h2{color:#f1f5f9;}
+body.dark .op-search{background:#0f172a;border-color:#334155;}
+body.dark .op-search input{color:#e2e8f0;}
+body.dark .op-ros-head{border-bottom-color:#334155;color:#64748b;}
+body.dark .op-ros-row{border-bottom-color:#334155;}
+body.dark .op-ros-row:hover{background:#16202e;}
+body.dark .op-who-name{color:#f1f5f9;}
+body.dark .op-who-sub{color:#64748b;}
+body.dark .op-avatar.dim{background:#0f172a;border-color:#334155;color:#64748b;}
+body.dark .op-maq-info .t{color:#f1f5f9;}
+body.dark .op-util-track{background:#0f172a;border-color:#334155;}
+body.dark .op-pay .g{color:#94a3b8;}
+body.dark .op-pay .n{color:#f1f5f9;}
+body.dark .op-pill.none{background:#0f172a;border-color:#334155;color:#64748b;}
+body.dark .op-iconbtn:hover{background:#334155;}
+body.dark .op-lrow-head{border-bottom-color:#334155;color:#64748b;}
+body.dark .op-lrow{border-bottom-color:#334155;}
+body.dark .op-flabel{color:#64748b;}

@@ -44,6 +44,7 @@ import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
+import './DetalleOperador.css';
 
 const IcoMaquina = ({ tipo, size = 12 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -397,25 +398,22 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                 </div>
 
                 <div className="content"><div className="pad">
-                    <div className="dh">
-                        <div className="dhi"><HardHat size={28} /></div>
-                        <div>
+                    <div className="do-dh">
+                        <div className="do-dh-ico"><HardHat size={26} /></div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                             <h2>{operadorLocal.nombre}</h2>
-                            <p>Cedula: {operadorLocal.cedula || '-'} · Tel: {operadorLocal.telefono || '-'} · {operadorLocal.email || '-'}
-                                {tgVinculado && <span style={{ marginLeft: '8px', fontSize: '11px', background: '#e8f4fd', color: '#2980b9', border: '1px solid #aed6f1', borderRadius: '10px', padding: '1px 7px', fontWeight: '600' }}>✈ Telegram</span>}
-                            </p>
+                            <p className="do-dh-meta">Cedula: {operadorLocal.cedula || '-'} · Tel: {operadorLocal.telefono || '-'} · {operadorLocal.email || '-'}</p>
                             {operador.observaciones && (
-                                <p style={{ fontSize: '11px', color: '#6b7a8d', marginTop: '2px' }}>{operador.observaciones}</p>
+                                <p className="do-dh-meta" style={{ marginTop: '2px' }}>{operador.observaciones}</p>
                             )}
-                        </div>
-                        <div className="dhb">
-                            {maqAsignada
-                                ? <span className="b comp" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><IcoMaquina tipo={maqAsignada.tipo} size={12} /> {maqAsignada.nombre}</span>
-                                : <span className="b falla">Sin maquina asignada</span>}
-                            {valorHora > 0 && <span className="b hrs">{fmt(valorHora)}/hr</span>}
-                            <span className="b" style={{ background: '#e8f5e9', color: '#27ae60', border: '1px solid #a8d5b5' }}>
-                                <Clock size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} /> {horasPeriodo.toLocaleString('es-CO')} hrs este periodo
-                            </span>
+                            <div className="do-dh-badges">
+                                {maqAsignada
+                                    ? <span className="do-pill info"><IcoMaquina tipo={maqAsignada.tipo} size={11} /> {maqAsignada.nombre}</span>
+                                    : <span className="do-pill bad"><i /> Sin maquina asignada</span>}
+                                {valorHora > 0 && <span className="do-pill gold"><i /> {fmt(valorHora)}/hr</span>}
+                                <span className="do-pill ok"><Clock size={11} /> {horasPeriodo.toLocaleString('es-CO')} hrs este periodo</span>
+                                {tgVinculado && <span className="do-pill info">✈ Telegram</span>}
+                            </div>
                         </div>
                     </div>
 
@@ -429,36 +427,44 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         </div>
                     )}
 
-                    <div className="tabs">
-                        {TABS.map((t, i) => <button key={i} className={`tab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
+                    <div className="do-dtabs">
+                        {TABS.map((t, i) => <button key={i} className={`do-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
                     </div>
 
                     {tab === 0 && (
                         <>
-                            <div className="g4">
-                                <div className="card blue">
-                                    <span className="ci"><Clock size={22} /></span>
-                                    <div className="cl">Horas periodo</div>
-                                    <div className="cv">{horasPeriodo.toLocaleString('es-CO')}</div>
-                                    <div className="cs">desde {fmtFecha(periodoActivo?.fechaInicio)}</div>
+                            <div className="do-hero4">
+                                <div className="do-kpi info">
+                                    <div className="do-kpi-top">
+                                        <span className="do-kpi-label">Horas periodo</span>
+                                        <span className="do-kpi-ico"><Clock size={14} /></span>
+                                    </div>
+                                    <div className="do-kpi-val do-num">{horasPeriodo.toLocaleString('es-CO')}</div>
+                                    <div className="do-kpi-sub">desde {fmtFecha(periodoActivo?.fechaInicio)}</div>
                                 </div>
-                                <div className="card green">
-                                    <span className="ci"><TrendingUp size={22} /></span>
-                                    <div className="cl">Salario bruto</div>
-                                    <div className="cv">{fmt(salarioBruto)}</div>
-                                    <div className="cs">{horasPeriodo} hrs x {fmt(valorHora)}</div>
+                                <div className="do-kpi good">
+                                    <div className="do-kpi-top">
+                                        <span className="do-kpi-label">Salario bruto</span>
+                                        <span className="do-kpi-ico"><TrendingUp size={14} /></span>
+                                    </div>
+                                    <div className="do-kpi-val do-num">{fmt(salarioBruto)}</div>
+                                    <div className="do-kpi-sub">{horasPeriodo} hrs x {fmt(valorHora)}</div>
                                 </div>
-                                <div className="card red">
-                                    <span className="ci"><TrendingDown size={22} /></span>
-                                    <div className="cl">Anticipos</div>
-                                    <div className="cv">{fmt(anticipos)}</div>
-                                    <div className="cs">descontados del neto</div>
+                                <div className="do-kpi bad">
+                                    <div className="do-kpi-top">
+                                        <span className="do-kpi-label">Anticipos</span>
+                                        <span className="do-kpi-ico"><TrendingDown size={14} /></span>
+                                    </div>
+                                    <div className="do-kpi-val do-num">{fmt(anticipos)}</div>
+                                    <div className="do-kpi-sub">descontados del neto</div>
                                 </div>
-                                <div className="card gold">
-                                    <span className="ci"><Landmark size={22} /></span>
-                                    <div className="cl">Salario neto</div>
-                                    <div className="cv" style={{ color: salarioNeto >= 0 ? '#27ae60' : '#e74c3c' }}>{fmt(salarioNeto)}</div>
-                                    <div className="cs">bruto - anticipos</div>
+                                <div className="do-kpi profit">
+                                    <div className="do-kpi-top">
+                                        <span className="do-kpi-label">Salario neto</span>
+                                        <span className="do-kpi-ico"><Landmark size={14} /></span>
+                                    </div>
+                                    <div className="do-kpi-val do-num">{fmt(salarioNeto)}</div>
+                                    <div className="do-kpi-sub">bruto - anticipos</div>
                                 </div>
                             </div>
 
