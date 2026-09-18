@@ -15,8 +15,6 @@ import {
     unlinkTelegramAPI,
     getNovedadesAPI,
     updateNovedadEstado,
-    getNombresHuerfanosAPI,
-    repararNombreOperadorAPI,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -39,7 +37,6 @@ import {
     StopCircle,
     Bell,
     CheckCircle,
-    Link2,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -80,8 +77,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
     const [tgCargando, setTgCargando] = useState(false);
     const [novedadesOp, setNovedadesOp] = useState([]);
-    const [nombresHuerfanos, setNombresHuerfanos] = useState([]);
-    const [reparando, setReparando] = useState(false);
 
     const [horaForm, setHoraForm] = useState({
         maquinaNombre: '',
@@ -186,22 +181,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         init();
         if (!modoPortal) {
             getNovedadesAPI().then(r => setNovedadesOp((r.data || []).filter(n => n.operadorId === operador.id))).catch(() => {});
-            getNombresHuerfanosAPI().then(r => setNombresHuerfanos(r.data || [])).catch(() => {});
         }
     }, [operador.id]);
-
-    const repararVinculo = async (nombreAnterior) => {
-        setReparando(true);
-        try {
-            await repararNombreOperadorAPI(operador.id, nombreAnterior);
-            await cargar();
-            const { data } = await getNombresHuerfanosAPI();
-            setNombresHuerfanos(data || []);
-            toast(`Datos de "${nombreAnterior}" reconectados a ${operadorLocal.nombre}`, 's');
-        } catch {
-            toast('No se pudo reconectar', 'e');
-        } finally { setReparando(false); }
-    };
 
     const periodoActivo = periodos.find((p) => p.estado === 'activo') || null;
     const maqAsignada = maquinas.find((m) =>
@@ -763,30 +744,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                     {tab === 5 && !modoPortal && (
                         <>
-                        {nombresHuerfanos.length > 0 && (
-                            <div className="fc" style={{ border: '1px solid #f5a623', background: '#fff8e7' }}>
-                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Link2 size={18} /> Reconectar datos antiguos
-                                </h3>
-                                <p className="fd">
-                                    Encontramos horas, liquidaciones o máquinas guardadas bajo un nombre que ya no coincide
-                                    con ningún operador (por ejemplo, de un renombre hecho antes de este arreglo). Si alguno
-                                    de estos nombres es un nombre anterior de <strong>{operadorLocal.nombre}</strong>, reconéctalo aquí.
-                                </p>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {nombresHuerfanos.map(n => (
-                                        <div key={n} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', background: '#fff', border: '1px solid #f0dca0', borderRadius: '8px', padding: '9px 12px' }}>
-                                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a2d42' }}>{n}</span>
-                                            <button className="bp" disabled={reparando} style={{ fontSize: '12px', padding: '6px 12px' }}
-                                                onClick={() => repararVinculo(n)}>
-                                                <Link2 size={12} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                                Es {operadorLocal.nombre}
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         <div className="fc">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Pencil size={18} /> Editar información del operador
