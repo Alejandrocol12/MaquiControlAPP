@@ -99,6 +99,8 @@ export const getOperadorByIdAPI = (id)       => API.get(`/operadores/${id}`);
 export const createOperadorAPI  = (data)     => API.post('/operadores', data);
 export const updateOperadorAPI  = (id, data) => API.put(`/operadores/${id}`, data);
 export const deleteOperadorAPI  = (id)       => API.delete(`/operadores/${id}`);
+export const getNombresHuerfanosAPI = ()           => API.get('/operadores/nombres-huerfanos');
+export const repararNombreOperadorAPI = (id, nombreAnterior) => API.post(`/operadores/${id}/reparar-nombre`, { nombreAnterior });
 
 // Períodos de operadores
 export const getTelegramCodeAPI   = (id)         => API.get(`/operadores/${id}/telegram-code`);
