@@ -15,13 +15,14 @@ import MoneyInput from '../../utils/MoneyInput';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, Users, ChevronLeft,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
     Target, Eye,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { useSortable } from '../../utils/useSortable';
+import { ventanaCorte, enVentanaCorte, diasHastaCierre } from '../../utils/corte';
 import './Maquinaria.css';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
@@ -114,7 +115,7 @@ const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', '
 const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'purple', 'Otros': 'neutral', 'Otro': 'neutral' };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
-const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
+const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0, diaCorte: '' };
 
 function Maquinaria({ vistaInicial = 'lista' }) {
     const toast = useToast();
@@ -154,7 +155,8 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     const hc = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const guardar = () => {
-        const op = vista === 'nueva' ? createMaquina(form) : updateMaquina(maqActual.id, form);
+        const payload = { ...form, diaCorte: form.diaCorte === '' ? null : Number(form.diaCorte) };
+        const op = vista === 'nueva' ? createMaquina(payload) : updateMaquina(maqActual.id, payload);
         op.then(() => { cargar(); setVista('lista'); setForm(FORM_VACIO); }).catch(console.error);
     };
 
@@ -222,6 +224,18 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                             <select className="fsel" name="estado" value={form.estado} onChange={hc}>
                                 <option>Activa</option><option>En mantenimiento</option><option>Inactiva</option>
                             </select>
+                        </div>
+                    </div>
+                    <div className="fg2">
+                        <div>
+                            <label className="fl">Día de corte (pago al operador)</label>
+                            <select className="fsel" name="diaCorte" value={form.diaCorte ?? ''} onChange={hc}>
+                                <option value="">— Sin definir —</option>
+                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                    <option key={d} value={d}>Día {d}</option>
+                                ))}
+                            </select>
+                            <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Día del mes en que se corta el pago al operador — habilita la pestaña Corte</span>
                         </div>
                     </div>
                 </div>
@@ -372,27 +386,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     // "¿Cuántas horas se han hecho desde tal fecha?" — usa todo el historial de la máquina
     const [fechaDesdeHoras, setFechaDesdeHoras] = useState('');
-
-    // Socios
-    const [socios, setSocios] = useState(() => {
-        try { return JSON.parse(localStorage.getItem(`mc_socios_${maquina.id}`) || '[]'); }
-        catch { return []; }
-    });
-    const [nuevoSocio, setNuevoSocio] = useState({ nombre: '', porcentaje: '' });
-    const [montoSocios, setMontoSocios] = useState('');
-    const guardarSocios = (lista) => {
-        setSocios(lista);
-        localStorage.setItem(`mc_socios_${maquina.id}`, JSON.stringify(lista));
-    };
-    const agregarSocio = () => {
-        const nombre = nuevoSocio.nombre.trim();
-        const pct = parseFloat(nuevoSocio.porcentaje);
-        if (!nombre || isNaN(pct) || pct <= 0) return toast('Completa nombre y porcentaje válido', 'e');
-        guardarSocios([...socios, { nombre, porcentaje: pct }]);
-        setNuevoSocio({ nombre: '', porcentaje: '' });
-    };
-    const eliminarSocioFn = (i) => guardarSocios(socios.filter((_, idx) => idx !== i));
-    const sumaPct = socios.reduce((s, x) => s + Number(x.porcentaje || 0), 0);
 
     useEffect(() => {
         getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
@@ -554,6 +547,22 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
+
+    // Corte por fecha — informativo, independiente del periodo/faena (que puede durar meses)
+    let corte = null;
+    if (maq.diaCorte) {
+        const { inicio: corteInicio, fin: corteFin } = ventanaCorte(maq.diaCorte);
+        const ingresosCorte = ingresos.filter(i => enVentanaCorte(i.fecha, corteInicio, corteFin));
+        corte = {
+            inicio: corteInicio,
+            fin: corteFin,
+            diasFaltan: diasHastaCierre(corteFin),
+            horas: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').reduce((a, i) => a + (Number(i.cantidad) || 0), 0),
+            registros: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').length,
+            totalIngresos: ingresosCorte.reduce((a, i) => a + (i.total || 0), 0),
+            filas: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')),
+        };
+    }
 
     // Horas trabajadas desde una fecha elegida, sobre todo el historial de la máquina
     const ingHorasDesde = fechaDesdeHoras
@@ -767,8 +776,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><TrendingUp size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Ingresos</>,
         <><TrendingDown size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Gastos</>,
         <><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Combustible</>,
-        <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
-        <><Users size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Socios</>,
+        <><Calendar size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Corte</>,
     ];
 
     return (
@@ -1248,7 +1256,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     )}
                                 </div>
 
-                                <div className="ale" style={{ background: '#fdf3f3', borderColor: '#e74c3c' }}>
+                                <div className="ale red">
                                     <StopCircle size={18} color="#e74c3c" />
                                     <div>
                                         <p>Rendir cuentas — cerrar periodo</p>
@@ -1319,124 +1327,52 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 )}
                             </>
                         )}
-                    </div>
-                )}
 
-                {/* TAB 6 — SOCIOS */}
-                {tab === 6 && (
-                    <div>
-                        <div className="fc">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Users size={18} /> Socios — {maq.nombre}
+                        <div style={{ marginTop: '22px' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', marginBottom: '4px' }}>
+                                <Calendar size={17} /> Corte
                             </h3>
-                            <p className="fd">Define los socios y sus porcentajes. La suma debe llegar a 100%.</p>
-                            <div className="fg2">
-                                <div>
-                                    <label className="fl">Nombre del socio</label>
-                                    <input className="fi" value={nuevoSocio.nombre}
-                                        onChange={e => setNuevoSocio({ ...nuevoSocio, nombre: e.target.value })}
-                                        placeholder="Ej: Juan Pérez"
-                                        onKeyDown={e => e.key === 'Enter' && agregarSocio()} />
-                                </div>
-                                <div>
-                                    <label className="fl">Porcentaje (%)</label>
-                                    <input className="fi" type="number" min="0.1" max="100" step="0.1"
-                                        value={nuevoSocio.porcentaje}
-                                        onChange={e => setNuevoSocio({ ...nuevoSocio, porcentaje: e.target.value })}
-                                        placeholder="Ej: 40"
-                                        onKeyDown={e => e.key === 'Enter' && agregarSocio()} />
-                                </div>
-                            </div>
-                            <button className="bp" style={{ alignSelf: 'flex-start' }} onClick={agregarSocio}>
-                                <Plus size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-                                Agregar socio
-                            </button>
-                        </div>
-
-                        {socios.length > 0 && (
-                            <div className="tbl" style={{ marginTop: '14px' }}>
-                                <div className="th">
-                                    <strong style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        <Users size={14} /> Socios — {sumaPct % 1 === 0 ? sumaPct : sumaPct.toFixed(1)}% asignado
-                                    </strong>
-                                    {Math.abs(sumaPct - 100) > 0.01 && (
-                                        <span style={{ fontSize: '11px', color: sumaPct > 100 ? '#e74c3c' : '#e67e22', fontWeight: '600' }}>
-                                            {sumaPct > 100
-                                                ? `Excede en ${(sumaPct - 100).toFixed(1)}%`
-                                                : `Falta ${(100 - sumaPct).toFixed(1)}% para 100%`}
-                                        </span>
-                                    )}
-                                    {Math.abs(sumaPct - 100) <= 0.01 && (
-                                        <span style={{ fontSize: '11px', color: '#27ae60', fontWeight: '700', background: '#e8f5e9', border: '1px solid #27ae60', borderRadius: '12px', padding: '2px 8px' }}>Completo</span>
-                                    )}
-                                </div>
-                                <div className="tr hdr">
-                                    <span>Socio</span>
-                                    <span>Porcentaje</span>
-                                    <span>Acc.</span>
-                                </div>
-                                {socios.map((s, i) => (
-                                    <div className="tr" key={i}>
-                                        <span style={{ fontWeight: '600' }}>{s.nombre}</span>
-                                        <span>{s.porcentaje % 1 === 0 ? s.porcentaje : s.porcentaje.toFixed(1)}%</span>
-                                        <span>
-                                            <button className="icon-btn" onClick={() => eliminarSocioFn(i)}>
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </span>
+                            {maq.diaCorte ? (
+                                <>
+                                    <p className="fd" style={{ marginBottom: '12px' }}>
+                                        Cuánto te va a pagar el cliente por el trabajo de esta máquina en el corte actual — sin gastos.
+                                        Esto no cierra el periodo de arriba; ese sigue corriendo normal.
+                                    </p>
+                                    <div className="ale gray" style={{ marginBottom: '12px' }}>
+                                        <Calendar size={18} color="#5c7086" />
+                                        <div>
+                                            <p>{corte.inicio.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} → {corte.fin.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                            <span className="ale-desc">{corte.diasFaltan <= 0 ? 'Hoy cierra' : `Faltan ${corte.diasFaltan} día${corte.diasFaltan === 1 ? '' : 's'}`}</span>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                        )}
-
-                        {socios.length > 0 && (
-                            <div className="fc" style={{ marginTop: '14px' }}>
-                                <h3>Dividir monto</h3>
-                                <p className="fd">Ingresa el monto total y se calculará automáticamente la parte de cada socio.</p>
-                                <div style={{ maxWidth: '280px' }}>
-                                    <label className="fl">Monto a dividir ($)</label>
-                                    <MoneyInput className="fi" value={montoSocios}
-                                        onChange={e => setMontoSocios(e.target.value)}
-                                        placeholder="Ej: 5.000.000" />
-                                </div>
-                                {Number(montoSocios) > 0 && (
-                                    <div className="tbl" style={{ marginTop: '12px' }}>
-                                        <div className="th">
-                                            <strong>Distribución de {fmt(Number(montoSocios))}</strong>
-                                        </div>
-                                        <div className="tr hdr">
-                                            <span>Socio</span>
-                                            <span>%</span>
-                                            <span>Le corresponde</span>
-                                        </div>
-                                        {socios.map((s, i) => (
-                                            <div className="tr" key={i}>
-                                                <span style={{ fontWeight: '600' }}>{s.nombre}</span>
-                                                <span>{s.porcentaje % 1 === 0 ? s.porcentaje : s.porcentaje.toFixed(1)}%</span>
-                                                <span style={{ color: '#27ae60', fontWeight: '700' }}>
-                                                    {fmt(Number(montoSocios) * s.porcentaje / 100)}
-                                                </span>
+                                    <div className="mq-job-grid" style={{ marginBottom: '14px' }}>
+                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas trabajadas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{corte.horas.toLocaleString('es-CO')}</div></div>
+                                        <div className="mq-job-tile good"><div className="mq-job-tile-l">Nos van a pagar</div><div className="mq-job-tile-v mq-num" style={{ color: '#1c8a4b' }}>{fmt(corte.totalIngresos)}</div></div>
+                                    </div>
+                                    <div className="tbl mq-corte-tbl">
+                                        <div className="th"><strong>Horas dentro de este corte</strong></div>
+                                        <div className="tr hdr"><span>Fecha</span><span>Horas</span><span>Valor/hora</span><span>Valor ganado</span></div>
+                                        {corte.filas.length === 0 && <p className="vacio">Sin horas registradas en este corte</p>}
+                                        {corte.filas.map(i => (
+                                            <div className="tr" key={i.id}>
+                                                <span>{i.fecha}</span>
+                                                <span><span className="mq-corte-flabel">Horas</span>{i.cantidad} hrs</span>
+                                                <span><span className="mq-corte-flabel">Valor/hora</span>{fmt(i.valorUnitario)}</span>
+                                                <span className="pos"><span className="mq-corte-flabel">Valor ganado</span>{fmt(i.total)}</span>
                                             </div>
                                         ))}
-                                        {Math.abs(sumaPct - 100) > 0.01 && (
-                                            <div style={{ padding: '8px 14px', fontSize: '11px', color: '#e67e22', background: '#fffbf0', borderTop: '1px solid #f5e0a0' }}>
-                                                Los porcentajes no suman 100% — el total distribuido es {fmt(Number(montoSocios) * sumaPct / 100)}
-                                            </div>
-                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
-
-                        {socios.length === 0 && (
-                            <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginTop: '14px' }}>
-                                <Users size={18} color="#2980b9" />
-                                <div>
-                                    <p>Sin socios registrados</p>
-                                    <span className="ale-desc">Agrega los socios y sus porcentajes para poder dividir cualquier monto entre ellos.</span>
+                                </>
+                            ) : (
+                                <div className="ale blue">
+                                    <Calendar size={18} color="#2980b9" />
+                                    <div>
+                                        <p>Sin día de corte configurado</p>
+                                        <span className="ale-desc">Ve a Editar y define el día del mes en que se corta el pago al operador para ver esta información.</span>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
 

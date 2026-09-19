@@ -135,6 +135,13 @@
   .mq-g2{grid-template-columns:1fr;}
 }
 
+.mq-corte-flabel{display:none;}
+@media (max-width:640px){
+  .mq-corte-tbl .tr.hdr{display:none;}
+  .mq-corte-tbl .tr{flex-direction:column;align-items:flex-start;gap:6px;}
+  .mq-corte-flabel{display:block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#93a2b3;margin-bottom:2px;}
+}
+
 /* ── dark mode (mirrors body.dark convention used across the app) ── */
 body.dark .mq-insight{background:#1e293b;}
 body.dark .mq-insight p{color:#e2e8f0;}

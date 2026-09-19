@@ -23,6 +23,7 @@
 
 /* ── hero KPIs (tab Resumen) ── */
 .do-hero4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+.do-hero2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 .do-kpi{background:#fff;border:1px solid #dde4ed;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
 .do-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .do-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a8d;}
@@ -56,4 +57,4 @@ body.dark .do-dtab.on{color:#f1f5f9;}
 body.dark .do-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .do-kpi-label{color:#94a3b8;}
 body.dark .do-kpi-sub{color:#64748b;}
-body.dark .do-kpi.profit{color:#1a1004;}
+body.dark .do-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);color:#1a1004;}

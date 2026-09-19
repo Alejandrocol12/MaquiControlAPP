@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     getHorasOperador,
-    createHora,
     deleteHora,
     getMaquinas,
     getMisMaquinasAPI,
-    createIngreso,
     getPeriodosAPI,
     createPeriodoAPI,
     updatePeriodoAPI,
@@ -13,8 +11,6 @@ import {
     updateOperadorAPI,
     getTelegramCodeAPI,
     unlinkTelegramAPI,
-    getNovedadesAPI,
-    updateNovedadEstado,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -35,13 +31,13 @@ import {
     Gauge,
     Pencil,
     StopCircle,
-    Bell,
     CheckCircle,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
+import { ventanaCorte, enVentanaCorte, diasHastaCierre } from '../../utils/corte';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import './DetalleOperador.css';
@@ -76,16 +72,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [tgDeepLink, setTgDeepLink] = useState(null);
     const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
     const [tgCargando, setTgCargando] = useState(false);
-    const [novedadesOp, setNovedadesOp] = useState([]);
-
-    const [horaForm, setHoraForm] = useState({
-        maquinaNombre: '',
-        fecha: hoy(),
-        horaEntrada: '',
-        horaSalida: '',
-        horometroInicio: '',
-        horometroFin: '',
-    });
 
     const [anticipoInput, setAnticipoInput] = useState('');
     const [mostrarAnticipoForm, setMostrarAnticipoForm] = useState(false);
@@ -179,9 +165,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             }
         };
         init();
-        if (!modoPortal) {
-            getNovedadesAPI().then(r => setNovedadesOp((r.data || []).filter(n => n.operadorId === operador.id))).catch(() => {});
-        }
     }, [operador.id]);
 
     const periodoActivo = periodos.find((p) => p.estado === 'activo') || null;
@@ -190,17 +173,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         (operador.id && String(m.operador_id) === String(operador.id))
     ) || null;
     const valorHora = maqAsignada?.valorHoraOperador || 0;
-
-    useEffect(() => {
-        if (maqAsignada) {
-            setHoraForm(prev => ({
-                ...prev,
-                maquinaNombre: maqAsignada.nombre,
-                horometroInicio: maqAsignada.horometroActual || ''
-            }));
-        }
-    }, [maqAsignada?.nombre]);
-    const valorHoraMaquina = maqAsignada?.valorHoraMaquina || 0;
 
     const horasDelPeriodo = periodoActivo
         ? horas.filter((h) => periodoActivo.desdeHoraId != null
@@ -215,19 +187,27 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const salarioNeto = salarioBruto - anticipos;
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
 
+    // Corte por fecha — informativo, calculado sobre TODAS las horas del operador
+    // (independiente del ancla del periodo, que puede llevar meses sin cerrarse)
+    let corte = null;
+    if (maqAsignada?.diaCorte) {
+        const { inicio: corteInicio, fin: corteFin } = ventanaCorte(maqAsignada.diaCorte);
+        const horasCorte = horas.filter(h => enVentanaCorte(h.fecha, corteInicio, corteFin));
+        const totalHorasCorte = horasCorte.reduce((acc, h) => acc + getHrs(h), 0);
+        corte = {
+            inicio: corteInicio,
+            fin: corteFin,
+            diasFaltan: diasHastaCierre(corteFin),
+            horas: totalHorasCorte,
+            registros: horasCorte.length,
+            salario: totalHorasCorte * valorHora,
+        };
+    }
+    const esHoyCorte = !!corte && corte.diasFaltan <= 0;
+
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
     const pagHoras = usePaginacion(horasOrdenadas, 20);
-
-    const calcularHoras = (entrada, salida) => {
-        if (!entrada || !salida) return 0;
-        const [eh, em] = entrada.split(':').map(Number);
-        const [sh, sm] = salida.split(':').map(Number);
-        const diff = (sh * 60 + sm) - (eh * 60 + em);
-        return diff > 0 ? parseFloat((diff / 60).toFixed(2)) : 0;
-    };
-
-    const totalHorasForm = calcularHoras(horaForm.horaEntrada, horaForm.horaSalida);
 
     const refrescarPeriodos = () =>
         getPeriodosAPI(operador.id).then((res) => setPeriodos((res.data || []).map(normalizePeriodo)));
@@ -253,55 +233,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         });
         await refrescarPeriodos();
         toast('Periodo cerrado — comenzó periodo nuevo en cero');
-    };
-
-    const registrarHoras = () => {
-        if (!horaForm.maquinaNombre || !horaForm.horaEntrada || !horaForm.horaSalida) {
-            return toast('Completa maquina, hora entrada y hora salida', 'e');
-        }
-        if (totalHorasForm <= 0) {
-            return toast('La hora de salida debe ser mayor que la de entrada', 'e');
-        }
-
-        const maqSel = maquinas.find((m) => m.nombre === horaForm.maquinaNombre);
-        const horoFin = parseFloat(horaForm.horometroFin || 0);
-        const horoInicio = parseFloat(horaForm.horometroInicio || 0);
-        const nuevoHoro = horoFin > 0 ? horoFin : (maqSel?.horometroActual || 0) + totalHorasForm;
-
-        createHora({
-            operador_id: operador.id,
-            operadorNombre: operador.nombre,
-            maquinaNombre: horaForm.maquinaNombre,
-            fecha: horaForm.fecha,
-            horas: totalHorasForm,
-            valorHora,
-            horometroInicio: horoInicio,
-            horometroFin: horoFin || nuevoHoro,
-        }).then(() => {
-            if (valorHoraMaquina > 0) {
-                return createIngreso({
-                    maquinaNombre: horaForm.maquinaNombre,
-                    tipoTrabajo: 'Horas',
-                    cantidad: totalHorasForm,
-                    valorUnitario: valorHoraMaquina,
-                    total: totalHorasForm * valorHoraMaquina,
-                    fecha: horaForm.fecha,
-                    descripcion: `Horas ${operador.nombre} - ${horaForm.maquinaNombre}`,
-                });
-            }
-            return Promise.resolve();
-        }).then(() => cargar())
-            .then(() => {
-                setHoraForm({
-                    maquinaNombre: maqAsignada?.nombre || '',
-                    fecha: hoy(),
-                    horaEntrada: '',
-                    horaSalida: '',
-                    horometroInicio: '',
-                    horometroFin: '',
-                });
-                toast(`${totalHorasForm} horas registradas · Horometro -> ${nuevoHoro} hrs`);
-            }).catch(console.error);
     };
 
     const guardarFechaPeriodo = () => {
@@ -371,16 +302,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         } catch { toast('Error al desvincular', 'e'); }
     };
 
-    const pendientesOp = novedadesOp.filter(n => n.estado === 'pendiente').length;
     const TABS = [
         <><ClipboardList size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Resumen</>,
-        <><Clock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Registrar Horas</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Historial</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Periodos</>,
+        <><Landmark size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Corte</>,
         ...(!modoPortal ? [
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                <Bell size={14} />Novedades{pendientesOp > 0 && <span style={{ background: '#e74c3c', color: '#fff', fontSize: '10px', fontWeight: '700', borderRadius: '99px', padding: '0 5px' }}>{pendientesOp}</span>}
-            </span>,
             <><Pencil size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Editar</>,
         ] : []),
     ];
@@ -509,7 +436,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             )}
 
                             <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                                <button className="bp" onClick={() => setTab(1)}><Clock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Registrar Horas</button>
                                 <button className="bs" onClick={() => setMostrarAnticipoForm(!mostrarAnticipoForm)}><TrendingDown size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Anticipo</button>
                             </div>
 
@@ -524,7 +450,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             <div className="tbl">
                                 <div className="th"><strong>Horas de este periodo</strong></div>
                                 <div className="tr hdr"><span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>Horometro fin</span><span>Valor ganado</span></div>
-                                {horasDelPeriodo.length === 0 && <p className="vacio">Sin horas en este periodo — usa "Registrar Horas" arriba</p>}
+                                {horasDelPeriodo.length === 0 && <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p>}
                                 {horasDelPeriodo.slice(0, 8).map((h) => (
                                     <div className="tr" key={h.id}>
                                         <span>{fmtFecha(h.fecha)}</span>
@@ -539,74 +465,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     )}
 
                     {tab === 1 && (
-                        <div className="fc">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={18} /> Registrar Horas Trabajadas</h3>
-                            <p className="fd">Las horas se acumulan en el periodo activo y actualizan el horometro de la maquina.</p>
-                            <div className="fg2">
-                                <div>
-                                    <label className="fl">Máquina asignada</label>
-                                    <input
-                                        className="fi"
-                                        value={horaForm.maquinaNombre || 'Sin máquina asignada'}
-                                        readOnly
-                                        style={{ background: '#f0f4f8', cursor: 'not-allowed', color: '#4a5568' }}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="fl">Fecha</label>
-                                    <input className="fi" type="date" value={horaForm.fecha} onChange={(e) => setHoraForm({ ...horaForm, fecha: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="fg2">
-                                <div>
-                                    <label className="fl">Hora entrada *</label>
-                                    <input className="fi" type="time" value={horaForm.horaEntrada} onChange={(e) => setHoraForm({ ...horaForm, horaEntrada: e.target.value })} />
-                                </div>
-                                <div>
-                                    <label className="fl">Hora salida *</label>
-                                    <input className="fi" type="time" value={horaForm.horaSalida} onChange={(e) => setHoraForm({ ...horaForm, horaSalida: e.target.value })} />
-                                </div>
-                            </div>
-                            <div className="fg2">
-                                <div>
-                                    <label className="fl">Horometro inicio (auto)</label>
-                                    <input className="fi" type="number" inputMode="decimal" value={horaForm.horometroInicio} onChange={(e) => setHoraForm({ ...horaForm, horometroInicio: e.target.value })} placeholder="Se llena automatico" />
-                                </div>
-                                <div>
-                                    <label className="fl">Horometro fin (opcional)</label>
-                                    <input className="fi" type="number" inputMode="decimal" value={horaForm.horometroFin} onChange={(e) => setHoraForm({ ...horaForm, horometroFin: e.target.value })} placeholder="Si lo dejas vacio se suma automatico" />
-                                </div>
-                            </div>
-
-                            {horaForm.horaEntrada && horaForm.horaSalida && totalHorasForm > 0 && (
-                                <div className="rsum">
-                                    <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><ClipboardList size={16} /> Resumen antes de guardar</h4>
-                                    <div className="rr"><span>Horas calculadas</span><span><strong>{totalHorasForm} hrs</strong></span></div>
-                                    <div className="rr"><span>Valor/hora</span><span>{fmt(valorHora)}</span></div>
-                                    <div className="rr"><span>Valor ganado</span><span className="pos"><strong>{fmt(totalHorasForm * valorHora)}</strong></span></div>
-                                    {horaForm.maquinaNombre && (() => {
-                                        const maquina = maquinas.find((x) => x.nombre === horaForm.maquinaNombre);
-                                        const horoFin = parseFloat(horaForm.horometroFin || 0);
-                                        const nuevo = horoFin > 0 ? horoFin : (maquina?.horometroActual || 0) + totalHorasForm;
-                                        return (
-                                            <div className="rr">
-                                                <span>Horometro {horaForm.maquinaNombre}</span>
-                                                <span style={{ color: '#2980b9' }}>{maquina?.horometroActual || 0} → <strong>{nuevo} hrs</strong></span>
-                                            </div>
-                                        );
-                                    })()}
-                                    <div className="rr"><span>Horas totales periodo (despues)</span><span><strong>{(horasPeriodo + totalHorasForm).toLocaleString('es-CO')} hrs</strong></span></div>
-                                    <div className="rr"><span>Salario bruto (despues)</span><span className="pos"><strong>{fmt((horasPeriodo + totalHorasForm) * valorHora)}</strong></span></div>
-                                </div>
-                            )}
-
-                            <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} onClick={registrarHoras}>
-                                <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Guardar Horas
-                            </button>
-                        </div>
-                    )}
-
-                    {tab === 2 && (
                         <div className="tbl">
                             <div className="th">
                                 <strong>Historial completo de horas - {operador.nombre}</strong>
@@ -644,7 +502,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         </div>
                     )}
 
-                    {tab === 3 && (
+                    {tab === 2 && (
                         <>
                             <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60' }}>
                                 <Info size={18} />
@@ -704,45 +562,73 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         </>
                     )}
 
-                    {tab === 4 && !modoPortal && (
+                    {tab === 3 && (
                         <div>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}><Bell size={18} /> Novedades reportadas</h3>
-                            {novedadesOp.length === 0 ? (
-                                <p className="vacio">Este operador no ha reportado novedades</p>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                    {novedadesOp.map(n => (
-                                        <div key={n.id} style={{
-                                            background: n.estado === 'revisada' ? '#f0fdf4' : '#fffbeb',
-                                            border: `1px solid ${n.estado === 'revisada' ? '#86efac' : '#fcd34d'}`,
-                                            borderRadius: '12px', padding: '14px 16px',
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    <span style={{ fontWeight: '700', fontSize: '13px', color: '#1a2d42' }}>{n.tipo}</span>
-                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>·</span>
-                                                    <span style={{ fontSize: '12px', color: '#6b7a8d' }}>{n.maquinaNombre}</span>
-                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>·</span>
-                                                    <span style={{ fontSize: '11px', color: '#9aa5b4' }}>{fmtFecha(n.fecha)}</span>
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    {n.estado === 'revisada'
-                                                        ? <span style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#e8f5e9', color: '#27ae60', border: '1px solid #a8d5b5', borderRadius: '99px', padding: '2px 8px', fontSize: '11px', fontWeight: '600' }}><CheckCircle size={10} /> Revisada</span>
-                                                        : <button className="bp" style={{ fontSize: '11px', padding: '3px 10px' }}
-                                                            onClick={() => updateNovedadEstado(n.id, 'revisada').then(({ data }) => setNovedadesOp(prev => prev.map(x => x.id === n.id ? data : x))).catch(() => toast('Error al actualizar', 'e'))}>
-                                                            <Check size={10} style={{ marginRight: '4px', verticalAlign: 'middle' }} />Marcar revisada
-                                                          </button>}
-                                                </div>
-                                            </div>
-                                            <p style={{ fontSize: '13px', color: '#4a5568', margin: 0, lineHeight: '1.5' }}>{n.descripcion}</p>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}><Landmark size={18} /> Corte</h3>
+                            {corte ? (
+                                <>
+                                    <p className="fd" style={{ marginBottom: '14px' }}>
+                                        Días de corte de {maqAsignada.nombre} y cuánto se le va a pagar en el corte actual.
+                                    </p>
+                                    <div className="ale gray" style={{ marginBottom: '14px' }}>
+                                        <Calendar size={18} color="#6b7a8d" />
+                                        <div>
+                                            <p>{corte.inicio.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} → {corte.fin.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                                            <span className="ale-desc">{corte.diasFaltan <= 0 ? 'Hoy cierra' : `Faltan ${corte.diasFaltan} día${corte.diasFaltan === 1 ? '' : 's'}`}</span>
                                         </div>
-                                    ))}
+                                    </div>
+                                    <div className="do-hero2">
+                                        <div className="do-kpi info">
+                                            <div className="do-kpi-top">
+                                                <span className="do-kpi-label">Horas trabajadas</span>
+                                                <span className="do-kpi-ico"><Clock size={14} /></span>
+                                            </div>
+                                            <div className="do-kpi-val do-num">{corte.horas.toLocaleString('es-CO')}</div>
+                                            <div className="do-kpi-sub">{corte.registros} registro{corte.registros === 1 ? '' : 's'}</div>
+                                        </div>
+                                        <div className="do-kpi profit">
+                                            <div className="do-kpi-top">
+                                                <span className="do-kpi-label">Se le pagará</span>
+                                                <span className="do-kpi-ico"><Landmark size={14} /></span>
+                                            </div>
+                                            <div className="do-kpi-val do-num">{fmt(corte.salario)}</div>
+                                            <div className="do-kpi-sub">horas × valor/hora</div>
+                                        </div>
+                                    </div>
+
+                                    {!modoPortal && esHoyCorte && periodoActivo && (
+                                        <div className="ale green">
+                                            <StopCircle size={18} color="#27ae60" />
+                                            <div style={{ flex: 1 }}>
+                                                <p>Hoy toca pagarle a {operadorLocal.nombre}</p>
+                                                <span className="ale-desc">"Cerrar corte" ejecuta lo mismo que "Cerrar Periodo" en la pestaña Periodos — un solo registro de pago, sin duplicar.</span>
+                                            </div>
+                                            <button className="bp" style={{ background: '#27ae60', border: 'none', whiteSpace: 'nowrap' }} onClick={() => cerrarPeriodo(periodoActivo)}>
+                                                <StopCircle size={12} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Cerrar corte
+                                            </button>
+                                        </div>
+                                    )}
+                                    {modoPortal && esHoyCorte && (
+                                        <p className="vacio">Hoy es el corte — el administrador es quien confirma el pago.</p>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="ale blue">
+                                    <Calendar size={18} color="#2980b9" />
+                                    <div>
+                                        <p>Sin día de corte configurado</p>
+                                        <span className="ale-desc">
+                                            {maqAsignada
+                                                ? `Configura el día de corte para ${maqAsignada.nombre} desde Maquinaria → Editar.`
+                                                : 'Este operador aún no tiene máquina asignada.'}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
                         </div>
                     )}
 
-                    {tab === 5 && !modoPortal && (
+                    {tab === 4 && !modoPortal && (
                         <>
                         <div className="fc">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
