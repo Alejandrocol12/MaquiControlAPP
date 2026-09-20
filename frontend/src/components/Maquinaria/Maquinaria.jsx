@@ -22,7 +22,6 @@ import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { useSortable } from '../../utils/useSortable';
-import { ventanaCorte, enVentanaCorte, diasHastaCierre } from '../../utils/corte';
 import './Maquinaria.css';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
@@ -115,7 +114,7 @@ const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', '
 const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'purple', 'Otros': 'neutral', 'Otro': 'neutral' };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
-const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0, diaCorte: '' };
+const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
 
 function Maquinaria({ vistaInicial = 'lista' }) {
     const toast = useToast();
@@ -155,8 +154,7 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     const hc = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const guardar = () => {
-        const payload = { ...form, diaCorte: form.diaCorte === '' ? null : Number(form.diaCorte) };
-        const op = vista === 'nueva' ? createMaquina(payload) : updateMaquina(maqActual.id, payload);
+        const op = vista === 'nueva' ? createMaquina(form) : updateMaquina(maqActual.id, form);
         op.then(() => { cargar(); setVista('lista'); setForm(FORM_VACIO); }).catch(console.error);
     };
 
@@ -224,18 +222,6 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                             <select className="fsel" name="estado" value={form.estado} onChange={hc}>
                                 <option>Activa</option><option>En mantenimiento</option><option>Inactiva</option>
                             </select>
-                        </div>
-                    </div>
-                    <div className="fg2">
-                        <div>
-                            <label className="fl">Día de corte (pago al operador)</label>
-                            <select className="fsel" name="diaCorte" value={form.diaCorte ?? ''} onChange={hc}>
-                                <option value="">— Sin definir —</option>
-                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                                    <option key={d} value={d}>Día {d}</option>
-                                ))}
-                            </select>
-                            <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Día del mes en que se corta el pago al operador — habilita la pestaña Corte</span>
                         </div>
                     </div>
                 </div>
@@ -548,22 +534,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
 
-    // Corte por fecha — informativo, independiente del periodo/faena (que puede durar meses)
-    let corte = null;
-    if (maq.diaCorte) {
-        const { inicio: corteInicio, fin: corteFin } = ventanaCorte(maq.diaCorte);
-        const ingresosCorte = ingresos.filter(i => enVentanaCorte(i.fecha, corteInicio, corteFin));
-        corte = {
-            inicio: corteInicio,
-            fin: corteFin,
-            diasFaltan: diasHastaCierre(corteFin),
-            horas: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').reduce((a, i) => a + (Number(i.cantidad) || 0), 0),
-            registros: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').length,
-            totalIngresos: ingresosCorte.reduce((a, i) => a + (i.total || 0), 0),
-            filas: ingresosCorte.filter(i => i.tipoTrabajo === 'Horas').slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')),
-        };
-    }
-
     // Horas trabajadas desde una fecha elegida, sobre todo el historial de la máquina
     const ingHorasDesde = fechaDesdeHoras
         ? ingresos.filter(i => i.tipoTrabajo === 'Horas' && i.fecha && i.fecha >= fechaDesdeHoras)
@@ -776,7 +746,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><TrendingUp size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Ingresos</>,
         <><TrendingDown size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Gastos</>,
         <><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Combustible</>,
-        <><Calendar size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Corte</>,
+        <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
     ];
 
     return (
@@ -1327,52 +1297,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 )}
                             </>
                         )}
-
-                        <div style={{ marginTop: '22px' }}>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', marginBottom: '4px' }}>
-                                <Calendar size={17} /> Corte
-                            </h3>
-                            {maq.diaCorte ? (
-                                <>
-                                    <p className="fd" style={{ marginBottom: '12px' }}>
-                                        Cuánto te va a pagar el cliente por el trabajo de esta máquina en el corte actual — sin gastos.
-                                        Esto no cierra el periodo de arriba; ese sigue corriendo normal.
-                                    </p>
-                                    <div className="ale gray" style={{ marginBottom: '12px' }}>
-                                        <Calendar size={18} color="#5c7086" />
-                                        <div>
-                                            <p>{corte.inicio.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} → {corte.fin.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                            <span className="ale-desc">{corte.diasFaltan <= 0 ? 'Hoy cierra' : `Faltan ${corte.diasFaltan} día${corte.diasFaltan === 1 ? '' : 's'}`}</span>
-                                        </div>
-                                    </div>
-                                    <div className="mq-job-grid" style={{ marginBottom: '14px' }}>
-                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas trabajadas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{corte.horas.toLocaleString('es-CO')}</div></div>
-                                        <div className="mq-job-tile good"><div className="mq-job-tile-l">Nos van a pagar</div><div className="mq-job-tile-v mq-num" style={{ color: '#1c8a4b' }}>{fmt(corte.totalIngresos)}</div></div>
-                                    </div>
-                                    <div className="tbl mq-corte-tbl">
-                                        <div className="th"><strong>Horas dentro de este corte</strong></div>
-                                        <div className="tr hdr"><span>Fecha</span><span>Horas</span><span>Valor/hora</span><span>Valor ganado</span></div>
-                                        {corte.filas.length === 0 && <p className="vacio">Sin horas registradas en este corte</p>}
-                                        {corte.filas.map(i => (
-                                            <div className="tr" key={i.id}>
-                                                <span>{i.fecha}</span>
-                                                <span><span className="mq-corte-flabel">Horas</span>{i.cantidad} hrs</span>
-                                                <span><span className="mq-corte-flabel">Valor/hora</span>{fmt(i.valorUnitario)}</span>
-                                                <span className="pos"><span className="mq-corte-flabel">Valor ganado</span>{fmt(i.total)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="ale blue">
-                                    <Calendar size={18} color="#2980b9" />
-                                    <div>
-                                        <p>Sin día de corte configurado</p>
-                                        <span className="ale-desc">Ve a Editar y define el día del mes en que se corta el pago al operador para ver esta información.</span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 )}
 

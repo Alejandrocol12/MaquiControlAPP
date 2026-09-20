@@ -37,7 +37,6 @@ import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
-import { ventanaCorte, enVentanaCorte, diasHastaCierre } from '../../utils/corte';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import './DetalleOperador.css';
@@ -187,24 +186,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const salarioNeto = salarioBruto - anticipos;
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
 
-    // Corte por fecha — informativo, calculado sobre TODAS las horas del operador
-    // (independiente del ancla del periodo, que puede llevar meses sin cerrarse)
-    let corte = null;
-    if (maqAsignada?.diaCorte) {
-        const { inicio: corteInicio, fin: corteFin } = ventanaCorte(maqAsignada.diaCorte);
-        const horasCorte = horas.filter(h => enVentanaCorte(h.fecha, corteInicio, corteFin));
-        const totalHorasCorte = horasCorte.reduce((acc, h) => acc + getHrs(h), 0);
-        corte = {
-            inicio: corteInicio,
-            fin: corteFin,
-            diasFaltan: diasHastaCierre(corteFin),
-            horas: totalHorasCorte,
-            registros: horasCorte.length,
-            salario: totalHorasCorte * valorHora,
-        };
-    }
-    const esHoyCorte = !!corte && corte.diasFaltan <= 0;
-
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
     const pagHoras = usePaginacion(horasOrdenadas, 20);
@@ -306,7 +287,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         <><ClipboardList size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Resumen</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Historial</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Periodos</>,
-        <><Landmark size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Corte</>,
         ...(!modoPortal ? [
             <><Pencil size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Editar</>,
         ] : []),
@@ -562,73 +542,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         </>
                     )}
 
-                    {tab === 3 && (
-                        <div>
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}><Landmark size={18} /> Corte</h3>
-                            {corte ? (
-                                <>
-                                    <p className="fd" style={{ marginBottom: '14px' }}>
-                                        Días de corte de {maqAsignada.nombre} y cuánto se le va a pagar en el corte actual.
-                                    </p>
-                                    <div className="ale gray" style={{ marginBottom: '14px' }}>
-                                        <Calendar size={18} color="#6b7a8d" />
-                                        <div>
-                                            <p>{corte.inicio.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} → {corte.fin.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                                            <span className="ale-desc">{corte.diasFaltan <= 0 ? 'Hoy cierra' : `Faltan ${corte.diasFaltan} día${corte.diasFaltan === 1 ? '' : 's'}`}</span>
-                                        </div>
-                                    </div>
-                                    <div className="do-hero2">
-                                        <div className="do-kpi info">
-                                            <div className="do-kpi-top">
-                                                <span className="do-kpi-label">Horas trabajadas</span>
-                                                <span className="do-kpi-ico"><Clock size={14} /></span>
-                                            </div>
-                                            <div className="do-kpi-val do-num">{corte.horas.toLocaleString('es-CO')}</div>
-                                            <div className="do-kpi-sub">{corte.registros} registro{corte.registros === 1 ? '' : 's'}</div>
-                                        </div>
-                                        <div className="do-kpi profit">
-                                            <div className="do-kpi-top">
-                                                <span className="do-kpi-label">Se le pagará</span>
-                                                <span className="do-kpi-ico"><Landmark size={14} /></span>
-                                            </div>
-                                            <div className="do-kpi-val do-num">{fmt(corte.salario)}</div>
-                                            <div className="do-kpi-sub">horas × valor/hora</div>
-                                        </div>
-                                    </div>
-
-                                    {!modoPortal && esHoyCorte && periodoActivo && (
-                                        <div className="ale green">
-                                            <StopCircle size={18} color="#27ae60" />
-                                            <div style={{ flex: 1 }}>
-                                                <p>Hoy toca pagarle a {operadorLocal.nombre}</p>
-                                                <span className="ale-desc">"Cerrar corte" ejecuta lo mismo que "Cerrar Periodo" en la pestaña Periodos — un solo registro de pago, sin duplicar.</span>
-                                            </div>
-                                            <button className="bp" style={{ background: '#27ae60', border: 'none', whiteSpace: 'nowrap' }} onClick={() => cerrarPeriodo(periodoActivo)}>
-                                                <StopCircle size={12} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Cerrar corte
-                                            </button>
-                                        </div>
-                                    )}
-                                    {modoPortal && esHoyCorte && (
-                                        <p className="vacio">Hoy es el corte — el administrador es quien confirma el pago.</p>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="ale blue">
-                                    <Calendar size={18} color="#2980b9" />
-                                    <div>
-                                        <p>Sin día de corte configurado</p>
-                                        <span className="ale-desc">
-                                            {maqAsignada
-                                                ? `Configura el día de corte para ${maqAsignada.nombre} desde Maquinaria → Editar.`
-                                                : 'Este operador aún no tiene máquina asignada.'}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {tab === 4 && !modoPortal && (
+                    {tab === 3 && !modoPortal && (
                         <>
                         <div className="fc">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
