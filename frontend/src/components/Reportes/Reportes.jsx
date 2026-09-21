@@ -815,6 +815,8 @@ function Reportes() {
     const [maqSelIngresos,     setMaqSelIngresos]     = useState('');
     const [periodoSelGastos,   setPeriodoSelGastos]   = useState('');
     const [periodoSelIngresos, setPeriodoSelIngresos] = useState('');
+    const [maqSelPeriodo,      setMaqSelPeriodo]      = useState('');
+    const [periodoSelPeriodo,  setPeriodoSelPeriodo]  = useState('');
 
     useEffect(() => {
         const now = new Date();
@@ -837,6 +839,7 @@ function Reportes() {
                 setMaqSel(maq.data[0].nombre);
                 setMaqSelGastos(maq.data[0].nombre);
                 setMaqSelIngresos(maq.data[0].nombre);
+                setMaqSelPeriodo(maq.data[0].nombre);
             }
         }).catch(console.error).finally(() => setCargando(false));
     }, []);
@@ -878,6 +881,22 @@ function Reportes() {
     const totalGasPeriodoSel = periodoSelGastos
         ? gastos.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
         : gastos.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
+
+    // ── Reporte por periodo de máquina — ingresos y gastos de un periodo específico, en pantalla ──
+    const faenasDeMaqPeriodo = faenas.filter(f => f.maquinaNombre === maqSelPeriodo)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+    const faenaPeriodoSel = faenasDeMaqPeriodo.find(f => String(f.id) === String(periodoSelPeriodo)) || null;
+    const ingresosDelPeriodo = faenaPeriodoSel
+        ? ingresos.filter(i => i.maquinaNombre === maqSelPeriodo && String(i.faenaId) === String(faenaPeriodoSel.id))
+              .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+        : [];
+    const gastosDelPeriodo = faenaPeriodoSel
+        ? gastos.filter(g => g.maquinaNombre === maqSelPeriodo && String(g.faenaId) === String(faenaPeriodoSel.id))
+              .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
+        : [];
+    const totalIngDelPeriodo = ingresosDelPeriodo.reduce((a, x) => a + (x.total || 0), 0);
+    const totalGasDelPeriodo = gastosDelPeriodo.reduce((a, x) => a + (x.monto || 0), 0);
+    const utilidadDelPeriodo = totalIngDelPeriodo - totalGasDelPeriodo;
 
     const selMaquina = (
         <select className="rp-select" value={maqSel} onChange={e => setMaqSel(e.target.value)}>
@@ -985,7 +1004,87 @@ function Reportes() {
                 )}
 
                 {!cargando && (
-                    <div className="rp-grid">
+                    <div className="rp-periodo-panel">
+                        <div className="rp-grouphead">
+                            <span className="dot" style={{ background: '#2980b9' }}></span>
+                            <h2>Reporte por periodo de máquina</h2>
+                            <span>Ingresos y gastos del periodo que selecciones</span>
+                        </div>
+                        <div className="rp-controls" style={{ marginBottom: '14px' }}>
+                            <select className="fsel" style={{ maxWidth: '240px', marginBottom: 0 }} value={maqSelPeriodo}
+                                onChange={e => { setMaqSelPeriodo(e.target.value); setPeriodoSelPeriodo(''); }}>
+                                {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                            </select>
+                            <select className="fsel" style={{ maxWidth: '340px', marginBottom: 0 }} value={periodoSelPeriodo}
+                                onChange={e => setPeriodoSelPeriodo(e.target.value)}>
+                                <option value="">Selecciona un periodo...</option>
+                                {faenasDeMaqPeriodo.map((f, i, arr) => (
+                                    <option key={f.id} value={f.id}>
+                                        {`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'}${f.fechaFin ? ' → ' + f.fechaFin : ' · activo'})`}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {!faenaPeriodoSel && (
+                            <p className="vacio">Selecciona un periodo de {maqSelPeriodo} para ver sus ingresos y gastos</p>
+                        )}
+
+                        {faenaPeriodoSel && (
+                            <>
+                                <div className="rp-periodo-kpis">
+                                    <div className="rp-kpi good">
+                                        <div className="rp-kpi-label">Ingresos</div>
+                                        <div className="rp-kpi-val rp-num">{fmt(totalIngDelPeriodo)}</div>
+                                        <div className="rp-kpi-sub">{ingresosDelPeriodo.length} registro{ingresosDelPeriodo.length === 1 ? '' : 's'}</div>
+                                    </div>
+                                    <div className="rp-kpi bad">
+                                        <div className="rp-kpi-label">Gastos</div>
+                                        <div className="rp-kpi-val rp-num">{fmt(totalGasDelPeriodo)}</div>
+                                        <div className="rp-kpi-sub">{gastosDelPeriodo.length} registro{gastosDelPeriodo.length === 1 ? '' : 's'}</div>
+                                    </div>
+                                    <div className="rp-kpi profit">
+                                        <div className="rp-kpi-label">Utilidad</div>
+                                        <div className="rp-kpi-val rp-num">{fmt(utilidadDelPeriodo)}</div>
+                                        <div className="rp-kpi-sub">ingresos − gastos</div>
+                                    </div>
+                                </div>
+
+                                <div className="rp-periodo-tables">
+                                    <div className="tbl rp-periodo-tbl">
+                                        <div className="th"><strong>Ingresos del periodo</strong></div>
+                                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Tipo</span><span>Total</span></div>
+                                        {ingresosDelPeriodo.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
+                                        {ingresosDelPeriodo.map(i => (
+                                            <div className="tr" key={i.id}>
+                                                <span>{i.fecha}</span>
+                                                <span className="w2"><span className="rp-periodo-flabel">Descripción</span>{i.descripcion}</span>
+                                                <span><span className="rp-periodo-flabel">Tipo</span>{i.tipoTrabajo}</span>
+                                                <span className="pos"><span className="rp-periodo-flabel">Total</span>{fmt(i.total)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="tbl rp-periodo-tbl">
+                                        <div className="th"><strong>Gastos del periodo</strong></div>
+                                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Categoría</span><span>Monto</span></div>
+                                        {gastosDelPeriodo.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
+                                        {gastosDelPeriodo.map(g => (
+                                            <div className="tr" key={g.id}>
+                                                <span>{g.fecha}</span>
+                                                <span className="w2"><span className="rp-periodo-flabel">Descripción</span>{g.descripcion}</span>
+                                                <span><span className="rp-periodo-flabel">Categoría</span>{g.categoria}</span>
+                                                <span className="neg"><span className="rp-periodo-flabel">Monto</span>{fmt(g.monto)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {!cargando && (
+                    <div className="rp-grid" style={{ marginTop: '26px' }}>
                         {REPORTES.map(r => (
                             <div className="rp-card" key={r.id}>
                                 <div className="rp-top">

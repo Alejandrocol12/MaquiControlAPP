@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     getMaquinas, createMaquina, updateMaquina, deleteMaquina,
-    getIngresos, getGastos, createIngreso, createGasto, updateGasto,
+    getIngresos, getGastos, createIngreso, updateIngreso, createGasto, updateGasto,
     createCombustible, getCombustible, deleteIngreso, deleteGasto, deleteCombustible,
     createHora, getOperadoresAPI,
     getFaenaActiva, createFaena, cerrarFaena, getFaenas,
@@ -380,6 +380,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Registro trabajo
     const [tipoTrabajo, setTipoTrabajo] = useState('Horas');
     useEffect(() => {
+        // Al entrar en modo edición, editarIngreso() ya deja cargados los valores reales del
+        // ingreso — este efecto (pensado para el selector de tipo al crear) no debe pisarlos.
+        if (editandoIngresoId) return;
         if (tipoTrabajo === 'Horas') {
             setValorUnitario(String(maq.valorHoraMaquina || ''));
             setHorometroFin(String(maq.horometroActual || ''));
@@ -392,6 +395,26 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [valorUnitario, setValorUnitario] = useState(String(maq.valorHoraMaquina || ''));
     const [fechaTrabajo, setFechaTrabajo] = useState(hoy());
     const [descTrabajo, setDescTrabajo] = useState('');
+    const [editandoIngresoId, setEditandoIngresoId] = useState(null);
+
+    const editarIngreso = (i) => {
+        setTipoTrabajo(i.tipoTrabajo);
+        setCantidad(String(i.cantidad ?? ''));
+        setValorUnitario(String(i.valorUnitario ?? ''));
+        setFechaTrabajo(i.fecha || hoy());
+        setDescTrabajo(i.descripcion || '');
+        setEditandoIngresoId(i.id);
+        setTab(1);
+    };
+    const cancelarEditarIngreso = () => {
+        setEditandoIngresoId(null);
+        setTipoTrabajo('Horas');
+        setCantidad('');
+        setValorUnitario(String(maq.valorHoraMaquina || ''));
+        setHorometroFin(String(maq.horometroActual || ''));
+        setFechaTrabajo(hoy());
+        setDescTrabajo('');
+    };
 
     // Gastos
     const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: hoy() };
@@ -596,7 +619,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Para 'Horas' las horas se derivan del horómetro (fin - inicio), no se digitan a mano
     // Redondeado a 1 decimal para evitar arrastrar errores de coma flotante (ej: 11.199999999999999)
     const horasCalculadas = Math.round((parseFloat(horometroFin || 0) - (maq.horometroActual || 0)) * 10) / 10;
-    const cantidadEfectiva = tipoTrabajo === 'Horas' ? horasCalculadas : parseFloat(cantidad || 0);
+    // Al editar, la cantidad/horas se digita directamente — no se deriva del horómetro actual
+    // de la máquina, porque ese ya avanzó desde que se creó el registro que se está corrigiendo.
+    const cantidadEfectiva = editandoIngresoId
+        ? parseFloat(cantidad || 0)
+        : (tipoTrabajo === 'Horas' ? horasCalculadas : parseFloat(cantidad || 0));
     const totalTrabajo = cantidadEfectiva * parseFloat(valorUnitario || 0);
     const nuevoHoro = tipoTrabajo === 'Horas' ? parseFloat(horometroFin || 0) : maq.horometroActual;
     const totalComb = parseFloat(galones || 0) * parseFloat(precioPorGalon || 0);
@@ -655,6 +682,38 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             toast('Error al guardar — intenta de nuevo', 'e');
         });
     };
+
+    const actualizarIngresoExistente = () => {
+        if (!cantidadEfectiva || !valorUnitario) return toast('Completa cantidad y valor unitario', 'e');
+        const id = editandoIngresoId;
+        const payload = {
+            descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`,
+            cantidad: cantidadEfectiva,
+            valorUnitario: parseFloat(valorUnitario),
+            fecha: fechaTrabajo,
+        };
+        setIngresos(prev => prev.map(i => i.id === id
+            ? { ...i, ...payload, total: cantidadEfectiva * parseFloat(valorUnitario) }
+            : i));
+        cancelarEditarIngreso();
+        toast('Ingreso actualizado');
+
+        updateIngreso(id, payload).then(({ data }) => {
+            setIngresos(prev => prev.map(i => i.id === id ? data : i));
+            if (data?.tipoTrabajo === 'Horas') {
+                // El horómetro pudo recalcularse en el backend a partir de esta corrección
+                getMaquinas().then(r => {
+                    const actualizada = (r.data || []).find(m => m.nombre === data.maquinaNombre);
+                    if (actualizada) { setMaq(actualizada); onActualizar(actualizada); }
+                }).catch(() => {});
+            }
+        }).catch(() => {
+            toast('Error al actualizar — recargando datos', 'e');
+            cargarTodo();
+        });
+    };
+
+    const guardarIngreso = () => editandoIngresoId ? actualizarIngresoExistente() : registrarTrabajo();
 
     const registrarCombustible = () => {
         if (!galones || !precioPorGalon) return toast('Completa galones y precio', 'e');
@@ -859,14 +918,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                         )}
                         <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><Settings size={18} /> Registrar trabajo</h3>
-                            <p className="fd">{maq.nombre} — selecciona cómo se midió el trabajo</p>
+                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><Settings size={18} /> {editandoIngresoId ? 'Editar ingreso' : 'Registrar trabajo'}</h3>
+                            <p className="fd">{maq.nombre}{editandoIngresoId ? ' — corrige los datos y guarda' : ' — selecciona cómo se midió el trabajo'}</p>
                             <div className="tg">
                                 {TODOS_TIPOS.map(t => {
                                     const activo = tiposPermitidos.includes(t.key);
                                     return (
-                                        <div key={t.key} className={`tc ${!activo ? 'dis' : tipoTrabajo === t.key ? 'sel' : ''}`}
-                                            onClick={() => activo && setTipoTrabajo(t.key)}>
+                                        <div key={t.key} className={`tc ${!activo || editandoIngresoId ? 'dis' : tipoTrabajo === t.key ? 'sel' : ''} ${editandoIngresoId && tipoTrabajo === t.key ? 'sel' : ''}`}
+                                            onClick={() => activo && !editandoIngresoId && setTipoTrabajo(t.key)}>
                                             <div className="tico">{t.ico}</div>
                                             <div className="tnom">{t.key}</div>
                                             <div className="tuni">{activo ? t.uni : 'No aplica'}</div>
@@ -874,7 +933,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     );
                                 })}
                             </div>
-                            {tipoTrabajo === 'Horas' ? (
+                            {editandoIngresoId ? (
+                                <div className="fg2">
+                                    <div><label className="fl">{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : `Cantidad (${tipoTrabajo})`}</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
+                                </div>
+                            ) : tipoTrabajo === 'Horas' ? (
                                 <div className="fg2">
                                     <div><label className="fl">Horómetro inicial</label><input className="fi" type="number" value={maq.horometroActual || 0} disabled /></div>
                                     <div><label className="fl">Horómetro final</label><input className="fi" type="number" value={horometroFin} onChange={e => setHorometroFin(e.target.value)} placeholder="Ej: 110.5" /></div>
@@ -896,16 +959,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div className="rr"><span>Tipo</span><span>{tipoTrabajo}</span></div>
                                 <div className="rr"><span>{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : 'Cantidad'}</span><span>{cantidadEfectiva || 0} {tipoTrabajo === 'Horas' ? 'hrs' : 'unidades'}</span></div>
                                 <div className="rr"><span>Valor unitario</span><span>{fmt(parseFloat(valorUnitario || 0))}</span></div>
-                                {tipoTrabajo === 'Horas' && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{maq.horometroActual || 0} → {horometroFin || 0} hrs</span></div>}
+                                {tipoTrabajo === 'Horas' && !editandoIngresoId && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{maq.horometroActual || 0} → {horometroFin || 0} hrs</span></div>}
                                 <div className="rr"><span>Total ingreso</span><span className="pos">{fmt(totalTrabajo)}</span></div>
                             </div>
-                            <div className="rbox">
-                                <div><div className="rl">Total calculado</div><div className="rv">{fmt(totalTrabajo)}</div><div className="rf">{cantidadEfectiva || 0} × {fmt(parseFloat(valorUnitario || 0))} = {fmt(totalTrabajo)}</div></div>
-                                <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#f5a623', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingUp size={13} /> Ingresos + Horómetro</div></div>
+                            {!editandoIngresoId && (
+                                <div className="rbox">
+                                    <div><div className="rl">Total calculado</div><div className="rv">{fmt(totalTrabajo)}</div><div className="rf">{cantidadEfectiva || 0} × {fmt(parseFloat(valorUnitario || 0))} = {fmt(totalTrabajo)}</div></div>
+                                    <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#f5a623', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingUp size={13} /> Ingresos + Horómetro</div></div>
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarIngreso}>
+                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoIngresoId ? 'Guardar cambios' : 'Confirmar y Guardar'}
+                                </button>
+                                {editandoIngresoId && <button className="bs" onClick={cancelarEditarIngreso}>Cancelar</button>}
                             </div>
-                            <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '12px' }} onClick={registrarTrabajo}>
-                                <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Confirmar y Guardar
-                            </button>
                         </div>
                         <div className="tbl tbl-r">
                             <div className="th"><strong>Trabajos en este periodo</strong></div>
@@ -922,7 +990,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <span><span className="b hrs">{i.tipoTrabajo}</span></span>
                                     <span>{i.cantidad}</span>
                                     <span className="pos">{fmt(i.total)}</span>
-                                    <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
+                                    <span>
+                                        <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
+                                        <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
+                                    </span>
                                 </div>
                             ))}
                             {ingOrdenados.length === 0 && <p className="vacio">Sin registros en este periodo</p>}
@@ -974,7 +1045,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         )}
                                     </span>
                                     <span className="pos">{fmt(i.total)}</span>
-                                    <span><button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button></span>
+                                    <span>
+                                        <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
+                                        <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
+                                    </span>
                                 </div>
                             ))}
                             {ingOrdenadosF.length === 0 && <p className="vacio">Sin ingresos en este rango</p>}
