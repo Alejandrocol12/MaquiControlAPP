@@ -9,8 +9,8 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import {
     Briefcase, Plus, Check, Trash2, StopCircle, RotateCcw, ChevronDown, ChevronUp,
-    TrendingUp, TrendingDown, BarChart2, Calendar, Tractor, Pencil,
-    Clock, Wrench, Fuel, Info,
+    BarChart2, Calendar, Tractor, Pencil,
+    Clock, Info,
 } from 'lucide-react';
 
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -22,8 +22,6 @@ const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Numbe
 const diasEntre = (a, b) => Math.max(1, Math.round((b - a) / 86400000));
 const folioDe = (f) => `OB-${(f.fechaInicio || '').slice(0, 4) || new Date().getFullYear()}-${String(f.id).padStart(3, '0')}`;
 
-const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'neutral', 'Otros': 'neutral', 'Otro': 'neutral' };
-const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { maquinaNombre: '', nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' };
 
@@ -371,6 +369,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
     const totalIngDet = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
     const totalGasDet = gastosSinNomina.reduce((a, x) => a + (x.monto || 0), 0);
     const totalSalDet = det ? det.salarios.reduce((a, x) => a + (x.totalNeto || 0), 0) : 0;
+    const totalHorasDet = det ? det.ingresos.filter(x => x.tipoTrabajo === 'Horas').reduce((a, x) => a + (Number(x.cantidad) || 0), 0) : 0;
     const utilDet      = totalIngDet - totalGasDet - totalSalDet;
     const catEntries = Object.entries(gastosSinNomina.reduce((acc, g) => { const k = g.categoria || 'Otros'; acc[k] = (acc[k] || 0) + (Number(g.monto) || 0); return acc; }, {}))
         .sort((a, b) => b[1] - a[1]);
@@ -451,11 +450,16 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                     {!det && cargandoDet && <p style={{ fontSize: '12px', color: '#6b7a8d' }}>Cargando registros...</p>}
                     {det && (
                         <>
-                            {/* Resumen financiero calculado en vivo a partir de los registros del periodo */}
+                            {/* Resumen financiero calculado en vivo a partir de los registros del periodo — solo
+                                tarjetas, el detalle línea por línea de Ingresos/Gastos/etc. vive en Finanzas */}
                             <div className="pe-breakdown">
                                 <div className="pe-bcard good">
                                     <div className="pe-bcard-l">↑ Ingresos</div>
                                     <div className="pe-bcard-v" style={{ color: '#1c8a4b' }}>{fmt(totalIngDet)}</div>
+                                </div>
+                                <div className="pe-bcard info">
+                                    <div className="pe-bcard-l"><Clock size={12} style={{ verticalAlign: 'middle' }} /> Horas</div>
+                                    <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{totalHorasDet.toLocaleString('es-CO')} hrs</div>
                                 </div>
                                 <div className="pe-bcard bad">
                                     <div className="pe-bcard-l">↓ Gastos</div>
@@ -514,32 +518,6 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                 )}
                             </div>
 
-                            {/* Tablas de registros */}
-                            {det.ingresos.length > 0 && (
-                                <TablaDetalle titulo="Ingresos" icono={<TrendingUp size={13} />} color="#27ae60"
-                                    cols={['Fecha', 'Descripción', 'Tipo', 'Total']}
-                                    rows={det.ingresos.map(i => [fmtFecha(i.fecha), i.descripcion, i.tipoTrabajo, <span className="pos">{fmt(i.total)}</span>])} />
-                            )}
-                            {gastosSinNomina.length > 0 && (
-                                <TablaDetalle titulo="Gastos" icono={<TrendingDown size={13} />} color="#e74c3c"
-                                    cols={['Fecha', 'Descripción', 'Categoría', 'Monto']}
-                                    rows={gastosSinNomina.map(g => [fmtFecha(g.fecha), g.descripcion, <span className={`pe-catpill pe-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span>, <span className="neg">{fmt(g.monto)}</span>])} />
-                            )}
-                            {det.salarios.length > 0 && (
-                                <TablaDetalle titulo="Salarios" icono={<Clock size={13} />} color="#2980b9"
-                                    cols={['Fecha', 'Operador', 'Horas', 'Neto']}
-                                    rows={det.salarios.map(s => [fmtFecha(s.fecha), s.operadorNombre, `${s.horasTrabajadas} hrs`, <span className="pos">{fmt(s.totalNeto)}</span>])} />
-                            )}
-                            {det.mantenimientos.length > 0 && (
-                                <TablaDetalle titulo="Mantenimientos" icono={<Wrench size={13} />} color="#e67e22"
-                                    cols={['Fecha', 'Tipo', 'Descripción', 'Costo']}
-                                    rows={det.mantenimientos.map(m => [fmtFecha(m.fecha), m.tipo, m.descripcion, <span className="neg">{fmt(m.costo)}</span>])} />
-                            )}
-                            {det.combustible.length > 0 && (
-                                <TablaDetalle titulo="Combustible" icono={<Fuel size={13} />} color="#8e44ad"
-                                    cols={['Fecha', 'Galones', 'Precio/Gal', 'Total']}
-                                    rows={det.combustible.map(c => [fmtFecha(c.fecha), `${c.galones} gal`, fmt(c.precioPorGalon), <span className="neg">{fmt(c.total)}</span>])} />
-                            )}
                             {det.ingresos.length === 0 && gastosSinNomina.length === 0 && det.salarios.length === 0
                                 && det.mantenimientos.length === 0 && det.combustible.length === 0 && (
                                 <p className="vacio">Sin registros asociados a este periodo aún</p>
@@ -558,24 +536,5 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
     );
 }
 
-function TablaDetalle({ titulo, icono, color, cols, rows }) {
-    return (
-        <div className="tbl" style={{ marginBottom: '12px' }}>
-            <div className="th">
-                <strong style={{ display: 'flex', alignItems: 'center', gap: '5px', color }}>
-                    {icono} {titulo}
-                </strong>
-            </div>
-            <div className="tr hdr">
-                {cols.map((c, i) => <span key={i}>{c}</span>)}
-            </div>
-            {rows.map((row, i) => (
-                <div className="tr" key={i}>
-                    {row.map((cell, j) => <span key={j}>{cell}</span>)}
-                </div>
-            ))}
-        </div>
-    );
-}
 
 export default Faenas;

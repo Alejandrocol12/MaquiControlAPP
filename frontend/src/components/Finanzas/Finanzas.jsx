@@ -268,10 +268,12 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const utilidad       = totalIngresos - totalEgresos;
     const margen         = totalIngresos > 0 ? Math.round((utilidad / totalIngresos) * 100) : 0;
 
-    // cobranza: siempre global (no respeta el filtro de período — es saldo vivo, no un movimiento del mes)
-    const totalPorCobrar   = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
-    const totalCobrado     = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
-    const totalContratado  = pagos.reduce((a, p) => a + (Number(p.valorTotal) || 0), 0);
+    // cobranza: ignora el filtro de período (es saldo vivo, no un movimiento del mes), pero sí
+    // respeta la máquina seleccionada — si no, "Ver finanzas de X" mostraba cobranza de otras máquinas.
+    const pagosCobranza     = maqFiltro ? pagos.filter(p => p.maquinaNombre === maqFiltro) : pagos;
+    const totalPorCobrar   = pagosCobranza.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
+    const totalCobrado     = pagosCobranza.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
+    const totalContratado  = pagosCobranza.reduce((a, p) => a + (Number(p.valorTotal) || 0), 0);
     const pctCobrado       = totalContratado > 0 ? Math.round((totalCobrado / totalContratado) * 100) : 0;
 
     const { sorted: ingSorted, Th: ThIng } = useSortable(ingFiltrados, 'fecha');
