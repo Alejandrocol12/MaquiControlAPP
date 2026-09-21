@@ -23,6 +23,7 @@
 
 /* ── hero KPIs (tab Resumen) ── */
 .do-hero4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+.do-hero4.with-pago{grid-template-columns:repeat(5,1fr);}
 .do-kpi{background:#fff;border:1px solid #dde4ed;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
 .do-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .do-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a8d;}
@@ -36,6 +37,9 @@
 .do-kpi.bad{background:linear-gradient(180deg,rgba(231,76,60,.08),transparent 60%);border-top-color:#e74c3c;}
 .do-kpi.bad .do-kpi-ico{background:#e74c3c;color:#fff;}
 .do-kpi.bad .do-kpi-val{color:#c0392b;}
+.do-kpi.purple{background:linear-gradient(180deg,rgba(142,68,173,.08),transparent 60%);border-top-color:#8e44ad;}
+.do-kpi.purple .do-kpi-ico{background:#8e44ad;color:#fff;}
+.do-kpi.purple .do-kpi-val{color:#8e44ad;}
 .do-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;}
 .do-kpi-sub{font-size:11.5px;color:#93a2b3;margin-top:3px;}
 .do-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);border:none;color:#241705;}

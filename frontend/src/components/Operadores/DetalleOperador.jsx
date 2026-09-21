@@ -11,6 +11,10 @@ import {
     updateOperadorAPI,
     getTelegramCodeAPI,
     unlinkTelegramAPI,
+    getPagosOperador,
+    createPagoOperador,
+    updatePagoOperador,
+    deletePagoOperador,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -32,6 +36,7 @@ import {
     Pencil,
     StopCircle,
     CheckCircle,
+    CreditCard,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -77,6 +82,53 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
     const [editandoFechaPeriodo, setEditandoFechaPeriodo] = useState(false);
     const [fechaPeriodoInput, setFechaPeriodoInput] = useState('');
+
+    // Pago Operador -- bitácora informativa de cuánto se le ha pagado al operador; no se
+    // relaciona con Salarios ni con ningún otro total, solo admin (no visible en el portal).
+    const [pagosOperador, setPagosOperador] = useState([]);
+    const PAGO_OP_VACIO = { descripcion: '', monto: '', fecha: hoy() };
+    const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
+    const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
+
+    const refrescarPagosOperador = () =>
+        getPagosOperador().then(r => setPagosOperador((r.data || []).filter(p => p.operadorNombre === operador.nombre))).catch(() => {});
+
+    useEffect(() => {
+        if (modoPortal) return;
+        refrescarPagosOperador();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [operador.id, modoPortal]);
+
+    const guardarPagoOperador = async () => {
+        const monto = parseFloat(pagoOpForm.monto);
+        if (!monto || monto <= 0) return toast('Ingresa un monto válido', 'e');
+        const payload = { operadorNombre: operadorLocal.nombre, descripcion: pagoOpForm.descripcion, monto, fecha: pagoOpForm.fecha };
+        try {
+            if (editandoPagoOpId) {
+                await updatePagoOperador(editandoPagoOpId, payload);
+                toast('Pago actualizado');
+            } else {
+                await createPagoOperador(payload);
+                toast('Pago registrado');
+            }
+        } catch {
+            return toast('No se pudo guardar el pago', 'e');
+        }
+        setEditandoPagoOpId(null);
+        setPagoOpForm(PAGO_OP_VACIO);
+        refrescarPagosOperador();
+    };
+    const editarPagoOperador = (p) => {
+        setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), fecha: p.fecha || hoy() });
+        setEditandoPagoOpId(p.id);
+    };
+    const cancelarPagoOperador = () => { setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); };
+    const eliminarPagoOperador = async (id) => {
+        if (!await confirm('¿Eliminar este registro de pago?')) return;
+        const prev = pagosOperador;
+        setPagosOperador(p => p.filter(x => x.id !== id));
+        deletePagoOperador(id).catch(() => { setPagosOperador(prev); toast('Error al eliminar', 'e'); });
+    };
 
     const [editForm, setEditForm] = useState({
         nombre: operador.nombre || '',
@@ -185,6 +237,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const anticipos = periodoActivo?.anticipos || 0;
     const salarioNeto = salarioBruto - anticipos;
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
+    const totalPagadoOperador = pagosOperador.reduce((a, p) => a + (Number(p.monto) || 0), 0);
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
@@ -288,6 +341,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Historial</>,
         <><Calendar size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Periodos</>,
         ...(!modoPortal ? [
+            <><CreditCard size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Pago Operador</>,
             <><Pencil size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />Editar</>,
         ] : []),
     ];
@@ -340,7 +394,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                     {tab === 0 && (
                         <>
-                            <div className="do-hero4">
+                            <div className={`do-hero4 ${!modoPortal ? 'with-pago' : ''}`}>
                                 <div className="do-kpi info">
                                     <div className="do-kpi-top">
                                         <span className="do-kpi-label">Horas periodo</span>
@@ -373,6 +427,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <div className="do-kpi-val do-num">{fmt(salarioNeto)}</div>
                                     <div className="do-kpi-sub">bruto - anticipos</div>
                                 </div>
+                                {!modoPortal && (
+                                    <div className="do-kpi purple">
+                                        <div className="do-kpi-top">
+                                            <span className="do-kpi-label">Pago Operador</span>
+                                            <span className="do-kpi-ico"><CreditCard size={14} /></span>
+                                        </div>
+                                        <div className="do-kpi-val do-num">{fmt(totalPagadoOperador)}</div>
+                                        <div className="do-kpi-sub">{pagosOperador.length} registro{pagosOperador.length === 1 ? '' : 's'} · solo informativo</div>
+                                    </div>
+                                )}
                             </div>
 
                             {periodoActivo && (
@@ -543,6 +607,55 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     )}
 
                     {tab === 3 && !modoPortal && (
+                        <>
+                            <div className="ale" style={{ background: '#f5eefa', borderColor: '#8e44ad' }}>
+                                <CreditCard size={18} color="#8e44ad" />
+                                <div>
+                                    <p>Bitácora de pagos al operador</p>
+                                    <span className="ale-desc">Es solo informativo — no se relaciona con Salarios ni afecta ningún otro total. Sirve para que quede constancia de cuánto se le ha pagado a {operadorLocal.nombre}.</span>
+                                </div>
+                            </div>
+
+                            <div className="fc">
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago al operador'}
+                                </h3>
+                                <div className="fg2">
+                                    <div><label className="fl">Monto ($) *</label><MoneyInput className="fi" value={pagoOpForm.monto} onChange={e => setPagoOpForm({ ...pagoOpForm, monto: e.target.value })} placeholder="Ej: 200.000" /></div>
+                                    <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoOpForm.fecha} onChange={e => setPagoOpForm({ ...pagoOpForm, fecha: e.target.value })} /></div>
+                                </div>
+                                <div><label className="fl">Descripción (opcional)</label><input className="fi" value={pagoOpForm.descripcion} onChange={e => setPagoOpForm({ ...pagoOpForm, descripcion: e.target.value })} placeholder="Ej: Pago en efectivo quincena" /></div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    <button className="bp" onClick={guardarPagoOperador}>
+                                        <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {editandoPagoOpId ? 'Guardar cambios' : 'Registrar pago'}
+                                    </button>
+                                    {editandoPagoOpId && <button className="bs" onClick={cancelarPagoOperador}>Cancelar</button>}
+                                </div>
+                            </div>
+
+                            <div className="tbl">
+                                <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
+                                <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Monto</span><span>Acc.</span></div>
+                                {pagosOperador.length === 0 && <p className="vacio">Sin pagos registrados</p>}
+                                {pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map(p => (
+                                    <div className="tr" key={p.id}>
+                                        <span>{fmtFecha(p.fecha)}</span>
+                                        <span className="w2">{p.descripcion || '—'}</span>
+                                        <span className="pos">{fmt(p.monto)}</span>
+                                        <span>
+                                            <button className="icon-btn" onClick={() => editarPagoOperador(p)}><Pencil size={14} /></button>
+                                            <button className="icon-btn" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={14} /></button>
+                                        </span>
+                                    </div>
+                                ))}
+                                <div style={{ padding: '10px 16px', fontSize: '12px', color: '#6b7a8d', borderTop: '1px solid #eef1f5' }}>
+                                    Total pagado (informativo): <strong className="pos">{fmt(totalPagadoOperador)}</strong>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {tab === 4 && !modoPortal && (
                         <>
                         <div className="fc">
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -93,6 +93,12 @@ export const createPago  = (data)     => API.post('/pagos', data);
 export const updatePago  = (id, data) => API.put(`/pagos/${id}`, data);
 export const deletePago  = (id)       => API.delete(`/pagos/${id}`);
 
+// Pagos operador -- bitácora informativa, no suma a nada
+export const getPagosOperador    = ()         => API.get('/pagos-operador');
+export const createPagoOperador  = (data)     => API.post('/pagos-operador', data);
+export const updatePagoOperador  = (id, data) => API.put(`/pagos-operador/${id}`, data);
+export const deletePagoOperador  = (id)       => API.delete(`/pagos-operador/${id}`);
+
 // Operadores
 export const getOperadoresAPI   = ()         => API.get('/operadores');
 export const getOperadorByIdAPI = (id)       => API.get(`/operadores/${id}`);
