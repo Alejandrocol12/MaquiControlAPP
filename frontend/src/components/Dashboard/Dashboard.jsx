@@ -34,7 +34,7 @@ const mesHoy = () => new Date().toISOString().slice(0, 7);
 const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, m - 1, d); };
 
 
-function Dashboard({ onIrMaquinaria }) {
+function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
     const [maquinas,  setMaquinas]  = useState([]);
     const [ingresos,  setIngresos]  = useState([]);
     const [gastos,    setGastos]    = useState([]);
@@ -123,26 +123,44 @@ function Dashboard({ onIrMaquinaria }) {
         .map(f => ({ ...f, dias: f.fechaInicio ? Math.round((ahora - parseLocal(f.fechaInicio)) / 86400000) : 0 }))
         .filter(f => f.dias > 30);
 
+    // Ingresos que se repiten exactos (misma máquina, fecha, tipo, cantidad y valor unitario) --
+    // típico de un doble clic o de registrar el mismo trabajo dos veces por error.
+    const dupKey = (i) => `${i.maquinaNombre}|${i.fecha}|${i.tipoTrabajo}|${i.cantidad}|${i.valorUnitario}`;
+    const gruposIngresos = {};
+    ingresos.forEach(i => { const k = dupKey(i); (gruposIngresos[k] = gruposIngresos[k] || []).push(i); });
+    const gruposDuplicados = Object.values(gruposIngresos).filter(g => g.length > 1);
+    const montoEnRiesgoDup = gruposDuplicados.reduce((a, g) => a + (g.length - 1) * (Number(g[0].total) || 0), 0);
+
     const alertas = [
         gastosSinFecha.length > 0 && {
             tipo: 'crit',
             texto: `${gastosSinFecha.length} gasto${gastosSinFecha.length > 1 ? 's' : ''} sin fecha por ${fmt(totalGastosSinFecha)}`,
             desc: 'No se están contando en los reportes del periodo',
+            accion: () => onIrFinanzas?.('gastos'),
+        },
+        gruposDuplicados.length > 0 && {
+            tipo: 'warn',
+            texto: `${gruposDuplicados.length} posible${gruposDuplicados.length > 1 ? 's' : ''} ingreso${gruposDuplicados.length > 1 ? 's' : ''} duplicado${gruposDuplicados.length > 1 ? 's' : ''} — ${fmt(montoEnRiesgoDup)} en riesgo`,
+            desc: 'Misma máquina, fecha, tipo y valor registrados más de una vez',
+            accion: () => onIrFinanzas?.('ingresos'),
         },
         maquinasMantenimiento.length > 0 && {
             tipo: 'warn',
             texto: `${maquinasMantenimiento.map(m => m.nombre).join(', ')} — en mantenimiento`,
             desc: 'Revisar módulo de Mantenimientos',
+            accion: () => onIrModulo?.('mantenimientos'),
         },
         totalPorCobrar > 0 && {
             tipo: 'warn',
             texto: `${fmt(totalPorCobrar)} pendientes de cobro`,
             desc: `${pagosPendientes.length} pago${pagosPendientes.length > 1 ? 's' : ''} de clientes sin completar`,
+            accion: () => onIrFinanzas?.('pagos'),
         },
         ...periodosLargos.map(f => ({
             tipo: 'info',
             texto: `Periodo de ${f.maquinaNombre} lleva ${f.dias} días abierto`,
             desc: 'Puede ser momento de rendir cuentas y cerrarlo',
+            accion: () => onIrModulo?.('faenas'),
         })),
     ].filter(Boolean);
 
@@ -274,7 +292,8 @@ function Dashboard({ onIrMaquinaria }) {
                         <div className="db-panel-body">
                             {alertas.length === 0 && <div className="db-panel-empty">Todo al día — sin pendientes por ahora</div>}
                             {alertas.map((a, i) => (
-                                <div className={`db-alert-row ${a.tipo}`} key={i}>
+                                <div className={`db-alert-row ${a.tipo} ${a.accion ? 'clickable' : ''}`} key={i}
+                                    onClick={a.accion} role={a.accion ? 'button' : undefined} tabIndex={a.accion ? 0 : undefined}>
                                     <span className="db-alert-bar"></span>
                                     <div className="db-alert-text">
                                         <p>{a.texto}</p>

@@ -49,6 +49,9 @@
 .db-field-num.gas .v{color:#c0392b;}
 
 .db-alert-row{display:flex;gap:11px;padding:12px 14px;border-radius:9px;align-items:flex-start;}
+.db-alert-row.clickable{cursor:pointer;transition:background .12s;}
+.db-alert-row.clickable:hover{background:#f7f9fb;}
+body.dark .db-alert-row.clickable:hover{background:#243244;}
 .db-alert-bar{width:3px;align-self:stretch;border-radius:3px;flex-shrink:0;}
 .db-alert-row.crit .db-alert-bar{background:#e74c3c;}
 .db-alert-row.warn .db-alert-bar{background:#f5a623;}

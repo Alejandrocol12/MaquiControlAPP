@@ -611,7 +611,7 @@ function App() {
 
     const renderModulo = () => {
         switch (modulo) {
-            case 'dashboard': return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
+            case 'dashboard': return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
             case 'maquinaria': return <Maquinaria vistaInicial={maqVista} key={`maq-${maqVista}`} />;
             case 'finanzas': return <Finanzas tabInicial={finTab} />;
             case 'operadores': return <Operadores />;
@@ -620,7 +620,7 @@ function App() {
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
             case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} />;
-            default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} />;
+            default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
         }
     };
 
