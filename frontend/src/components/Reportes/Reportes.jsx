@@ -6,10 +6,10 @@ import {
     getMaquinas, getIngresos, getGastos, getSalarios,
     getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
 } from '../../api';
-import { BarChart2, Loader, Clock, TrendingDown, TrendingUp, FileSpreadsheet } from 'lucide-react';
+import { BarChart2, Loader, Clock, TrendingDown, TrendingUp, FileSpreadsheet, Calendar } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import {
-    xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo,
+    xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo, xlsPeriodoMaquina,
 } from '../../utils/excelReportes';
 import './Reportes.css';
 
@@ -793,6 +793,74 @@ function pdfIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// 11. REPORTE POR PERIODO DE MÁQUINA (ingresos + gastos + utilidad juntos)
+// ══════════════════════════════════════════════════════════════
+function pdfPeriodoMaquina(maqNombre, ingresos, gastos, faenas, faenaIdFiltro) {
+    const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const totIng = faenasMaq.reduce((a, f) => a + ingMaq.filter(x => String(x.faenaId) === String(f.id)).reduce((s, x) => s + (x.total || 0), 0), 0);
+    const totGas = faenasMaq.reduce((a, f) => a + gasMaq.filter(x => String(x.faenaId) === String(f.id)).reduce((s, x) => s + (x.monto || 0), 0), 0);
+    const totUtil = totIng - totGas;
+
+    const periodoLabel = filtrando ? (faenasMaq[0]?.nombreObra || 'Periodo') : 'Todos los periodos';
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Reporte por Periodo', `Máquina: ${maqNombre}  ·  Periodo: ${periodoLabel}`);
+
+    y = cajaResumen(doc, y, [
+        { label: 'Periodo(s)',      valor: String(faenasMaq.length), tipo: 'neu' },
+        { label: 'Total ingresos',  valor: fmt(totIng),  tipo: 'ing', _raw: totIng },
+        { label: 'Total gastos',    valor: fmt(totGas),  tipo: 'gas', _raw: totGas },
+        { label: 'Utilidad',        valor: fmt(totUtil), tipo: 'util', _raw: totUtil },
+    ]);
+
+    if (!faenasMaq.length) {
+        doc.setFontSize(9); doc.setTextColor(...GRIS);
+        doc.text('No hay periodos registrados para esta máquina', 14, y + 8);
+    }
+
+    faenasMaq.forEach((f, idx) => {
+        const ingF = ingMaq.filter(x => String(x.faenaId) === String(f.id));
+        const gasF = gasMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subIng = ingF.reduce((a, x) => a + (x.total || 0), 0);
+        const subGas = gasF.reduce((a, x) => a + (x.monto || 0), 0);
+        const estado = f.estado === 'activa' ? '[ACTIVO]' : 'Cerrado';
+        const rango  = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        y = seccion(doc, y, `PERIODO ${faenasMaq.length - idx}: ${f.nombreObra || '—'} · ${rango} · ${estado} · Utilidad: ${fmt(subIng - subGas)}`);
+        if (f.cliente) { doc.setFontSize(7); doc.setTextColor(...GRIS); doc.text(`Cliente: ${f.cliente}`, 17, y + 3); y += 6; }
+
+        if (ingF.length) {
+            y = tabla(doc, y, ['Fecha', 'Descripción', 'Tipo', 'Total'],
+                ingF.map(x => [x.fecha || '—', x.descripcion || '—', x.tipoTrabajo || '—', fmt(x.total)]),
+                { 3: { halign: 'right' } },
+                { greenCols: [3], totalRow: ['', '', 'INGRESOS', fmt(subIng)] }
+            );
+        }
+        if (gasF.length) {
+            y = tabla(doc, y, ['Fecha', 'Descripción', 'Categoría', 'Monto'],
+                gasF.map(x => [x.fecha || '—', x.descripcion || '—', x.categoria || '—', fmt(x.monto)]),
+                { 3: { halign: 'right' } },
+                { redCols: [3], totalRow: ['', '', 'GASTOS', fmt(subGas)] }
+            );
+        }
+        if (!ingF.length && !gasF.length) {
+            doc.setFontSize(8); doc.setTextColor(...GRIS);
+            doc.text('Sin ingresos ni gastos en este periodo', 17, y + 4); y += 10;
+        }
+    });
+
+    const sufijo = filtrando ? `-p${faenaIdFiltro}` : '';
+    pie(doc, `Reporte por Periodo — ${maqNombre}`);
+    doc.save(`reporte-periodo-${maqNombre.replace(/\s+/g, '-')}${sufijo}.pdf`);
+}
+
+// ══════════════════════════════════════════════════════════════
 // COMPONENTE
 // ══════════════════════════════════════════════════════════════
 function Reportes() {
@@ -882,21 +950,18 @@ function Reportes() {
         ? gastos.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
         : gastos.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
 
-    // ── Reporte por periodo de máquina — ingresos y gastos de un periodo específico, en pantalla ──
+    // ── Reporte por periodo de máquina — ingresos, gastos y utilidad de un periodo, para exportar ──
     const faenasDeMaqPeriodo = faenas.filter(f => f.maquinaNombre === maqSelPeriodo)
         .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
     const faenaPeriodoSel = faenasDeMaqPeriodo.find(f => String(f.id) === String(periodoSelPeriodo)) || null;
-    const ingresosDelPeriodo = faenaPeriodoSel
-        ? ingresos.filter(i => i.maquinaNombre === maqSelPeriodo && String(i.faenaId) === String(faenaPeriodoSel.id))
-              .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
-        : [];
-    const gastosDelPeriodo = faenaPeriodoSel
-        ? gastos.filter(g => g.maquinaNombre === maqSelPeriodo && String(g.faenaId) === String(faenaPeriodoSel.id))
-              .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''))
-        : [];
-    const totalIngDelPeriodo = ingresosDelPeriodo.reduce((a, x) => a + (x.total || 0), 0);
-    const totalGasDelPeriodo = gastosDelPeriodo.reduce((a, x) => a + (x.monto || 0), 0);
+    const totalIngDelPeriodo = faenaPeriodoSel
+        ? ingresos.filter(i => i.maquinaNombre === maqSelPeriodo && String(i.faenaId) === String(faenaPeriodoSel.id)).reduce((a, x) => a + (x.total || 0), 0)
+        : ingresos.filter(i => i.maquinaNombre === maqSelPeriodo).reduce((a, x) => a + (x.total || 0), 0);
+    const totalGasDelPeriodo = faenaPeriodoSel
+        ? gastos.filter(g => g.maquinaNombre === maqSelPeriodo && String(g.faenaId) === String(faenaPeriodoSel.id)).reduce((a, x) => a + (x.monto || 0), 0)
+        : gastos.filter(g => g.maquinaNombre === maqSelPeriodo).reduce((a, x) => a + (x.monto || 0), 0);
     const utilidadDelPeriodo = totalIngDelPeriodo - totalGasDelPeriodo;
+    const periodoMaqLabel = faenaPeriodoSel ? faenaPeriodoSel.nombreObra || 'Periodo' : 'Todos los periodos';
 
     const selMaquina = (
         <select className="rp-select" value={maqSel} onChange={e => setMaqSel(e.target.value)}>
@@ -986,6 +1051,29 @@ function Reportes() {
             accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
             xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
         },
+        {
+            id: 'periodo-maquina', ico: <Calendar size={19} />, color: '#2980b9',
+            titulo: 'Reporte por periodo',
+            desc: 'Ingresos, gastos y utilidad de un periodo de una máquina, juntos',
+            control: (
+                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                    <select className="rp-select" value={maqSelPeriodo}
+                        onChange={e => { setMaqSelPeriodo(e.target.value); setPeriodoSelPeriodo(''); }}>
+                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                    </select>
+                    <select className="rp-select" value={periodoSelPeriodo} onChange={e => setPeriodoSelPeriodo(e.target.value)}>
+                        <option value=''>Todos los periodos</option>
+                        {faenasDeMaqPeriodo.map((f, i, arr) => (
+                            <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
+                        ))}
+                    </select>
+                </div>
+            ),
+            metricLabel: periodoMaqLabel,
+            metricValor: utilidadDelPeriodo,
+            accion:    () => pdfPeriodoMaquina(maqSelPeriodo, ingresos, gastos, faenas, periodoSelPeriodo),
+            xlsAccion: () => xlsPeriodoMaquina(maqSelPeriodo, ingresos, gastos, faenas, periodoSelPeriodo),
+        },
     ];
 
     return (
@@ -1004,87 +1092,7 @@ function Reportes() {
                 )}
 
                 {!cargando && (
-                    <div className="rp-periodo-panel">
-                        <div className="rp-grouphead">
-                            <span className="dot" style={{ background: '#2980b9' }}></span>
-                            <h2>Reporte por periodo de máquina</h2>
-                            <span>Ingresos y gastos del periodo que selecciones</span>
-                        </div>
-                        <div className="rp-controls" style={{ marginBottom: '14px' }}>
-                            <select className="fsel" style={{ maxWidth: '240px', marginBottom: 0 }} value={maqSelPeriodo}
-                                onChange={e => { setMaqSelPeriodo(e.target.value); setPeriodoSelPeriodo(''); }}>
-                                {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                            </select>
-                            <select className="fsel" style={{ maxWidth: '340px', marginBottom: 0 }} value={periodoSelPeriodo}
-                                onChange={e => setPeriodoSelPeriodo(e.target.value)}>
-                                <option value="">Selecciona un periodo...</option>
-                                {faenasDeMaqPeriodo.map((f, i, arr) => (
-                                    <option key={f.id} value={f.id}>
-                                        {`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'}${f.fechaFin ? ' → ' + f.fechaFin : ' · activo'})`}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {!faenaPeriodoSel && (
-                            <p className="vacio">Selecciona un periodo de {maqSelPeriodo} para ver sus ingresos y gastos</p>
-                        )}
-
-                        {faenaPeriodoSel && (
-                            <>
-                                <div className="rp-periodo-kpis">
-                                    <div className="rp-kpi good">
-                                        <div className="rp-kpi-label">Ingresos</div>
-                                        <div className="rp-kpi-val rp-num">{fmt(totalIngDelPeriodo)}</div>
-                                        <div className="rp-kpi-sub">{ingresosDelPeriodo.length} registro{ingresosDelPeriodo.length === 1 ? '' : 's'}</div>
-                                    </div>
-                                    <div className="rp-kpi bad">
-                                        <div className="rp-kpi-label">Gastos</div>
-                                        <div className="rp-kpi-val rp-num">{fmt(totalGasDelPeriodo)}</div>
-                                        <div className="rp-kpi-sub">{gastosDelPeriodo.length} registro{gastosDelPeriodo.length === 1 ? '' : 's'}</div>
-                                    </div>
-                                    <div className="rp-kpi profit">
-                                        <div className="rp-kpi-label">Utilidad</div>
-                                        <div className="rp-kpi-val rp-num">{fmt(utilidadDelPeriodo)}</div>
-                                        <div className="rp-kpi-sub">ingresos − gastos</div>
-                                    </div>
-                                </div>
-
-                                <div className="rp-periodo-tables">
-                                    <div className="tbl rp-periodo-tbl">
-                                        <div className="th"><strong>Ingresos del periodo</strong></div>
-                                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Tipo</span><span>Total</span></div>
-                                        {ingresosDelPeriodo.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
-                                        {ingresosDelPeriodo.map(i => (
-                                            <div className="tr" key={i.id}>
-                                                <span>{i.fecha}</span>
-                                                <span className="w2"><span className="rp-periodo-flabel">Descripción</span>{i.descripcion}</span>
-                                                <span><span className="rp-periodo-flabel">Tipo</span>{i.tipoTrabajo}</span>
-                                                <span className="pos"><span className="rp-periodo-flabel">Total</span>{fmt(i.total)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="tbl rp-periodo-tbl">
-                                        <div className="th"><strong>Gastos del periodo</strong></div>
-                                        <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Categoría</span><span>Monto</span></div>
-                                        {gastosDelPeriodo.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
-                                        {gastosDelPeriodo.map(g => (
-                                            <div className="tr" key={g.id}>
-                                                <span>{g.fecha}</span>
-                                                <span className="w2"><span className="rp-periodo-flabel">Descripción</span>{g.descripcion}</span>
-                                                <span><span className="rp-periodo-flabel">Categoría</span>{g.categoria}</span>
-                                                <span className="neg"><span className="rp-periodo-flabel">Monto</span>{fmt(g.monto)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {!cargando && (
-                    <div className="rp-grid" style={{ marginTop: '26px' }}>
+                    <div className="rp-grid">
                         {REPORTES.map(r => (
                             <div className="rp-card" key={r.id}>
                                 <div className="rp-top">

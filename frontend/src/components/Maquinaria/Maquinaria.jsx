@@ -8,6 +8,7 @@ import {
     getFaenaActiva, createFaena, cerrarFaena, getFaenas,
     crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
+    getPagos, createPago, updatePago, deletePago,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -16,7 +17,7 @@ import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
-    Target, Eye,
+    Target, Eye, CreditCard,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -115,6 +116,20 @@ const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustib
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
+
+const PAGO_VACIO = { cliente: '', descripcion: '', valorTotal: '', valorPagado: '', fecha: hoy() };
+const normalizarPago = (p) => {
+    const valorTotal = Number(p.valorTotal ?? 0) || 0;
+    const valorPagado = Number(p.valorPagado ?? 0) || 0;
+    const saldoPendiente = Number(p.saldoPendiente ?? Math.max(valorTotal - valorPagado, 0)) || 0;
+    return {
+        ...p,
+        valorTotal,
+        valorPagado,
+        saldoPendiente,
+        estado: p.estado || (saldoPendiente <= 0 ? 'Pagado' : valorPagado > 0 ? 'Parcial' : 'Pendiente'),
+    };
+};
 
 function Maquinaria({ vistaInicial = 'lista' }) {
     const toast = useToast();
@@ -340,8 +355,15 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [ingresos, setIngresos] = useState([]);
     const [gastos, setGastos] = useState([]);
     const [combustibles, setCombustibles] = useState([]);
+    const [pagos, setPagos] = useState([]);
     const [maq, setMaq] = useState(maquina);
     const [operadoresAPI, setOperadoresAPI] = useState([]);
+
+    // Pagos clientes
+    const [pagoForm, setPagoForm] = useState(PAGO_VACIO);
+    const [editandoPagoId, setEditandoPagoId] = useState(null);
+    const editarPago = (p) => { setPagoForm(normalizarPago(p)); setEditandoPagoId(p.id); };
+    const cancelarEditarPago = () => { setEditandoPagoId(null); setPagoForm(PAGO_VACIO); };
 
     // Faena
     const [faenaActiva, setFaenaActiva] = useState(null);
@@ -491,10 +513,39 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             setFacturasIds(new Set(filtrados.filter(g => g.tieneFactura).map(g => String(g.id))));
         }).catch(console.error);
 
+    const refreshPagos = () =>
+        getPagos().then(r => setPagos((r.data || []).filter(p => p.maquinaNombre === maq.nombre).map(normalizarPago))).catch(console.error);
+
     const cargarDatos = () => {
         getIngresos().then(r => setIngresos(r.data.filter(i => i.maquinaNombre === maq.nombre))).catch(console.error);
         refreshGastos();
         getCombustible().then(r => setCombustibles(r.data.filter(c => c.maquinaNombre === maq.nombre))).catch(console.error);
+        refreshPagos();
+    };
+
+    const guardarPago = async () => {
+        if (!pagoForm.cliente?.trim()) return toast('Escribe el nombre del cliente', 'e');
+        const payload = { ...pagoForm, maquinaNombre: maq.nombre, valorTotal: parseFloat(pagoForm.valorTotal) || 0, valorPagado: parseFloat(pagoForm.valorPagado) || 0 };
+        try {
+            if (editandoPagoId) {
+                await updatePago(editandoPagoId, payload);
+                toast('Pago actualizado');
+            } else {
+                await createPago(payload);
+                toast('Pago registrado');
+            }
+        } catch {
+            return toast('Error al guardar el pago', 'e');
+        }
+        cancelarEditarPago();
+        refreshPagos();
+    };
+
+    const eliminarPago = async (id) => {
+        if (!await confirm('¿Eliminar este pago?')) return;
+        const prev = pagos;
+        setPagos(p => p.filter(x => x.id !== id));
+        deletePago(id).catch(() => { setPagos(prev); toast('Error al eliminar', 'e'); });
     };
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
@@ -806,6 +857,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><TrendingDown size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Gastos</>,
         <><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Combustible</>,
         <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
+        <><CreditCard size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Pagos Clientes</>,
     ];
 
     return (
@@ -1372,6 +1424,56 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </>
                         )}
                     </div>
+                )}
+
+                {/* TAB 6 — PAGOS CLIENTES */}
+                {tab === 6 && (
+                    <>
+                        <div className="fc">
+                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><CreditCard size={18} /> {editandoPagoId ? 'Editar pago' : 'Registrar pago de cliente'}</h3>
+                            <p className="fd">El pago queda asociado a {maq.nombre} automáticamente</p>
+                            <div className="fg2">
+                                <div><label className="fl">Cliente *</label><input className="fi" value={pagoForm.cliente} onChange={e => setPagoForm({ ...pagoForm, cliente: e.target.value })} placeholder="Ej: Municipio de..." /></div>
+                                <div><label className="fl">Descripción</label><input className="fi" value={pagoForm.descripcion} onChange={e => setPagoForm({ ...pagoForm, descripcion: e.target.value })} placeholder="Ej: Abono contrato obra vial" /></div>
+                            </div>
+                            <div className="fg2">
+                                <div><label className="fl">Valor total ($)</label><MoneyInput className="fi" value={pagoForm.valorTotal} onChange={e => setPagoForm({ ...pagoForm, valorTotal: e.target.value })} /></div>
+                                <div><label className="fl">Valor pagado ($)</label><MoneyInput className="fi" value={pagoForm.valorPagado} onChange={e => setPagoForm({ ...pagoForm, valorPagado: e.target.value })} /></div>
+                            </div>
+                            <div className="fg2">
+                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoForm.fecha} onChange={e => setPagoForm({ ...pagoForm, fecha: e.target.value })} /></div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarPago}>
+                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoPagoId ? 'Guardar cambios' : 'Registrar pago'}
+                                </button>
+                                {editandoPagoId && <button className="bs" onClick={cancelarEditarPago}>Cancelar</button>}
+                            </div>
+                        </div>
+                        <div className="tbl">
+                            <div className="th"><strong>Pagos de clientes — {maq.nombre}</strong></div>
+                            <div className="tr hdr">
+                                <span>Fecha</span><span className="w2">Cliente</span><span className="w2">Descripción</span>
+                                <span>Total</span><span>Pagado</span><span>Saldo</span><span>Estado</span><span>Acc.</span>
+                            </div>
+                            {pagos.length === 0 && <p className="vacio">Sin pagos registrados para esta máquina</p>}
+                            {pagos.map(p => (
+                                <div className="tr" key={p.id}>
+                                    <span>{p.fecha}</span>
+                                    <span className="w2">{p.cliente}</span>
+                                    <span className="w2">{p.descripcion || '—'}</span>
+                                    <span>{fmt(p.valorTotal)}</span>
+                                    <span className="pos">{fmt(p.valorPagado)}</span>
+                                    <span className="neg">{fmt(p.saldoPendiente)}</span>
+                                    <span><span className={`mq-pill ${p.estado === 'Pagado' ? 'ok' : p.estado === 'Parcial' ? 'warn' : 'nojob'}`}>{p.estado}</span></span>
+                                    <span>
+                                        <button className="icon-btn" onClick={() => editarPago(p)}><Pencil size={14} /></button>
+                                        <button className="icon-btn" onClick={() => eliminarPago(p.id)}><Trash2 size={14} /></button>
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 )}
 
             </div></div>

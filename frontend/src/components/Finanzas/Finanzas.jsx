@@ -7,10 +7,11 @@ import {
     getGastos, createGasto, updateGasto, deleteGasto,
     getSalarios, createSalario, updateSalario, deleteSalario,
     getPagos, createPago, updatePago, deletePago,
+    getFaenas,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle, ChevronDown, ChevronUp, Tractor } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
@@ -54,6 +55,42 @@ const normalizarPago = (p) => {
     };
 };
 
+// Agrupa Ingresos/Gastos de una máquina por periodo — el nombre y el total colapsados,
+// el detalle solo aparece al hacer clic (mismo patrón de acordeón usado en Faenas.jsx).
+function GruposPeriodo({ grupos, periodoAbierto, setPeriodoAbierto, cols, tono, renderFila }) {
+    if (grupos.length === 0) return <p className="fin-vacio">Sin registros para esta máquina</p>;
+    return (
+        <div style={{ padding: '12px 18px' }}>
+            {grupos.map(g => {
+                const abierto = periodoAbierto === g.id;
+                return (
+                    <div className={`fin-percard ${abierto ? 'open' : ''}`} key={g.id}>
+                        <div className="fin-perhead" onClick={() => setPeriodoAbierto(abierto ? null : g.id)}>
+                            <span className={`dot ${g.activa ? '' : 'cerrado'}`}></span>
+                            <div className="fin-perinfo">
+                                <div className="t">{g.nombre}</div>
+                                {g.rango && <div className="s">{g.rango}</div>}
+                            </div>
+                            <div className={`fin-pertotal ${tono === 'neg' ? 'neg' : ''} fin-num`}>{fmt(g.total)}</div>
+                            {abierto ? <ChevronUp size={16} className="fin-perchev" /> : <ChevronDown size={16} className="fin-perchev" />}
+                        </div>
+                        {abierto && (
+                            <div className="fin-perbody">
+                                {g.items.length === 0 && <p className="fin-vacio">Sin registros en este periodo</p>}
+                                {g.items.map(item => (
+                                    <div className="fin-lrow" key={item.id} style={{ gridTemplateColumns: cols }}>
+                                        {renderFila(item)}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 function Finanzas({ tabInicial = 'ingresos' }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
@@ -63,6 +100,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [gastos, setGastos]     = useState([]);
     const [salarios, setSalarios] = useState([]);
     const [pagos, setPagos]       = useState([]);
+    const [faenas, setFaenas]     = useState([]);
+
+    const [maqFiltro, setMaqFiltro]         = useState('');
+    const [periodoAbierto, setPeriodoAbierto] = useState(null);
 
     const [cargando, setCargando] = useState(true);
     const [mostrarForm, setMostrarForm] = useState(false);
@@ -91,13 +132,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             getGastos(),
             getSalarios(),
             getPagos(),
-        ]).then(([maqR, ingR, gasR, salR, pagR]) => {
+            getFaenas(),
+        ]).then(([maqR, ingR, gasR, salR, pagR, faeR]) => {
             setMaquinas(maqR.data);
             setIngresos(ingR.data);
             setGastos(gasR.data);
             setFacturasIds(new Set((gasR.data || []).filter(g => g.tieneFactura).map(g => String(g.id))));
             setSalarios(salR.data);
             setPagos((pagR.data || []).map(normalizarPago));
+            setFaenas(faeR.data || []);
         }).catch(console.error).finally(() => setCargando(false));
     };
 
@@ -184,10 +227,38 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const salPeriodo = porFecha([...salarios].reverse(), 'fecha');
     const pagPeriodo = porFecha([...pagos].reverse(), 'fecha');
 
-    const ingFiltrados = ingPeriodo.filter(i => !q || i.descripcion?.toLowerCase().includes(q) || i.maquinaNombre?.toLowerCase().includes(q) || i.tipoTrabajo?.toLowerCase().includes(q));
-    const gasFiltrados = gasPeriodo.filter(g => !q || g.descripcion?.toLowerCase().includes(q) || g.maquinaNombre?.toLowerCase().includes(q) || g.categoria?.toLowerCase().includes(q));
-    const salFiltrados = salPeriodo.filter(s => !q || s.operadorNombre?.toLowerCase().includes(q) || s.maquinaNombre?.toLowerCase().includes(q));
-    const pagFiltrados = pagPeriodo.filter(p => !q || p.cliente?.toLowerCase().includes(q) || p.maquinaNombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q));
+    const ingFiltrados = ingPeriodo.filter(i => !q || i.descripcion?.toLowerCase().includes(q) || i.maquinaNombre?.toLowerCase().includes(q) || i.tipoTrabajo?.toLowerCase().includes(q)).filter(i => !maqFiltro || i.maquinaNombre === maqFiltro);
+    const gasFiltrados = gasPeriodo.filter(g => !q || g.descripcion?.toLowerCase().includes(q) || g.maquinaNombre?.toLowerCase().includes(q) || g.categoria?.toLowerCase().includes(q)).filter(g => !maqFiltro || g.maquinaNombre === maqFiltro);
+    const salFiltrados = salPeriodo.filter(s => !q || s.operadorNombre?.toLowerCase().includes(q) || s.maquinaNombre?.toLowerCase().includes(q)).filter(s => !maqFiltro || s.maquinaNombre === maqFiltro);
+    const pagFiltrados = pagPeriodo.filter(p => !q || p.cliente?.toLowerCase().includes(q) || p.maquinaNombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q)).filter(p => !maqFiltro || p.maquinaNombre === maqFiltro);
+
+    // Periodos (faenas) de la máquina seleccionada, para agrupar Ingresos/Gastos por periodo
+    // en vez de mostrar todo el historial plano — más recientes primero.
+    const periodosDeMaqFiltro = maqFiltro
+        ? faenas.filter(f => f.maquinaNombre === maqFiltro).sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
+        : [];
+    const agruparPorPeriodo = (items, campoTotal) => {
+        const grupos = periodosDeMaqFiltro.map(f => {
+            const propios = items.filter(x => String(x.faenaId) === String(f.id));
+            return {
+                id: String(f.id),
+                nombre: f.nombreObra || 'Periodo',
+                activa: f.estado === 'activa',
+                rango: f.estado === 'activa' ? `Activo desde ${fmtFecha(f.fechaInicio)}` : `${fmtFecha(f.fechaInicio)} → ${fmtFecha(f.fechaFin)}`,
+                items: propios,
+                total: propios.reduce((a, x) => a + (Number(x[campoTotal]) || 0), 0),
+            };
+        });
+        const idsConocidos = new Set(periodosDeMaqFiltro.map(f => String(f.id)));
+        const sinPeriodo = items.filter(x => !x.faenaId || !idsConocidos.has(String(x.faenaId)));
+        if (sinPeriodo.length) {
+            grupos.push({
+                id: 'sin-periodo', nombre: 'Sin periodo asignado', activa: false, rango: '',
+                items: sinPeriodo, total: sinPeriodo.reduce((a, x) => a + (Number(x[campoTotal]) || 0), 0),
+            });
+        }
+        return grupos;
+    };
 
     // totales respetan el filtro de período activo
     const totalIngresos  = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
@@ -305,6 +376,21 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                     </div>
                 </div>
 
+                {/* SELECCIONAR MÁQUINA */}
+                <div className="fin-machinebar">
+                    <Tractor size={15} />
+                    <label>Ver finanzas de</label>
+                    <select className="fin-select" style={{ width: 'auto', minWidth: '220px' }}
+                        value={maqFiltro}
+                        onChange={e => { setMaqFiltro(e.target.value); setPeriodoAbierto(null); }}>
+                        <option value="">Todas las máquinas</option>
+                        {nomsMaquinas.map(n => <option key={n}>{n}</option>)}
+                    </select>
+                    {maqFiltro && (tab === 'ingresos' || tab === 'gastos') && (
+                        <span className="fin-machinebar-note">Agrupado por periodo — clic en uno para ver el detalle</span>
+                    )}
+                </div>
+
                 {/* FILTRO PERÍODO */}
                 <div className="fin-filters">
                     {[
@@ -363,7 +449,26 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
 
                             {/* ── INGRESOS ── */}
-                            {tab === 'ingresos' && (
+                            {tab === 'ingresos' && maqFiltro && (
+                                <GruposPeriodo grupos={agruparPorPeriodo(ingFiltrados, 'total')}
+                                    periodoAbierto={periodoAbierto} setPeriodoAbierto={setPeriodoAbierto}
+                                    cols={GRID.ingresos} tono="pos"
+                                    renderFila={i => (
+                                        <>
+                                            <span className="date">{fmtFecha(i.fecha)}</span>
+                                            <div className="fin-desc"><div className="t">{i.descripcion}</div></div>
+                                            <span className="fin-cell">{i.maquinaNombre}</span>
+                                            <span className="fin-catpill fin-cat-info"><i />{i.tipoTrabajo}</span>
+                                            <span className="fin-cell">{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
+                                            <span className="fin-money pos">{fmt(i.total)}</span>
+                                            <div className="fin-actions">
+                                                <button className="fin-iconbtn" onClick={() => abrirEditar(i)}><Pencil size={14} /></button>
+                                                <button className="fin-iconbtn" onClick={() => eliminar('ingresos', i.id)}><Trash2 size={14} /></button>
+                                            </div>
+                                        </>
+                                    )} />
+                            )}
+                            {tab === 'ingresos' && !maqFiltro && (
                                 <>
                                     <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.ingresos }}>
                                         <ThIng campo="fecha">Fecha</ThIng>
@@ -393,7 +498,29 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             )}
 
                             {/* ── GASTOS ── */}
-                            {tab === 'gastos' && (
+                            {tab === 'gastos' && maqFiltro && (
+                                <GruposPeriodo grupos={agruparPorPeriodo(gasFiltrados, 'monto')}
+                                    periodoAbierto={periodoAbierto} setPeriodoAbierto={setPeriodoAbierto}
+                                    cols={GRID.gastos} tono="neg"
+                                    renderFila={g => {
+                                        const tieneFact = facturasIds.has(String(g.id));
+                                        return (
+                                            <>
+                                                <span className="date">{fmtFecha(g.fecha)}</span>
+                                                <div className="fin-desc"><div className="t">{g.descripcion}</div></div>
+                                                <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
+                                                <span className="fin-cell">{g.maquinaNombre}</span>
+                                                <span className="fin-money neg">{fmt(g.monto)}</span>
+                                                <div className="fin-actions">
+                                                    {tieneFact && <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>}
+                                                    <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>
+                                                    <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>
+                                                </div>
+                                            </>
+                                        );
+                                    }} />
+                            )}
+                            {tab === 'gastos' && !maqFiltro && (
                                 <>
                                     <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.gastos }}>
                                         <ThGas campo="fecha">Fecha</ThGas>
@@ -526,7 +653,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <span>{listaTab.length} registros · mostrando {paginadosTab.paginados.length}</span>
                                 <span>{footLabel} <span className={`fin-ledger-total fin-num ${footTono === 'pos' ? 'fin-money pos' : 'fin-money neg'}`}>{fmt(footTotal)}</span></span>
                             </div>
-                            <Paginacion pagina={paginadosTab.pagina} total={paginadosTab.total} ir={paginadosTab.ir} totalItems={listaTab.length} porPagina={20} />
+                            {!(maqFiltro && (tab === 'ingresos' || tab === 'gastos')) && (
+                                <Paginacion pagina={paginadosTab.pagina} total={paginadosTab.total} ir={paginadosTab.ir} totalItems={listaTab.length} porPagina={20} />
+                            )}
                         </div>
                     </div>
 

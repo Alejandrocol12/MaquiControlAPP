@@ -31,34 +31,7 @@
 .rp-btn.xls{color:#1d6f42;border-color:#c8e6d5;background:rgba(29,111,66,.06);}
 .rp-btn:disabled{opacity:.6;cursor:default;}
 
-/* ── reporte por periodo de máquina ── */
-.rp-periodo-panel{background:#fff;border:1px solid #dbe1e9;border-radius:12px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 24px -12px rgba(16,32,49,.18);padding:18px 20px;}
-
-.rp-periodo-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
-.rp-kpi{background:#fff;border:1px solid #dbe1e9;border-top:3px solid transparent;border-radius:11px;padding:13px 15px;}
-.rp-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:#5c7086;}
-.rp-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:23px;font-weight:800;margin-top:4px;}
-.rp-kpi-sub{font-size:11px;color:#93a2b3;margin-top:3px;}
-.rp-kpi.good{border-top-color:#27ae60;}
-.rp-kpi.good .rp-kpi-val{color:#1c8a4b;}
-.rp-kpi.bad{border-top-color:#e74c3c;}
-.rp-kpi.bad .rp-kpi-val{color:#c0392b;}
-.rp-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);border:none;}
-.rp-kpi.profit .rp-kpi-label{color:rgba(36,23,5,.72);}
-.rp-kpi.profit .rp-kpi-val{color:#1a1004;}
-.rp-kpi.profit .rp-kpi-sub{color:rgba(36,23,5,.75);}
-
-.rp-periodo-tables{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.rp-periodo-flabel{display:none;}
-
 @media (max-width:900px){ .rp-grid{grid-template-columns:1fr;} }
-@media (max-width:760px){
-  .rp-periodo-kpis{grid-template-columns:1fr;}
-  .rp-periodo-tables{grid-template-columns:1fr;}
-  .rp-periodo-tbl .tr.hdr{display:none;}
-  .rp-periodo-tbl .tr{flex-direction:column;align-items:flex-start;gap:5px;}
-  .rp-periodo-flabel{display:block;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#93a2b3;margin-bottom:2px;}
-}
 
 /* ── dark mode ── */
 body.dark .rp-grouphead h2{color:#f1f5f9;}
@@ -72,8 +45,3 @@ body.dark .rp-metric .m1{color:#94a3b8;}
 body.dark .rp-metric .m2{color:#f1f5f9;}
 body.dark .rp-btn{background:#1e293b;border-color:#334155;color:#94a3b8;}
 body.dark .rp-btn.pri{background:#f5a623;color:#0d1b2a;border-color:#f5a623;}
-body.dark .rp-periodo-panel{background:#1e293b;border-color:#334155;box-shadow:none;}
-body.dark .rp-kpi{background:#1e293b;border-color:#334155;}
-body.dark .rp-kpi-label{color:#94a3b8;}
-body.dark .rp-kpi-sub{color:#64748b;}
-body.dark .rp-periodo-flabel{color:#64748b;}

@@ -743,6 +743,90 @@ export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFilt
     }
 }
 
+export async function xlsPeriodoMaquina(maqNombre, ingresos, gastos, faenas, faenaIdFiltro) {
+    const { ExcelJS } = await getLibs();
+    const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+    let faenasMaq = faenas
+        .filter(f => f.maquinaNombre === maqNombre)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
+
+    const filtrando = !!faenaIdFiltro;
+    if (filtrando) faenasMaq = faenasMaq.filter(f => String(f.id) === String(faenaIdFiltro));
+
+    const totIng = faenasMaq.reduce((a, f) => a + ingMaq.filter(x => String(x.faenaId) === String(f.id)).reduce((s, x) => s + (x.total || 0), 0), 0);
+    const totGas = faenasMaq.reduce((a, f) => a + gasMaq.filter(x => String(x.faenaId) === String(f.id)).reduce((s, x) => s + (x.monto || 0), 0), 0);
+    const totUtil = totIng - totGas;
+
+    const colsIng = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Descripción', width: 28 },
+        { header: 'Tipo', width: 16 },
+        { header: 'Total', width: 16, color: C.VERDE, bold: true, halign: 'right' },
+    ];
+    const colsGas = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Descripción', width: 28 },
+        { header: 'Categoría', width: 16 },
+        { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
+    ];
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MaquiControl';
+    const N = 4;
+
+    const buildHoja = (nombreHoja, f) => {
+        const ingF = ingMaq.filter(x => String(x.faenaId) === String(f.id));
+        const gasF = gasMaq.filter(x => String(x.faenaId) === String(f.id));
+        const subIng = ingF.reduce((a, x) => a + (x.total || 0), 0);
+        const subGas = gasF.reduce((a, x) => a + (x.monto || 0), 0);
+        const estado = f.estado === 'activa' ? 'ACTIVO' : 'Cerrado';
+        const rango  = `${f.fechaInicio || '—'} → ${f.fechaFin || 'Activo'}`;
+        const ws = wb.addWorksheet(nombreHoja.slice(0, 31));
+        let r = addCabecera(ws, `${f.nombreObra || 'Periodo'} · ${estado}`, `${maqNombre}  ·  ${rango}`, N);
+        r = addKPIs(ws, r, N, [
+            { label: 'Periodo',        valor: f.nombreObra || '—', tipo: 'neu' },
+            { label: 'Total ingresos', valor: fmt(subIng),         tipo: 'ing' },
+            { label: 'Total gastos',   valor: fmt(subGas),         tipo: 'gas' },
+            { label: 'Utilidad',       valor: fmt(subIng - subGas),tipo: 'util' },
+        ]);
+        r = addSep(ws, r, N);
+        r = addSeccion(ws, r, N, `INGRESOS (${ingF.length})`);
+        r = addTabla(ws, r, colsIng,
+            ingF.map(x => [x.fecha||'—', x.descripcion||'—', x.tipoTrabajo||'—', fmt(x.total)]),
+            ingF.length ? ['', '', 'SUBTOTAL', fmt(subIng)] : null);
+        r = addSep(ws, r, N);
+        r = addSeccion(ws, r, N, `GASTOS (${gasF.length})`);
+        addTabla(ws, r, colsGas,
+            gasF.map(x => [x.fecha||'—', x.descripcion||'—', x.categoria||'—', fmt(x.monto)]),
+            gasF.length ? ['', '', 'SUBTOTAL', fmt(subGas)] : null);
+        setColWidths(ws, colsIng);
+        ws.views = [{ state: 'frozen', ySplit: 6, xSplit: 1 }];
+    };
+
+    if (filtrando && faenasMaq.length) {
+        buildHoja('Periodo', faenasMaq[0]);
+        const nombreArchivo = (faenasMaq[0].nombreObra || `p${faenaIdFiltro}`).replace(/\s+/g, '-');
+        await guardar(wb, `reporte-periodo-${maqNombre.replace(/\s+/g,'-')}-${nombreArchivo}.xlsx`);
+        return;
+    }
+
+    const ws = wb.addWorksheet('Resumen');
+    let r = addCabecera(ws, 'Reporte por Periodo', `${maqNombre}  ·  Todos los periodos`, N);
+    r = addKPIs(ws, r, N, [
+        { label: 'Periodos',       valor: String(faenasMaq.length), tipo: 'neu' },
+        { label: 'Total ingresos', valor: fmt(totIng),  tipo: 'ing' },
+        { label: 'Total gastos',   valor: fmt(totGas),  tipo: 'gas' },
+        { label: 'Utilidad',       valor: fmt(totUtil), tipo: 'util' },
+    ]);
+    setColWidths(ws, colsIng);
+    ws.views = [{ state: 'frozen', ySplit: 6, xSplit: 1 }];
+
+    faenasMaq.forEach((f, idx) => buildHoja(`P${faenasMaq.length - idx}`, f));
+
+    await guardar(wb, `reporte-periodo-${maqNombre.replace(/\s+/g,'-')}.xlsx`);
+}
+
 export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaIdFiltro) {
     const { ExcelJS } = await getLibs();
     const ingMaq = ingresos.filter(x => x.maquinaNombre === maqNombre);
