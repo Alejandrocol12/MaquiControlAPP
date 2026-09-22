@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getMaquinas, getIngresos, getGastos, getSalarios, getFaenas, getPagos } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
-import { Tractor, TrendingUp, TrendingDown, BarChart2, Clock, Target } from 'lucide-react';
+import { Tractor, TrendingUp, TrendingDown, BarChart2, Clock } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { useCountUp } from '../../utils/useCountUp';
@@ -32,58 +32,6 @@ function AnimatedNumber({ value, prefix = '', suffix = '', style }) {
 const fmt    = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const mesHoy = () => new Date().toISOString().slice(0, 7);
 const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, m - 1, d); };
-const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-// Proyecta el valor (ingresos o egresos) que se acumulará a fin de mes, a partir del patrón
-// histórico real del negocio: qué días de la semana suele haber movimiento y cuánto, en vez
-// de asumir un calendario fijo de días hábiles — mismo enfoque que calcularPronosticoHoras
-// en Maquinaria, pero a nivel de todo el negocio en vez de una sola máquina.
-function proyectarValorMes(items, getFecha, getValor) {
-    const conFecha = items.filter(x => getFecha(x));
-    if (conFecha.length === 0) return null;
-
-    const hoyD = new Date();
-    const hoyStr = isoLocal(hoyD);
-    const inicioMesStr = `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-01`;
-    const finMes = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
-
-    const valorEsteMes = conFecha
-        .filter(x => getFecha(x) >= inicioMesStr && getFecha(x) <= hoyStr)
-        .reduce((a, x) => a + (Number(getValor(x)) || 0), 0);
-
-    const primerRegistro = parseLocal(conFecha.map(getFecha).sort()[0]);
-    const limite60 = new Date(hoyD); limite60.setDate(limite60.getDate() - 60);
-    const ventanaInicio = primerRegistro > limite60 ? primerRegistro : limite60;
-
-    const valorPorFecha = {};
-    conFecha.forEach(x => { const f = getFecha(x); valorPorFecha[f] = (valorPorFecha[f] || 0) + (Number(getValor(x)) || 0); });
-
-    const ocurrencias = Array(7).fill(0);
-    const diasConMovimiento = Array(7).fill(0);
-    const sumaValor = Array(7).fill(0);
-    for (let d = new Date(ventanaInicio); d <= hoyD; d.setDate(d.getDate() + 1)) {
-        const dow = d.getDay();
-        ocurrencias[dow]++;
-        const v = valorPorFecha[isoLocal(d)] || 0;
-        if (v !== 0) { diasConMovimiento[dow]++; sumaValor[dow] += v; }
-    }
-
-    if (diasConMovimiento.reduce((a, b) => a + b, 0) < 3) return null; // historial insuficiente
-
-    const valorEsperadoPorDia = Array(7).fill(0).map((_, dow) => {
-        const frecuencia = ocurrencias[dow] > 0 ? diasConMovimiento[dow] / ocurrencias[dow] : 0;
-        const promedio    = diasConMovimiento[dow] > 0 ? sumaValor[dow] / diasConMovimiento[dow] : 0;
-        return frecuencia * promedio;
-    });
-
-    let restante = 0;
-    for (let d = new Date(hoyD); d <= finMes; d.setDate(d.getDate() + 1)) {
-        if (isoLocal(d) === hoyStr) continue; // hoy ya está contado en valorEsteMes
-        restante += valorEsperadoPorDia[d.getDay()];
-    }
-
-    return { realizado: valorEsteMes, restante: Math.round(restante), total: Math.round(valorEsteMes + restante) };
-}
 
 
 function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
@@ -157,24 +105,6 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
             + salarios.filter(s => s.fecha?.startsWith(prefixAnt)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
         const utilAnt = ingAnt - gasAnt;
         if (utilAnt !== 0) tendenciaPct = Math.round(((utilidadMes - utilAnt) / Math.abs(utilAnt)) * 100);
-    }
-
-    // Proyección de cierre de mes a nivel de todo el negocio -- solo tiene sentido viendo "Este mes"
-    let proyeccionMes = null;
-    if (filtroFecha === 'mes') {
-        const proyIng = proyectarValorMes(ingresos, i => i.fecha, i => i.total);
-        const proyGas = proyectarValorMes(gastosOperativos, g => g.fecha, g => g.monto);
-        const proySal = proyectarValorMes(salarios, s => s.fecha, s => s.totalNeto);
-        if (proyIng && (proyGas || proySal)) {
-            const egrRealizado = (proyGas?.realizado || 0) + (proySal?.realizado || 0);
-            const egrTotal     = (proyGas?.total || 0) + (proySal?.total || 0);
-            proyeccionMes = {
-                ingTotal: proyIng.total,
-                egrTotal,
-                utilTotal: proyIng.total - egrTotal,
-                utilRealizado: proyIng.realizado - egrRealizado,
-            };
-        }
     }
 
 
@@ -328,16 +258,6 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
                         )}
                     </div>
                 </div>
-
-                {proyeccionMes && (
-                    <div className="db-insight">
-                        <Target size={18} />
-                        <div>
-                            <b>A este ritmo, cierras {nombreMes} con {fmt(proyeccionMes.utilTotal)} de utilidad</b>
-                            <p>{fmt(proyeccionMes.utilRealizado)} ya realizados este mes, más lo que proyecta tu patrón histórico de ingresos y gastos para los días que faltan. Ingresos proyectados: {fmt(proyeccionMes.ingTotal)} · Egresos proyectados: {fmt(proyeccionMes.egrTotal)}.</p>
-                        </div>
-                    </div>
-                )}
 
                 {/* ── EN CAMPO + REQUIERE ATENCIÓN ── */}
                 <div className="db-band2">

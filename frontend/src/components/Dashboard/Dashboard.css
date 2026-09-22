@@ -2,14 +2,6 @@
 
 .db-num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
 
-/* ── proyección de cierre de mes ── */
-.db-insight{display:flex;gap:12px;align-items:flex-start;background:rgba(245,166,35,.08);border:1px solid #f5a623;border-radius:12px;padding:13px 16px;margin-bottom:18px;}
-.db-insight svg{color:#c9790f;flex-shrink:0;margin-top:2px;}
-.db-insight b{color:#c9790f;font-size:13px;}
-.db-insight p{margin:3px 0 0;font-size:12.5px;color:#5c7086;line-height:1.6;}
-body.dark .db-insight{background:#1e293b;}
-body.dark .db-insight p{color:#e2e8f0;}
-
 /* ── hero KPIs ── */
 .db-hero{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:14px;margin-bottom:22px;}
 .db-kpi{background:#fff;border:1px solid #dbe1e9;border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 24px -12px rgba(16,32,49,.18);}
