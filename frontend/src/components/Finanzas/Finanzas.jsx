@@ -382,7 +382,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 <div className="fin-machinebar">
                     <Tractor size={15} />
                     <label>Ver finanzas de</label>
-                    <select className="fin-select" style={{ width: 'auto', minWidth: '220px' }}
+                    <select className="fin-select" style={{ width: 'auto', minWidth: '220px', maxWidth: '100%' }}
                         value={maqFiltro}
                         onChange={e => { setMaqFiltro(e.target.value); setPeriodoAbierto(null); }}>
                         <option value="">Todas las máquinas</option>

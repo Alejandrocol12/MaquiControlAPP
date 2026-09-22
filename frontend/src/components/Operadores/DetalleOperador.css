@@ -48,7 +48,7 @@
 .do-kpi.profit .do-kpi-val{color:#1a1004;font-size:27px;}
 .do-kpi.profit .do-kpi-sub{color:rgba(36,23,5,.75);}
 
-@media (max-width:900px){ .do-hero4{grid-template-columns:1fr 1fr;} }
+@media (max-width:900px){ .do-hero4, .do-hero4.with-pago{grid-template-columns:1fr 1fr;} }
 
 /* ── dark mode ── */
 body.dark .do-dh{background:#1e293b;border-color:#334155;box-shadow:none;}
