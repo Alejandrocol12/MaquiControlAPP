@@ -28,7 +28,7 @@
 .mq-pill.job{background:rgba(245,166,35,.12);color:#c9790f;}
 .mq-pill.nojob{background:rgba(231,76,60,.1);color:#c0392b;}
 .mq-fc-rows{display:flex;flex-direction:column;gap:5px;font-size:12px;}
-.mq-fc-row{display:flex;justify-content:space-between;color:#5c7086;}
+.mq-fc-row{display:flex;justify-content:space-between;color:#5c7086;flex-wrap:wrap;gap:2px 8px;}
 .mq-fc-row b{color:#16283b;font-weight:600;}
 .mq-fc-money{border-top:1px dashed #dbe1e9;padding-top:10px;margin-top:2px;}
 .mq-fc-money-head{display:flex;justify-content:space-between;font-size:10.5px;color:#93a2b3;text-transform:uppercase;letter-spacing:.4px;font-weight:700;}
@@ -51,8 +51,8 @@
 
 /* ── hero KPIs ── */
 .mq-hero4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
-.mq-kpi{background:#fff;border:1px solid #dbe1e9;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
-.mq-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.mq-kpi{min-width:0;background:#fff;border:1px solid #dbe1e9;border-top:3px solid transparent;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
+.mq-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
 .mq-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#5c7086;}
 .mq-kpi-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .mq-kpi.good{background:linear-gradient(180deg,rgba(39,174,96,.08),rgba(39,174,96,0) 60%);border-top-color:#27ae60;}
@@ -61,7 +61,7 @@
 .mq-kpi.bad .mq-kpi-ico{background:#e74c3c;color:#fff;}
 .mq-kpi.info{background:linear-gradient(180deg,rgba(41,128,185,.08),rgba(41,128,185,0) 60%);border-top-color:#2980b9;}
 .mq-kpi.info .mq-kpi-ico{background:#2980b9;color:#fff;}
-.mq-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;}
+.mq-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:800;overflow-wrap:break-word;}
 .mq-kpi.good .mq-kpi-val{color:#1c8a4b;}
 .mq-kpi.bad .mq-kpi-val{color:#c0392b;}
 .mq-kpi.info .mq-kpi-val{color:#1f6491;}
@@ -117,13 +117,13 @@
 .mq-job-name{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;color:#16283b;}
 .mq-job-meta{font-size:12px;color:#5c7086;margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;}
 .mq-job-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px;}
-.mq-job-tile{background:#fff;border:1px solid #dbe1e9;border-left:3px solid #dbe1e9;border-radius:9px;padding:10px 13px;}
+.mq-job-tile{min-width:0;background:#fff;border:1px solid #dbe1e9;border-left:3px solid #dbe1e9;border-radius:9px;padding:10px 13px;}
 .mq-job-tile.good{border-left-color:#27ae60;}
 .mq-job-tile.bad{border-left-color:#e74c3c;}
 .mq-job-tile.info{border-left-color:#2980b9;}
 .mq-job-tile.gold{border-left-color:#c9790f;}
 .mq-job-tile-l{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5c7086;}
-.mq-job-tile-v{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:800;margin-top:3px;}
+.mq-job-tile-v{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:800;margin-top:3px;overflow-wrap:break-word;}
 .mq-progress-track{height:5px;border-radius:3px;background:#fff;overflow:hidden;margin-top:14px;}
 .mq-progress-fill{height:100%;background:#c9790f;border-radius:3px;}
 .mq-progress-note{font-size:11.5px;color:#c9790f;font-weight:600;margin-top:6px;display:flex;align-items:center;gap:5px;}

@@ -4,13 +4,13 @@
 
 /* ── hero KPIs ── */
 .fin-hero{display:grid;grid-template-columns:1fr 1fr 1.15fr 1.25fr;gap:14px;margin-bottom:18px;}
-.fin-kpi{background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
-.fin-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.fin-kpi{min-width:0;background:#fff;border:1px solid #dde4ed;border-radius:12px;padding:15px 17px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 20px -14px rgba(16,32,49,.2);}
+.fin-kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
 .fin-kpi-label{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#6b7a8d;}
 .fin-kpi-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .fin-kpi.good .fin-kpi-ico{background:rgba(39,174,96,.1);color:#27ae60;}
 .fin-kpi.bad .fin-kpi-ico{background:rgba(231,76,60,.1);color:#e74c3c;}
-.fin-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;}
+.fin-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;overflow-wrap:break-word;}
 .fin-kpi.good .fin-kpi-val{color:#27ae60;}
 .fin-kpi.bad .fin-kpi-val{color:#e74c3c;}
 .fin-kpi-sub{font-size:11.5px;color:#93a2b3;margin-top:3px;}
@@ -21,12 +21,12 @@
 .fin-kpi.profit .fin-kpi-sub{color:rgba(36,23,5,.75);}
 
 .fin-kpi.cobranza{display:flex;flex-direction:column;justify-content:space-between;}
-.fin-cob-nums{display:flex;justify-content:space-between;align-items:baseline;margin-top:1px;}
+.fin-cob-nums{display:flex;justify-content:space-between;align-items:baseline;margin-top:1px;flex-wrap:wrap;gap:2px 8px;}
 .fin-cob-nums .a{font-family:'IBM Plex Mono',monospace;font-size:14.5px;font-weight:600;color:#27ae60;}
 .fin-cob-nums .b{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#93a2b3;}
 .fin-cob-track{height:6px;border-radius:99px;background:rgba(231,76,60,.12);overflow:hidden;margin:8px 0 5px;}
 .fin-cob-fill{height:100%;background:linear-gradient(90deg,#1c8a4b,#27ae60);}
-.fin-cob-foot{display:flex;justify-content:space-between;font-size:11px;color:#6b7a8d;font-weight:600;}
+.fin-cob-foot{display:flex;justify-content:space-between;font-size:11px;color:#6b7a8d;font-weight:600;flex-wrap:wrap;gap:2px 8px;}
 .fin-cob-foot .warn{color:#e74c3c;font-weight:700;}
 
 /* ── selector de máquina ── */
