@@ -3,12 +3,13 @@ import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { getMaquinas, getCombustible, createCombustible, deleteCombustible } from '../../api';
-import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { Fuel, Droplets, ClipboardList, Plus, Trash2, Tractor, TrendingDown, Search } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import MoneyInput from '../../utils/MoneyInput';
+import { fmtFecha } from '../../utils/fmtFecha';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
     if (tipo === 'Excavadora') return <TbBackhoe size={size} />;
@@ -20,7 +21,7 @@ const fmt = (v) => '$' + (v || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
 
 function Combustible() {
-    const toast = useToast();
+    const errComb = useErrores();
     const { confirm, ConfirmUI } = useConfirm();
     const [maquinas, setMaquinas]       = useState([]);
     const [registros, setRegistros]     = useState([]);
@@ -36,7 +37,11 @@ function Combustible() {
     };
 
     const registrar = () => {
-        if (!form.maquinaNombre || !form.galones || !form.precioPorGalon) return toast('Completa máquina, galones y precio', 'e');
+        if (!errComb.validar([
+            { campo: 'cmMaq', ok: !!form.maquinaNombre, msg: 'Escoge la máquina' },
+            { campo: 'cmGal', ok: !!form.galones, msg: 'Escribe cuántos galones cargó' },
+            { campo: 'cmPrecio', ok: !!form.precioPorGalon, msg: 'Escribe el precio por galón' },
+        ])) return;
         createCombustible({
             maquinaNombre: form.maquinaNombre,
             galones: parseFloat(form.galones),
@@ -102,16 +107,17 @@ function Combustible() {
                         <div className="fg2">
                             <div>
                                 <label className="fl">Máquina *</label>
-                                <select className="fsel" value={form.maquinaNombre} onChange={e => setForm({ ...form, maquinaNombre: e.target.value })}>
+                                <select className={errComb.clase('fsel', 'cmMaq')} {...errComb.props('cmMaq')} value={form.maquinaNombre} onChange={e => { setForm({ ...form, maquinaNombre: e.target.value }); errComb.limpiar('cmMaq'); }}>
                                     <option value="">Selecciona...</option>
                                     {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
                                 </select>
+                                <ErrorCampo msg={errComb.errores.cmMaq} />
                             </div>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={form.fecha} onChange={e => setForm({ ...form, fecha: e.target.value })} /></div>
                         </div>
                         <div className="fg3">
-                            <div><label className="fl">Galones *</label><input className="fi" type="number" value={form.galones} onChange={e => setForm({ ...form, galones: e.target.value })} placeholder="Ej: 50" /></div>
-                            <div><label className="fl">Precio/galón ($) *</label><MoneyInput className="fi" value={form.precioPorGalon} onChange={e => setForm({ ...form, precioPorGalon: e.target.value })} placeholder="Ej: 12.500" /></div>
+                            <div><label className="fl">Galones *</label><input className={errComb.clase('fi', 'cmGal')} {...errComb.props('cmGal')} type="number" value={form.galones} onChange={e => { setForm({ ...form, galones: e.target.value }); errComb.limpiar('cmGal'); }} placeholder="Ej: 50" /><ErrorCampo msg={errComb.errores.cmGal} /></div>
+                            <div><label className="fl">Precio/galón ($) *</label><MoneyInput className={errComb.clase('fi', 'cmPrecio')} {...errComb.props('cmPrecio')} value={form.precioPorGalon} onChange={e => { setForm({ ...form, precioPorGalon: e.target.value }); errComb.limpiar('cmPrecio'); }} placeholder="Ej: 12.500" /><ErrorCampo msg={errComb.errores.cmPrecio} /></div>
                             <div><label className="fl">Horómetro al cargar</label><input className="fi" type="number" value={form.horometro} onChange={e => setForm({ ...form, horometro: e.target.value })} /></div>
                         </div>
                         {form.galones && form.precioPorGalon && (
@@ -157,20 +163,20 @@ function Combustible() {
                         <Th campo="fecha">Fecha</Th>
                         <Th campo="maquinaNombre" className="w2">Máquina</Th>
                         <Th campo="galones">Galones</Th>
-                        <Th campo="precioPorGalon">$/Galón</Th>
+                        <Th campo="precioPorGalon" className="amt">$/Galón</Th>
                         <span>Horómetro</span>
-                        <span>Total</span>
+                        <span className="amt">Total</span>
                         <span>Acc.</span>
                     </div>
                     {registros.length === 0 && <p className="vacio">Sin cargas registradas</p>}
                     {pagComb.paginados.map(r => (
                         <div className="tr" key={r.id}>
-                            <span>{r.fecha}</span>
+                            <span>{fmtFecha(r.fecha)}</span>
                             <span className="w2">{r.maquinaNombre}</span>
                             <span>{r.galones} gal</span>
-                            <span>{fmt(r.precioPorGalon)}</span>
+                            <span className="amt">{fmt(r.precioPorGalon)}</span>
                             <span>{r.horometro || '—'}</span>
-                            <span className="neg">{fmt(total(r))}</span>
+                            <span className="neg amt">{fmt(total(r))}</span>
                             <span><button className="icon-btn" onClick={() => eliminar(r.id)}><Trash2 size={14} /></button></span>
                         </div>
                     ))}

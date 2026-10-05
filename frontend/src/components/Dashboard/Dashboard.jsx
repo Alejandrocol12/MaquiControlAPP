@@ -5,6 +5,8 @@ import { Tractor, TrendingUp, TrendingDown, BarChart2, Clock } from 'lucide-reac
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { useCountUp } from '../../utils/useCountUp';
+import FiltroChips from '../../utils/FiltroChips';
+import RegistroRapido from './RegistroRapido';
 import './Dashboard.css';
 
 // #8: color único por tipo de máquina
@@ -46,20 +48,21 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
     const [fechaDesde, setFechaDesde]   = useState('');
     const [fechaHasta, setFechaHasta]   = useState('');
 
-    useEffect(() => {
-        Promise.all([
-            getMaquinas(), getIngresos(), getGastos(),
-            getSalarios(), getFaenas(), getPagos(),
-        ]).then(([maq, ing, gas, sal, fae, pag]) => {
-            setMaquinas(maq.data);
-            setIngresos(ing.data);
-            setGastos(gas.data);
-            setSalarios(sal.data || []);
-            setFaenas(fae.data || []);
-            setPagos(pag.data || []);
-        }).catch(console.error)
-          .finally(() => setCargando(false));
-    }, []);
+    const cargar = () => Promise.all([
+        getMaquinas(), getIngresos(), getGastos(),
+        getSalarios(), getFaenas(), getPagos(),
+    ]).then(([maq, ing, gas, sal, fae, pag]) => {
+        setMaquinas(maq.data);
+        setIngresos(ing.data);
+        setGastos(gas.data);
+        setSalarios(sal.data || []);
+        setFaenas(fae.data || []);
+        setPagos(pag.data || []);
+    }).catch(console.error)
+      .finally(() => setCargando(false));
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { cargar(); }, []);
 
     const mes  = mesHoy();
     const ahora = new Date();
@@ -203,34 +206,31 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
                     <h1>Dashboard</h1>
                     <p>Resumen general — {labelFiltro}</p>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {[
+            </div>
+
+            <div className="content"><div className="pad">
+
+                {maquinas.length > 0 && <RegistroRapido maquinas={maquinas} onGuardado={cargar} />}
+
+                <FiltroChips
+                    className="db-filtros"
+                    valor={filtroFecha}
+                    onChange={setFiltroFecha}
+                    opciones={[
                         { key: 'mes',   label: 'Este mes' },
                         { key: 'anio',  label: 'Este año' },
                         { key: 'todo',  label: 'Todo' },
                         { key: 'rango', label: 'Personalizado' },
-                    ].map(f => (
-                        <button key={f.key} onClick={() => setFiltroFecha(f.key)} style={{
-                            padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600',
-                            cursor: 'pointer', border: 'none',
-                            background: filtroFecha === f.key ? '#1a2d42' : '#f0f2f5',
-                            color: filtroFecha === f.key ? '#fff' : '#6b7a8d',
-                            transition: 'all .15s',
-                        }}>{f.label}</button>
-                    ))}
+                    ]}
+                >
                     {filtroFecha === 'rango' && (
                         <>
-                            <input type="date" style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid #dee2e6', borderRadius: '8px' }}
-                                value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
-                            <span style={{ fontSize: '12px', color: '#6b7a8d', alignSelf: 'center' }}>→</span>
-                            <input type="date" style={{ padding: '4px 10px', fontSize: '12px', border: '1px solid #dee2e6', borderRadius: '8px' }}
-                                value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                            <input type="date" aria-label="Desde" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                            <span style={{ fontSize: '12px', color: '#93a2b3' }}>→</span>
+                            <input type="date" aria-label="Hasta" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
                         </>
                     )}
-                </div>
-            </div>
-
-            <div className="content"><div className="pad">
+                </FiltroChips>
 
                 {/* ── HERO KPI ── */}
                 <div className="db-hero">

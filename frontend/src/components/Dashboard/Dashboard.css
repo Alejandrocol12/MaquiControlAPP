@@ -2,6 +2,8 @@
 
 .db-num{font-family:'IBM Plex Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;}
 
+.db-filtros{margin-bottom:16px;}
+
 /* ── hero KPIs ── */
 .db-hero{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:14px;margin-bottom:22px;}
 .db-kpi{min-width:0;background:#fff;border:1px solid #dbe1e9;border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgba(16,32,49,.04),0 8px 24px -12px rgba(16,32,49,.18);}

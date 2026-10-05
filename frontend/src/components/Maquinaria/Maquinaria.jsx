@@ -9,15 +9,25 @@ import {
     crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
     getPagos, createPago, updatePago, deletePago,
+    getMantenimientos,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import MoneyInput from '../../utils/MoneyInput';
+import FiltroChips from '../../utils/FiltroChips';
+import Estado from '../../utils/Estado';
+import EmptyState from '../../utils/EmptyState';
+import Opcional from '../../utils/Opcional';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
+import HistoriaMaquina from './HistoriaMaquina';
+import CalendarioTrabajo from './CalendarioTrabajo';
+import ScrollTabs from '../../utils/ScrollTabs';
+import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
-    Target, Eye, CreditCard,
+    Target, Eye, CreditCard, History,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -310,38 +320,27 @@ function Maquinaria({ vistaInicial = 'lista' }) {
 
 function FiltroRango({ rangoFiltro, setRangoFiltro, fechaDesde, setFechaDesde, fechaHasta, setFechaHasta }) {
     return (
-        <div style={{ display: 'flex', gap: '6px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {[
+        <FiltroChips
+            className="mq-filtros"
+            valor={rangoFiltro}
+            onChange={setRangoFiltro}
+            opciones={[
                 { key: 'periodo', label: 'Periodo activo' },
                 { key: 'todo',    label: 'Todo' },
                 { key: 'mes',     label: 'Este mes' },
                 { key: 'ultimo',  label: 'Mes anterior' },
                 { key: 'anio',    label: 'Este año' },
                 { key: 'rango',   label: 'Personalizado' },
-            ].map(f => (
-                <button key={f.key}
-                    onClick={() => setRangoFiltro(f.key)}
-                    style={{
-                        padding: '5px 14px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', border: 'none',
-                        background: rangoFiltro === f.key ? '#1a2d42' : '#f0f2f5',
-                        color: rangoFiltro === f.key ? '#fff' : '#6b7a8d',
-                        transition: 'all .15s',
-                    }}>
-                    {f.label}
-                </button>
-            ))}
+            ]}
+        >
             {rangoFiltro === 'rango' && (
                 <>
-                    <input type="date" className="fi"
-                        style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
-                        value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
-                    <span style={{ fontSize: '12px', color: '#6b7a8d' }}>→</span>
-                    <input type="date" className="fi"
-                        style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
-                        value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                    <input type="date" aria-label="Desde" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                    <span style={{ fontSize: '12px', color: '#93a2b3' }}>→</span>
+                    <input type="date" aria-label="Hasta" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
                 </>
             )}
-        </div>
+        </FiltroChips>
     );
 }
 
@@ -363,13 +362,20 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [pagoForm, setPagoForm] = useState(PAGO_VACIO);
     const [editandoPagoId, setEditandoPagoId] = useState(null);
     const editarPago = (p) => { setPagoForm(normalizarPago(p)); setEditandoPagoId(p.id); };
-    const cancelarEditarPago = () => { setEditandoPagoId(null); setPagoForm(PAGO_VACIO); };
+    const cancelarEditarPago = () => { setEditandoPagoId(null); setPagoForm(PAGO_VACIO); errPago.setErrores({}); };
+    const errPago = useErrores();
+    const errTrabajo = useErrores();
+    const errGasto = useErrores();
+    const errComb = useErrores();
+    const errFaena = useErrores();
 
     // Faena
     const [faenaActiva, setFaenaActiva] = useState(null);
     const [formFaena, setFormFaena] = useState({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
     const [mostrarFormFaena, setMostrarFormFaena] = useState(false);
     const [faenasCerradas, setFaenasCerradas] = useState([]);
+    const [faenasMaq, setFaenasMaq] = useState([]);
+    const [mantenimientos, setMantenimientos] = useState([]);
 
     // Compartir
     const [modalCompartir, setModalCompartir] = useState(false);
@@ -451,7 +457,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         setEditandoGastoId(g.id);
         setGastoFactura(null);
     };
-    const cancelarEditar = () => { setEditandoGastoId(null); setGastoForm(GASTO_VACIO); setGastoFactura(null); };
+    const cancelarEditar = () => { setEditandoGastoId(null); setGastoForm(GASTO_VACIO); setGastoFactura(null); errGasto.setErrores({}); };
 
     const leerConIA = async (e) => {
         const archivo = e.target.files[0];
@@ -496,7 +502,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             .then(r => setFaenaActiva(r.data))
             .catch(() => setFaenaActiva(null));
         getFaenas()
-            .then(r => setFaenasCerradas((r.data || []).filter(f => f.maquinaNombre === maq.nombre && f.estado === 'cerrada' && f.fechaInicio && f.fechaFin)))
+            .then(r => {
+                const propias = (r.data || []).filter(f => f.maquinaNombre === maq.nombre);
+                setFaenasMaq(propias);
+                setFaenasCerradas(propias.filter(f => f.estado === 'cerrada' && f.fechaInicio && f.fechaFin));
+            })
             .catch(() => {});
     };
 
@@ -521,10 +531,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         refreshGastos();
         getCombustible().then(r => setCombustibles(r.data.filter(c => c.maquinaNombre === maq.nombre))).catch(console.error);
         refreshPagos();
+        getMantenimientos().then(r => setMantenimientos((r.data || []).filter(m => m.maquinaNombre === maq.nombre))).catch(() => {});
     };
 
     const guardarPago = async () => {
-        if (!pagoForm.cliente?.trim()) return toast('Escribe el nombre del cliente', 'e');
+        if (!errPago.validar([{ campo: 'pagoCliente', ok: !!pagoForm.cliente?.trim(), msg: 'Escribe el nombre del cliente' }])) return;
         const payload = { ...pagoForm, maquinaNombre: maq.nombre, valorTotal: parseFloat(pagoForm.valorTotal) || 0, valorPagado: parseFloat(pagoForm.valorPagado) || 0 };
         try {
             if (editandoPagoId) {
@@ -680,12 +691,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const totalComb = parseFloat(galones || 0) * parseFloat(precioPorGalon || 0);
 
     const registrarTrabajo = () => {
-        if (tipoTrabajo === 'Horas') {
-            if (!horometroFin || !valorUnitario) return toast('Completa el horómetro final y el valor unitario', 'e');
-            if (horasCalculadas <= 0) return toast('El horómetro final debe ser mayor al inicial', 'e');
-        } else if (!cantidad || !valorUnitario) {
-            return toast('Completa cantidad y valor unitario', 'e');
-        }
+        const okTrabajo = tipoTrabajo === 'Horas'
+            ? errTrabajo.validar([
+                { campo: 'trHorometro', ok: !!horometroFin, msg: 'Escribe el horómetro al terminar' },
+                { campo: 'trHorometro', ok: horasCalculadas > 0, msg: `Debe ser mayor al horómetro inicial (${maq.horometroActual || 0})` },
+                { campo: 'trValor', ok: !!valorUnitario, msg: 'Escribe el valor por hora' },
+            ])
+            : errTrabajo.validar([
+                { campo: 'trCantidad', ok: !!cantidad, msg: `Escribe la cantidad de ${tipoTrabajo}` },
+                { campo: 'trValor', ok: !!valorUnitario, msg: 'Escribe el valor unitario' },
+            ]);
+        if (!okTrabajo) return;
         const horometroInicioAlRegistrar = maq.horometroActual || 0;
         const payload = {
             maquinaNombre: maq.nombre, tipoTrabajo, cantidad: cantidadEfectiva,
@@ -735,7 +751,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     const actualizarIngresoExistente = () => {
-        if (!cantidadEfectiva || !valorUnitario) return toast('Completa cantidad y valor unitario', 'e');
+        if (!errTrabajo.validar([
+            { campo: 'trCantidad', ok: !!cantidadEfectiva, msg: tipoTrabajo === 'Horas' ? 'Escribe las horas trabajadas' : `Escribe la cantidad de ${tipoTrabajo}` },
+            { campo: 'trValor', ok: !!valorUnitario, msg: 'Escribe el valor unitario' },
+        ])) return;
         const id = editandoIngresoId;
         const payload = {
             descripcion: descTrabajo || `${tipoTrabajo} – ${maq.nombre}`,
@@ -767,7 +786,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const guardarIngreso = () => editandoIngresoId ? actualizarIngresoExistente() : registrarTrabajo();
 
     const registrarCombustible = () => {
-        if (!galones || !precioPorGalon) return toast('Completa galones y precio', 'e');
+        if (!errComb.validar([
+            { campo: 'cbGalones', ok: !!galones, msg: 'Escribe cuántos galones cargó' },
+            { campo: 'cbPrecio', ok: !!precioPorGalon, msg: 'Escribe el precio por galón' },
+        ])) return;
         const combPayload = {
             maquinaNombre: maq.nombre, galones: parseFloat(galones),
             precioPorGalon: parseFloat(precioPorGalon), horometro: parseFloat(horoComb), fecha: fechaComb
@@ -823,7 +845,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     const abrirFaena = async () => {
-        if (!formFaena.nombreObra.trim()) return toast('Escribe el nombre de la obra', 'e');
+        if (!errFaena.validar([{ campo: 'fnObra', ok: !!formFaena.nombreObra.trim(), msg: 'Escribe el nombre de la obra' }])) return;
         if (maq.estado !== 'Activa') {
             toast(`Máquina en estado "${maq.estado}" — actualiza el estado si ya está operativa`, 'w');
         }
@@ -858,6 +880,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Combustible</>,
         <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
         <><CreditCard size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Pagos Clientes</>,
+        <><History size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Historia</>,
     ];
 
     return (
@@ -893,7 +916,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                 {/* Sin faena: alerta */}
                 {!faenaActiva && (
-                    <div className="ale" style={{ background: '#fff3e0', borderColor: '#e67e22' }}>
+                    <div className="ale orange">
                         <AlertTriangle size={18} color="#e67e22" />
                         <div>
                             <p>Esta máquina no tiene periodo activo</p>
@@ -903,9 +926,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 )}
 
                 {/* TABS */}
-                <div className="mq-dtabs">
+                <ScrollTabs className="mq-dtabs" activeIndex={tab}>
                     {TABS.map((t, i) => <button key={i} className={`mq-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
-                </div>
+                </ScrollTabs>
 
                 {/* TAB 0 — RESUMEN */}
                 {tab === 0 && (
@@ -945,15 +968,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <p className="vacio" style={{ marginBottom: '16px' }}>Aún no hay suficiente historial de horas trabajadas para pronosticar fin de mes (se necesitan al menos 3 días registrados).</p>
                         )}
 
+                        <CalendarioTrabajo ingresos={ingresos} />
+
                         <div className="mq-g2">
                             <div className="mq-mini">
                                 <div className="mq-mini-head good"><TrendingUp size={13} /> Últimos ingresos</div>
-                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{i.fecha} — {i.descripcion}</span><b className="mq-num" style={{ color: '#1c8a4b' }}>{fmt(i.total)}</b></div>)}
+                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{fmtFecha(i.fecha)} — {i.descripcion}</span><b className="mq-num" style={{ color: '#1c8a4b' }}>{fmt(i.total)}</b></div>)}
                                 {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
                             </div>
                             <div className="mq-mini">
                                 <div className="mq-mini-head bad"><TrendingDown size={13} /> Últimos gastos</div>
-                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{g.fecha} — {g.descripcion}</span><b className="mq-num" style={{ color: '#c0392b' }}>{fmt(g.monto)}</b></div>)}
+                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{fmtFecha(g.fecha)} — {g.descripcion}</span><b className="mq-num" style={{ color: '#c0392b' }}>{fmt(g.monto)}</b></div>)}
                                 {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
                             </div>
                         </div>
@@ -964,7 +989,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {tab === 1 && (
                     <>
                         {!faenaActiva && (
-                            <div className="ale" style={{ background: '#fff3e0', borderColor: '#e67e22' }}>
+                            <div className="ale orange">
                                 <AlertTriangle size={16} color="#e67e22" />
                                 <div><p style={{margin:0}}>Sin periodo activo — el registro se guardará pero no quedará en ningún periodo</p></div>
                             </div>
@@ -987,20 +1012,20 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                             {editandoIngresoId ? (
                                 <div className="fg2">
-                                    <div><label className="fl">{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : `Cantidad (${tipoTrabajo})`}</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
+                                    <div><label className="fl">{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : `Cantidad (${tipoTrabajo})`}</label><input className={errTrabajo.clase('fi', 'trCantidad')} {...errTrabajo.props('trCantidad')} type="number" value={cantidad} onChange={e => { setCantidad(e.target.value); errTrabajo.limpiar('trCantidad'); }} placeholder="Ej: 8" /><ErrorCampo msg={errTrabajo.errores.trCantidad} /></div>
                                 </div>
                             ) : tipoTrabajo === 'Horas' ? (
                                 <div className="fg2">
                                     <div><label className="fl">Horómetro inicial</label><input className="fi" type="number" value={maq.horometroActual || 0} disabled /></div>
-                                    <div><label className="fl">Horómetro final</label><input className="fi" type="number" value={horometroFin} onChange={e => setHorometroFin(e.target.value)} placeholder="Ej: 110.5" /></div>
+                                    <div><label className="fl">Horómetro final</label><input className={errTrabajo.clase('fi', 'trHorometro')} {...errTrabajo.props('trHorometro')} type="number" value={horometroFin} onChange={e => { setHorometroFin(e.target.value); errTrabajo.limpiar('trHorometro'); }} placeholder="Ej: 110.5" /><ErrorCampo msg={errTrabajo.errores.trHorometro} /></div>
                                 </div>
                             ) : (
                                 <div className="fg2">
-                                    <div><label className="fl">Cantidad ({tipoTrabajo})</label><input className="fi" type="number" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="Ej: 8" /></div>
+                                    <div><label className="fl">Cantidad ({tipoTrabajo})</label><input className={errTrabajo.clase('fi', 'trCantidad')} {...errTrabajo.props('trCantidad')} type="number" value={cantidad} onChange={e => { setCantidad(e.target.value); errTrabajo.limpiar('trCantidad'); }} placeholder="Ej: 8" /><ErrorCampo msg={errTrabajo.errores.trCantidad} /></div>
                                 </div>
                             )}
                             <div className="fg2">
-                                <div><label className="fl">Valor unitario ($)</label><MoneyInput className="fi" value={valorUnitario} onChange={e => setValorUnitario(e.target.value)} placeholder="Ej: 120.000" /></div>
+                                <div><label className="fl">Valor unitario ($)</label><MoneyInput className={errTrabajo.clase('fi', 'trValor')} {...errTrabajo.props('trValor')} value={valorUnitario} onChange={e => { setValorUnitario(e.target.value); errTrabajo.limpiar('trValor'); }} placeholder="Ej: 120.000" /><ErrorCampo msg={errTrabajo.errores.trValor} /></div>
                                 <div><label className="fl">Fecha</label><input className="fi" type="date" value={fechaTrabajo} onChange={e => setFechaTrabajo(e.target.value)} /></div>
                             </div>
                             <div className="fg2">
@@ -1033,22 +1058,22 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThIng campo="fecha">Fecha</ThIng>
                                 <ThIng campo="tipoTrabajo">Tipo</ThIng>
                                 <ThIng campo="cantidad">Cantidad</ThIng>
-                                <ThIng campo="total">Total</ThIng>
+                                <ThIng campo="total" className="amt">Total</ThIng>
                                 <span>Acc.</span>
                             </div>
                             {pagIngs.paginados.map(i => (
                                 <div className="tr" key={i.id}>
-                                    <span>{i.fecha}</span>
+                                    <span>{fmtFecha(i.fecha)}</span>
                                     <span><span className="b hrs">{i.tipoTrabajo}</span></span>
                                     <span>{i.cantidad}</span>
-                                    <span className="pos">{fmt(i.total)}</span>
+                                    <span className="pos amt">{fmt(i.total)}</span>
                                     <span>
                                         <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
                                         <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
                                     </span>
                                 </div>
                             ))}
-                            {ingOrdenados.length === 0 && <p className="vacio">Sin registros en este periodo</p>}
+                            {ingOrdenados.length === 0 && <EmptyState icono={<Settings size={20} />} titulo="Aún no hay trabajos en este periodo" texto="Registra las horas o la cantidad que hizo la máquina usando el formulario de arriba." accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="trHorometro"],[data-campo="trCantidad"]')?.focus() }} />}
                             <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={20} />
                         </div>
                     </>
@@ -1081,12 +1106,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThIngF campo="descripcion" className="w2">Descripción</ThIngF>
                                 <ThIngF campo="tipoTrabajo">Tipo</ThIngF>
                                 <ThIngF campo="cantidad">Horas/Cant.</ThIngF>
-                                <ThIngF campo="total">Total</ThIngF>
+                                <ThIngF campo="total" className="amt">Total</ThIngF>
                                 <span>Acc.</span>
                             </div>
                             {pagIngsF.paginados.map(i => (
                                 <div className="tr" key={i.id}>
-                                    <span>{i.fecha}</span><span className="w2">{i.descripcion}</span>
+                                    <span>{fmtFecha(i.fecha)}</span><span className="w2">{i.descripcion}</span>
                                     <span><span className="b hrs">{i.tipoTrabajo}</span></span>
                                     <span>
                                         {i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}
@@ -1096,14 +1121,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             </span>
                                         )}
                                     </span>
-                                    <span className="pos">{fmt(i.total)}</span>
+                                    <span className="pos amt">{fmt(i.total)}</span>
                                     <span>
                                         <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
                                         <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
                                     </span>
                                 </div>
                             ))}
-                            {ingOrdenadosF.length === 0 && <p className="vacio">Sin ingresos en este rango</p>}
+                            {ingOrdenadosF.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos en este rango" texto="Prueba con otro filtro de fechas o registra un trabajo nuevo." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
                             <Paginacion pagina={pagIngsF.pagina} total={pagIngsF.total} ir={pagIngsF.ir} totalItems={ingOrdenadosF.length} porPagina={20} />
                         </div>
                     </>
@@ -1124,7 +1149,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
                                 <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
                             </h3>
-                            <div><label className="fl">Descripción *</label><input className="fi" value={gastoForm.descripcion} onChange={e => setGastoForm({ ...gastoForm, descripcion: e.target.value })} placeholder="Ej: Cambio de manguera" /></div>
+                            <div><label className="fl">Descripción *</label><input className={errGasto.clase('fi', 'gsDesc')} {...errGasto.props('gsDesc')} value={gastoForm.descripcion} onChange={e => { setGastoForm({ ...gastoForm, descripcion: e.target.value }); errGasto.limpiar('gsDesc'); }} placeholder="Ej: Cambio de manguera" /><ErrorCampo msg={errGasto.errores.gsDesc} /></div>
                             <div>
                                 <label className="fl">Categoría</label>
                                 <div className="mq-catpick">
@@ -1138,10 +1163,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
                                     placeholder="O escribe una categoría distinta" />
                             </div>
-                            <div className="fg2">
-                                <div><label className="fl">Monto ($) *</label><MoneyInput className="fi" value={gastoForm.monto} onChange={e => setGastoForm({ ...gastoForm, monto: e.target.value })} placeholder="Ej: 250.000" /></div>
-                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
-                            </div>
+                            <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
+                            <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
+                            <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
                             <div>
                                 <label className="fl">Factura (PDF)</label>
                                 {editandoGastoId && facturasIds.has(String(editandoGastoId)) && !gastoFactura ? (
@@ -1165,7 +1189,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 ) : (
                                     <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
-                                        <span style={{ color: gastoFactura ? '#1a1a2e' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                        <span style={{ color: gastoFactura ? 'inherit' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                                             {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
                                         </span>
                                         {gastoFactura && (
@@ -1176,9 +1200,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     </label>
                                 )}
                             </div>
+                            </Opcional>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
-                                    if (!gastoForm.descripcion || !gastoForm.monto) return toast('Completa descripción y monto', 'e');
+                                    if (!errGasto.validar([
+                                        { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
+                                        { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
+                                    ])) return;
                                     if (editandoGastoId) {
                                         const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) };
                                         setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoActualizado : g));
@@ -1215,14 +1243,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <ThGasF campo="fecha">Fecha</ThGasF>
                                 <ThGasF campo="descripcion" className="w2">Descripción</ThGasF>
                                 <ThGasF campo="categoria">Categoría</ThGasF>
-                                <ThGasF campo="monto">Total</ThGasF>
+                                <ThGasF campo="monto" className="amt">Total</ThGasF>
                                 <span>Acc.</span>
                             </div>
                             {pagGasF.paginados.map(g => (
                                 <div className="tr" key={g.id}>
-                                    <span>{g.fecha}</span><span className="w2">{g.descripcion}</span>
+                                    <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}</span>
                                     <span><span className={`mq-catpill mq-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span></span>
-                                    <span className="neg">{fmt(g.monto)}</span>
+                                    <span className="neg amt">{fmt(g.monto)}</span>
                                     <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                         {facturasIds.has(String(g.id)) && (
                                             <button className="icon-btn" title="Ver factura" onClick={() => abrirFactura(g.id)}>
@@ -1251,7 +1279,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     </span>
                                 </div>
                             ))}
-                            {gasOrdenadosF.length === 0 && <p className="vacio">Sin gastos en este rango</p>}
+                            {gasOrdenadosF.length === 0 && <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos en este rango" texto="Prueba con otro filtro de fechas o registra un gasto con el formulario de arriba." accion={{ label: 'Registrar gasto', onClick: () => document.querySelector('[data-campo="gsDesc"]')?.focus() }} />}
                             <Paginacion pagina={pagGasF.pagina} total={pagGasF.total} ir={pagGasF.ir} totalItems={gasOrdenadosF.length} porPagina={20} />
                         </div>
                     </>
@@ -1264,8 +1292,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><Fuel size={18} /> Registrar carga de combustible</h3>
                             <p className="fd">El gasto se crea automáticamente en Finanzas</p>
                             <div className="fg3">
-                                <div><label className="fl">Galones</label><input className="fi" type="number" value={galones} onChange={e => setGalones(e.target.value)} placeholder="Ej: 50" /></div>
-                                <div><label className="fl">Precio/galón ($)</label><MoneyInput className="fi" value={precioPorGalon} onChange={e => setPrecioPorGalon(e.target.value)} placeholder="Ej: 12.500" /></div>
+                                <div><label className="fl">Galones</label><input className={errComb.clase('fi', 'cbGalones')} {...errComb.props('cbGalones')} type="number" value={galones} onChange={e => { setGalones(e.target.value); errComb.limpiar('cbGalones'); }} placeholder="Ej: 50" /><ErrorCampo msg={errComb.errores.cbGalones} /></div>
+                                <div><label className="fl">Precio/galón ($)</label><MoneyInput className={errComb.clase('fi', 'cbPrecio')} {...errComb.props('cbPrecio')} value={precioPorGalon} onChange={e => { setPrecioPorGalon(e.target.value); errComb.limpiar('cbPrecio'); }} placeholder="Ej: 12.500" /><ErrorCampo msg={errComb.errores.cbPrecio} /></div>
                                 <div><label className="fl">Horómetro al cargar</label><input className="fi" type="number" value={horoComb} onChange={e => setHoroComb(e.target.value)} /></div>
                             </div>
                             <div className="fg2">
@@ -1290,21 +1318,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <div className="tr hdr">
                                 <ThCombF campo="fecha">Fecha</ThCombF>
                                 <ThCombF campo="galones">Galones</ThCombF>
-                                <ThCombF campo="precioPorGalon">$/Galón</ThCombF>
+                                <ThCombF campo="precioPorGalon" className="amt">$/Galón</ThCombF>
                                 <span>Horómetro</span>
-                                <ThCombF campo="total">Total</ThCombF>
+                                <ThCombF campo="total" className="amt">Total</ThCombF>
                                 <span>Acc.</span>
                             </div>
                             {pagCombF.paginados.map(c => (
                                 <div className="tr" key={c.id}>
-                                    <span>{c.fecha}</span><span>{c.galones} gal</span>
-                                    <span>{fmt(c.precioPorGalon)}</span>
+                                    <span>{fmtFecha(c.fecha)}</span><span>{c.galones} gal</span>
+                                    <span className="amt">{fmt(c.precioPorGalon)}</span>
                                     <span>{c.horometro || '—'}</span>
-                                    <span className="neg">{fmt(c.total)}</span>
+                                    <span className="neg amt">{fmt(c.total)}</span>
                                     <span><button className="icon-btn" onClick={() => eliminarComb(c.id)}><Trash2 size={14} /></button></span>
                                 </div>
                             ))}
-                            {combOrdenadosF.length === 0 && <p className="vacio">Sin cargas en este rango</p>}
+                            {combOrdenadosF.length === 0 && <EmptyState icono={<Fuel size={20} />} titulo="No hay cargas de combustible en este rango" texto="Prueba con otro filtro de fechas o registra una carga con el formulario de arriba." accion={{ label: 'Registrar carga', onClick: () => document.querySelector('[data-campo="cbGalones"]')?.focus() }} />}
                             <Paginacion pagina={pagCombF.pagina} total={pagCombF.total} ir={pagCombF.ir} totalItems={combOrdenadosF.length} porPagina={20} />
                         </div>
                     </>
@@ -1326,7 +1354,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                             <div className="mq-job-meta">
                                                 {faenaActiva.cliente && <span>Cliente: {faenaActiva.cliente}</span>}
                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                    <Calendar size={11} /> Inicio: {faenaActiva.fechaInicio}
+                                                    <Calendar size={11} /> Inicio: {fmtFecha(faenaActiva.fechaInicio)}
                                                 </span>
                                             </div>
                                             {faenaActiva.nota && <p style={{ fontSize: '12px', color: '#6b7a8d', marginTop: '4px' }}>{faenaActiva.nota}</p>}
@@ -1367,7 +1395,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </>
                         ) : (
                             <>
-                                <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9' }}>
+                                <div className="ale blue">
                                     <Briefcase size={18} color="#2980b9" />
                                     <div>
                                         <p>No hay periodo activo para {maq.nombre}</p>
@@ -1389,9 +1417,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         <div className="fg2">
                                             <div>
                                                 <label className="fl">Nombre de la obra *</label>
-                                                <input className="fi" value={formFaena.nombreObra}
-                                                    onChange={e => setFormFaena({ ...formFaena, nombreObra: e.target.value })}
+                                                <input className={errFaena.clase('fi', 'fnObra')} {...errFaena.props('fnObra')} value={formFaena.nombreObra}
+                                                    onChange={e => { setFormFaena({ ...formFaena, nombreObra: e.target.value }); errFaena.limpiar('fnObra'); }}
                                                     placeholder="Ej: Carretera Vía Caucasia" />
+                                                <ErrorCampo msg={errFaena.errores.fnObra} />
                                             </div>
                                             <div>
                                                 <label className="fl">Cliente</label>
@@ -1426,23 +1455,38 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     </div>
                 )}
 
+                {/* TAB 7 — HISTORIA */}
+                {tab === 7 && (
+                    <HistoriaMaquina
+                        ingresos={ingresos}
+                        gastos={gastos}
+                        combustibles={combustibles}
+                        mantenimientos={mantenimientos}
+                        faenas={faenasMaq}
+                        pagos={pagos}
+                    />
+                )}
+
                 {/* TAB 6 — PAGOS CLIENTES */}
                 {tab === 6 && (
                     <>
                         <div className="fc">
                             <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><CreditCard size={18} /> {editandoPagoId ? 'Editar pago' : 'Registrar pago de cliente'}</h3>
                             <p className="fd">El pago queda asociado a {maq.nombre} automáticamente</p>
-                            <div className="fg2">
-                                <div><label className="fl">Cliente *</label><input className="fi" value={pagoForm.cliente} onChange={e => setPagoForm({ ...pagoForm, cliente: e.target.value })} placeholder="Ej: Municipio de..." /></div>
-                                <div><label className="fl">Descripción</label><input className="fi" value={pagoForm.descripcion} onChange={e => setPagoForm({ ...pagoForm, descripcion: e.target.value })} placeholder="Ej: Abono contrato obra vial" /></div>
+                            <label className="fl">Cliente *</label>
+                            <input className={errPago.clase('fi', 'pagoCliente')} {...errPago.props('pagoCliente')} value={pagoForm.cliente}
+                                onChange={e => { setPagoForm({ ...pagoForm, cliente: e.target.value }); errPago.limpiar('pagoCliente'); }} placeholder="Ej: Municipio de..." />
+                            <ErrorCampo msg={errPago.errores.pagoCliente} />
+                            <div className="fg2-keep">
+                                <div><label className="fl">Total ($)</label><MoneyInput className="fi" value={pagoForm.valorTotal} onChange={e => setPagoForm({ ...pagoForm, valorTotal: e.target.value })} /></div>
+                                <div><label className="fl">Pagado ($)</label><MoneyInput className="fi" value={pagoForm.valorPagado} onChange={e => setPagoForm({ ...pagoForm, valorPagado: e.target.value })} /></div>
                             </div>
-                            <div className="fg2">
-                                <div><label className="fl">Valor total ($)</label><MoneyInput className="fi" value={pagoForm.valorTotal} onChange={e => setPagoForm({ ...pagoForm, valorTotal: e.target.value })} /></div>
-                                <div><label className="fl">Valor pagado ($)</label><MoneyInput className="fi" value={pagoForm.valorPagado} onChange={e => setPagoForm({ ...pagoForm, valorPagado: e.target.value })} /></div>
-                            </div>
-                            <div className="fg2">
-                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoForm.fecha} onChange={e => setPagoForm({ ...pagoForm, fecha: e.target.value })} /></div>
-                            </div>
+                            <Opcional label="Descripción y fecha (opcional)" abierto={!!editandoPagoId && !!pagoForm.descripcion}>
+                                <div className="fg2-keep">
+                                    <div><label className="fl">Descripción</label><input className="fi" value={pagoForm.descripcion} onChange={e => setPagoForm({ ...pagoForm, descripcion: e.target.value })} placeholder="Ej: Abono obra" /></div>
+                                    <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoForm.fecha} onChange={e => setPagoForm({ ...pagoForm, fecha: e.target.value })} /></div>
+                                </div>
+                            </Opcional>
                             <div style={{ display: 'flex', gap: '10px' }}>
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarPago}>
                                     <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoPagoId ? 'Guardar cambios' : 'Registrar pago'}
@@ -1452,26 +1496,54 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         </div>
                         <div className="tbl">
                             <div className="th"><strong>Pagos de clientes — {maq.nombre}</strong></div>
-                            <div className="tr hdr">
-                                <span>Fecha</span><span className="w2">Cliente</span><span className="w2">Descripción</span>
-                                <span>Total</span><span>Pagado</span><span>Saldo</span><span>Estado</span><span>Acc.</span>
-                            </div>
-                            {pagos.length === 0 && <p className="vacio">Sin pagos registrados para esta máquina</p>}
-                            {pagos.map(p => (
-                                <div className="tr" key={p.id}>
-                                    <span>{p.fecha}</span>
-                                    <span className="w2">{p.cliente}</span>
-                                    <span className="w2">{p.descripcion || '—'}</span>
-                                    <span>{fmt(p.valorTotal)}</span>
-                                    <span className="pos">{fmt(p.valorPagado)}</span>
-                                    <span className="neg">{fmt(p.saldoPendiente)}</span>
-                                    <span><span className={`mq-pill ${p.estado === 'Pagado' ? 'ok' : p.estado === 'Parcial' ? 'warn' : 'nojob'}`}>{p.estado}</span></span>
-                                    <span>
-                                        <button className="icon-btn" onClick={() => editarPago(p)}><Pencil size={14} /></button>
-                                        <button className="icon-btn" onClick={() => eliminarPago(p.id)}><Trash2 size={14} /></button>
-                                    </span>
-                                </div>
-                            ))}
+                            {pagos.length === 0 ? (
+                                <EmptyState
+                                    icono={<CreditCard size={20} />}
+                                    titulo="Aún no hay pagos de esta máquina"
+                                    texto={`Registra lo que te pagan los clientes por el trabajo de ${maq.nombre}.`}
+                                    accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="pagoCliente"]')?.focus() }}
+                                />
+                            ) : (
+                                <>
+                                    <div className="tr hdr only-desk">
+                                        <span>Fecha</span><span className="w2">Cliente</span><span className="w2">Descripción</span>
+                                        <span className="amt">Total</span><span className="amt">Pagado</span><span className="amt">Saldo</span><span>Estado</span><span>Acc.</span>
+                                    </div>
+                                    {pagos.map(p => (
+                                        <div className="tr only-desk" key={p.id}>
+                                            <span>{fmtFecha(p.fecha)}</span>
+                                            <span className="w2">{p.cliente}</span>
+                                            <span className="w2">{p.descripcion || '—'}</span>
+                                            <span className="amt">{fmt(p.valorTotal)}</span>
+                                            <span className="pos amt">{fmt(p.valorPagado)}</span>
+                                            <span className="neg amt">{fmt(p.saldoPendiente)}</span>
+                                            <span><Estado valor={p.estado} /></span>
+                                            <span>
+                                                <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPago(p)}><Pencil size={14} /></button>
+                                                <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPago(p.id)}><Trash2 size={14} /></button>
+                                            </span>
+                                        </div>
+                                    ))}
+                                    {pagos.map(p => (
+                                        <div className="mcard only-mob" key={p.id}>
+                                            <div className="mcard-top"><span className="mcard-t">{p.cliente}</span><Estado valor={p.estado} /></div>
+                                            {p.descripcion && <div className="mcard-d">{p.descripcion}</div>}
+                                            <div className="mcard-nums">
+                                                <div><span>Total</span><b>{fmt(p.valorTotal)}</b></div>
+                                                <div><span>Pagado</span><b className="pos">{fmt(p.valorPagado)}</b></div>
+                                                <div><span>Saldo</span><b className={p.saldoPendiente > 0 ? 'neg' : ''}>{fmt(p.saldoPendiente)}</b></div>
+                                            </div>
+                                            <div className="mcard-foot">
+                                                <span>{fmtFecha(p.fecha)}</span>
+                                                <span>
+                                                    <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPago(p)}><Pencil size={15} /></button>
+                                                    <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPago(p.id)}><Trash2 size={15} /></button>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </>
+                            )}
                         </div>
                     </>
                 )}

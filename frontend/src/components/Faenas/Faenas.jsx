@@ -10,10 +10,12 @@ import { useConfirm } from '../../utils/ConfirmModal';
 import {
     Briefcase, Plus, Check, Trash2, StopCircle, RotateCcw, ChevronDown, ChevronUp,
     BarChart2, Calendar, Tractor, Pencil,
-    Clock, Info,
+    Clock, Info, TrendingUp, TrendingDown, User,
 } from 'lucide-react';
 
 import { fmtFecha } from '../../utils/fmtFecha';
+import EmptyState from '../../utils/EmptyState';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import './Faenas.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
@@ -27,6 +29,7 @@ const FORM_VACIO = { maquinaNombre: '', nombreObra: '', cliente: '', fechaInicio
 
 function Faenas() {
     const toast = useToast();
+    const errForm = useErrores();
     const { confirm, ConfirmUI } = useConfirm();
 
     const [faenas, setFaenas]         = useState([]);
@@ -84,8 +87,10 @@ function Faenas() {
     };
 
     const guardar = async () => {
-        if (!editandoId && !form.maquinaNombre) return toast('Selecciona una máquina', 'e');
-        if (!form.nombreObra?.trim()) return toast('Escribe el nombre de la obra', 'e');
+        if (!errForm.validar([
+            { campo: 'pfMaq', ok: !!editandoId || !!form.maquinaNombre, msg: 'Escoge la máquina que sale a trabajar' },
+            { campo: 'pfObra', ok: !!form.nombreObra?.trim(), msg: 'Escribe el nombre de la obra' },
+        ])) return;
 
         try {
             if (editandoId) {
@@ -233,11 +238,12 @@ function Faenas() {
                             <div className="fg2">
                                 <div>
                                     <label className="fl">Máquina *</label>
-                                    <select className="fsel" value={form.maquinaNombre}
-                                        onChange={e => setForm({ ...form, maquinaNombre: e.target.value })}>
+                                    <select className={errForm.clase('fsel', 'pfMaq')} {...errForm.props('pfMaq')} value={form.maquinaNombre}
+                                        onChange={e => { setForm({ ...form, maquinaNombre: e.target.value }); errForm.limpiar('pfMaq'); }}>
                                         <option value="">Selecciona una máquina...</option>
                                         {nomsMaquinas.map(n => <option key={n}>{n}</option>)}
                                     </select>
+                                    <ErrorCampo msg={errForm.errores.pfMaq} />
                                 </div>
                                 <div>
                                     <label className="fl">Fecha inicio</label>
@@ -249,9 +255,10 @@ function Faenas() {
                         <div className="fg2">
                             <div>
                                 <label className="fl">Nombre de la obra *</label>
-                                <input className="fi" value={form.nombreObra}
-                                    onChange={e => setForm({ ...form, nombreObra: e.target.value })}
+                                <input className={errForm.clase('fi', 'pfObra')} {...errForm.props('pfObra')} value={form.nombreObra}
+                                    onChange={e => { setForm({ ...form, nombreObra: e.target.value }); errForm.limpiar('pfObra'); }}
                                     placeholder="Ej: Carretera Vía Caucasia" />
+                                <ErrorCampo msg={errForm.errores.pfObra} />
                             </div>
                             <div>
                                 <label className="fl">Cliente</label>
@@ -308,7 +315,12 @@ function Faenas() {
                 )}
 
                 {faenas.length === 0 && (
-                    <p className="vacio">Sin periodos registrados — abre uno cuando la máquina salga a trabajar</p>
+                    <EmptyState
+                        icono={<Briefcase size={20} />}
+                        titulo="Aún no hay periodos"
+                        texto="Abre un periodo cuando una máquina salga a trabajar a una obra. Ahí se juntan sus ingresos, gastos y horas."
+                        accion={{ label: 'Abrir el primero', onClick: abrirNueva }}
+                    />
                 )}
 
             </div></div>
@@ -319,6 +331,7 @@ function Faenas() {
 
 function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar, onRefrescar }) {
     const toast = useToast();
+    const errRapido = useErrores();
     const abierta = expandida === f.id;
     const det = detalle[f.id];
     const activa = f.estado === 'activa';
@@ -333,9 +346,10 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
     };
 
     const guardarRapido = async () => {
-        if (!datoRapido.descripcion.trim() || !datoRapido.monto) {
-            return toast('Completa descripción y monto', 'e');
-        }
+        if (!errRapido.validar([
+            { campo: `rqDesc${f.id}`, ok: !!datoRapido.descripcion.trim(), msg: 'Escribe qué fue' },
+            { campo: `rqMonto${f.id}`, ok: !!datoRapido.monto, msg: 'Escribe el monto' },
+        ])) return;
         setGuardandoRapido(true);
         try {
             if (formRapido === 'ingreso') {
@@ -454,15 +468,15 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                 tarjetas, el detalle línea por línea de Ingresos/Gastos/etc. vive en Finanzas */}
                             <div className="pe-breakdown">
                                 <div className="pe-bcard good">
-                                    <div className="pe-bcard-l">↑ Ingresos</div>
+                                    <div className="pe-bcard-l"><TrendingUp size={13} /> Ingresos</div>
                                     <div className="pe-bcard-v" style={{ color: '#1c8a4b' }}>{fmt(totalIngDet)}</div>
                                 </div>
                                 <div className="pe-bcard info">
-                                    <div className="pe-bcard-l"><Clock size={12} style={{ verticalAlign: 'middle' }} /> Horas</div>
+                                    <div className="pe-bcard-l"><Clock size={13} /> Horas</div>
                                     <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{totalHorasDet.toLocaleString('es-CO')} hrs</div>
                                 </div>
                                 <div className="pe-bcard bad">
-                                    <div className="pe-bcard-l">↓ Gastos</div>
+                                    <div className="pe-bcard-l"><TrendingDown size={13} /> Gastos</div>
                                     <div className="pe-bcard-v" style={{ color: '#c0392b' }}>{fmt(totalGasDet)}</div>
                                     {catEntries.length > 0 && (
                                         <div style={{ fontSize: '10.5px', color: '#93a2b3', marginTop: '4px' }}>
@@ -471,11 +485,11 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                     )}
                                 </div>
                                 <div className="pe-bcard info">
-                                    <div className="pe-bcard-l">👤 Nómina</div>
+                                    <div className="pe-bcard-l"><User size={13} /> Nómina</div>
                                     <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{fmt(totalSalDet)}</div>
                                 </div>
                                 <div className="pe-bcard gold">
-                                    <div className="pe-bcard-l">◆ Utilidad real</div>
+                                    <div className="pe-bcard-l"><BarChart2 size={13} /> Utilidad real</div>
                                     <div className="pe-bcard-v" style={{ color: utilDet >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(utilDet)}</div>
                                 </div>
                             </div>
@@ -493,7 +507,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                     </div>
                                 )}
                                 {formRapido && (
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', background: '#f8f9fa', padding: '10px', borderRadius: '8px' }}>
+                                    <div className="pe-quickform">
                                         <div>
                                             <label className="fl">Fecha</label>
                                             <input className="fi" type="date" value={datoRapido.fecha}
@@ -501,14 +515,16 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                         </div>
                                         <div style={{ flex: 1, minWidth: '160px' }}>
                                             <label className="fl">Descripción</label>
-                                            <input className="fi" value={datoRapido.descripcion}
+                                            <input className={errRapido.clase('fi', `rqDesc${f.id}`)} {...errRapido.props(`rqDesc${f.id}`)} value={datoRapido.descripcion}
                                                 placeholder={formRapido === 'ingreso' ? 'Ej: Trabajo del 12' : 'Ej: Repuesto'}
-                                                onChange={e => setDatoRapido({ ...datoRapido, descripcion: e.target.value })} />
+                                                onChange={e => { setDatoRapido({ ...datoRapido, descripcion: e.target.value }); errRapido.limpiar(`rqDesc${f.id}`); }} />
+                                            <ErrorCampo msg={errRapido.errores[`rqDesc${f.id}`]} />
                                         </div>
                                         <div>
                                             <label className="fl">Monto</label>
-                                            <input className="fi" type="number" value={datoRapido.monto}
-                                                onChange={e => setDatoRapido({ ...datoRapido, monto: e.target.value })} />
+                                            <input className={errRapido.clase('fi', `rqMonto${f.id}`)} {...errRapido.props(`rqMonto${f.id}`)} type="number" value={datoRapido.monto}
+                                                onChange={e => { setDatoRapido({ ...datoRapido, monto: e.target.value }); errRapido.limpiar(`rqMonto${f.id}`); }} />
+                                            <ErrorCampo msg={errRapido.errores[`rqMonto${f.id}`]} />
                                         </div>
                                         <button className="bp" style={{ fontSize: '12px' }} disabled={guardandoRapido} onClick={guardarRapido}>
                                             <Check size={12} style={{ verticalAlign: 'middle' }} /> Guardar

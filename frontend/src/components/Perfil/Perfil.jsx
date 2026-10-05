@@ -418,7 +418,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                                 <Mail size={18} color="#2980b9" />
                                 <div>
                                     <p>Se enviará un código de verificación a</p>
-                                    <span className="ale-desc" style={{ fontWeight: '700', color: '#1a2d42' }}>{user.email}</span>
+                                    <span className="ale-desc" style={{ fontWeight: '700' }}>{user.email}</span>
                                 </div>
                             </div>
                             <button className="bp" onClick={pedirCodigo} disabled={enviando}

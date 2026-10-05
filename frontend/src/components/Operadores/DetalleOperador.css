@@ -61,3 +61,6 @@ body.dark .do-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .do-kpi-label{color:#94a3b8;}
 body.dark .do-kpi-sub{color:#64748b;}
 body.dark .do-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);color:#1a1004;}
+
+.po-total{padding:10px 16px;font-size:12px;color:#6b7a8d;border-top:1px solid #eef1f5;}
+body.dark .po-total{color:#94a3b8;border-top-color:#334155;}

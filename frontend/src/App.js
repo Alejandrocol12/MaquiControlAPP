@@ -34,6 +34,8 @@ import {
     Briefcase,
     Moon,
     Sun,
+    Monitor,
+    MoreHorizontal,
     WifiOff,
     Map,
     Eye,
@@ -502,14 +504,24 @@ function App() {
     const [sbCol, setSbCol] = useState(false);
     const [sbMob, setSbMob] = useState(false);
     const [tourActivo, setTourActivo] = useState(false);
-    const [darkMode, setDarkMode] = useState(() => localStorage.getItem('mc_dark') === '1');
+    // Tema: 'auto' sigue el modo del celular/computador; 'claro' y 'oscuro' lo fijan.
+    // Quien ya había activado el modo oscuro a mano lo conserva.
+    const [tema, setTema] = useState(() => {
+        try {
+            const t = localStorage.getItem('mc_tema');
+            if (t === 'auto' || t === 'claro' || t === 'oscuro') return t;
+            return localStorage.getItem('mc_dark') === '1' ? 'oscuro' : 'auto';
+        } catch { return 'auto'; }
+    });
+    const [sistemaOscuro, setSistemaOscuro] = useState(() => !!window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+    const darkMode = tema === 'oscuro' || (tema === 'auto' && sistemaOscuro);
     const [isOffline, setIsOffline] = useState(!window.navigator.onLine);
     const [installPrompt, setInstallPrompt] = useState(null);
     const [appInstalada, setAppInstalada] = useState(false);
 
     const ir = (mod) => { setModulo(mod); setSbMob(false); };
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
-    const toggleDark = () => setDarkMode(d => !d);
+    const toggleDark = () => setTema(darkMode ? 'claro' : 'oscuro');
 
     useEffect(() => {
         const stored = getStoredSession();
@@ -521,8 +533,16 @@ function App() {
 
     useEffect(() => {
         document.body.classList.toggle('dark', darkMode);
-        localStorage.setItem('mc_dark', darkMode ? '1' : '0');
-    }, [darkMode]);
+        try { localStorage.setItem('mc_tema', tema); } catch { /* sin almacenamiento */ }
+    }, [darkMode, tema]);
+
+    useEffect(() => {
+        const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+        if (!mq) return undefined;
+        const onChange = (e) => setSistemaOscuro(e.matches);
+        mq.addEventListener?.('change', onChange);
+        return () => mq.removeEventListener?.('change', onChange);
+    }, []);
 
     useEffect(() => {
         const goOff = () => setIsOffline(true);
@@ -724,10 +744,21 @@ function App() {
                             </div>
                         </nav>
 
-                        <button className="dark-btn" onClick={toggleDark}>
-                            <span className="ico">{darkMode ? <Sun size={17} /> : <Moon size={17} />}</span>
-                            <span className="sb-label">{darkMode ? 'Modo claro' : 'Modo oscuro'}</span>
-                        </button>
+                        {sbCol && !sbMob ? (
+                            <button className="dark-btn" title={`Tema: ${tema === 'auto' ? 'automático' : tema}. Toca para cambiar`}
+                                onClick={() => setTema(t => (t === 'auto' ? 'claro' : t === 'claro' ? 'oscuro' : 'auto'))}>
+                                <span className="ico">{tema === 'auto' ? <Monitor size={17} /> : darkMode ? <Moon size={17} /> : <Sun size={17} />}</span>
+                            </button>
+                        ) : (
+                            <div className="tema-sel">
+                                <span className="tema-l">Tema</span>
+                                <div className="tema-seg" role="group" aria-label="Tema de la app">
+                                    {[['auto', 'Automático'], ['claro', 'Claro'], ['oscuro', 'Oscuro']].map(([k, l]) => (
+                                        <button key={k} type="button" className={tema === k ? 'on' : ''} aria-pressed={tema === k} onClick={() => setTema(k)}>{l}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {installPrompt && !appInstalada && (
                             <button className="dark-btn" onClick={instalarApp} title="Instalar MaquiControl como app de escritorio" style={{ color: '#f5a623', borderColor: '#f5a623' }}>
                                 <span className="ico"><Download size={17} /></span>
@@ -749,6 +780,23 @@ function App() {
                         </div>
                         {modulo !== 'mapa' && renderModulo()}
                     </div>
+
+                    {/* Navegación inferior: solo se ve en celular */}
+                    <nav className="bnav" aria-label="Navegación principal">
+                        {[
+                            { key: 'dashboard', label: 'Inicio', ico: <BarChart2 size={20} />, go: () => ir('dashboard') },
+                            { key: 'maquinaria', label: 'Máquinas', ico: <GiBulldozer size={20} />, go: () => { irMaquinaria(); setSbMob(false); } },
+                            { key: 'finanzas', label: 'Finanzas', ico: <DollarSign size={20} />, go: () => ir('finanzas') },
+                            { key: 'faenas', label: 'Periodos', ico: <Briefcase size={20} />, go: () => ir('faenas') },
+                        ].map(b => (
+                            <button key={b.key} type="button" className={modulo === b.key ? 'on' : ''} aria-current={modulo === b.key ? 'page' : undefined} onClick={b.go}>
+                                {b.ico}{b.label}
+                            </button>
+                        ))}
+                        <button type="button" className={['dashboard', 'maquinaria', 'finanzas', 'faenas'].includes(modulo) ? '' : 'on'} onClick={() => setSbMob(true)}>
+                            <MoreHorizontal size={20} />Más
+                        </button>
+                    </nav>
                 </div>
             )}
 

@@ -524,7 +524,7 @@ function PortalOperador({ user, onLogout }) {
                                 </div>
                             </div>
                             {operador.observaciones && (
-                                <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9' }}>
+                                <div className="ale blue">
                                     <Info size={16} color="#2980b9" />
                                     <div><p style={{ margin: 0 }}>{operador.observaciones}</p></div>
                                 </div>
@@ -537,7 +537,7 @@ function PortalOperador({ user, onLogout }) {
 
                             {hasPin ? (
                                 <div>
-                                    <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                                    <div className="ale green" style={{ marginBottom: '14px' }}>
                                         <CheckCircle size={18} color="#27ae60" />
                                         <div>
                                             <p>Tienes un PIN de 4 dígitos configurado</p>
@@ -595,7 +595,7 @@ function PortalOperador({ user, onLogout }) {
 
                             {passStep === 0 ? (
                                 <div>
-                                    <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9', marginBottom: '14px' }}>
+                                    <div className="ale blue" style={{ marginBottom: '14px' }}>
                                         <Mail size={18} color="#2980b9" />
                                         <div>
                                             <p>Se enviará un código a <strong>{operador.email || user?.email}</strong></p>
@@ -610,7 +610,7 @@ function PortalOperador({ user, onLogout }) {
                                 </div>
                             ) : (
                                 <div>
-                                    <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60', marginBottom: '14px' }}>
+                                    <div className="ale green" style={{ marginBottom: '14px' }}>
                                         <Check size={18} color="#27ae60" />
                                         <div><p>Código enviado. Revisa tu bandeja.</p><span className="ale-desc">Válido por 15 minutos.</span></div>
                                     </div>

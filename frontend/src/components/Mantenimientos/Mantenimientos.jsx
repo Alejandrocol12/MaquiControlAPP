@@ -6,6 +6,9 @@ import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { Wrench, Clock, TrendingDown, Plus, Check, Pencil, Trash2, Search, AlertCircle } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import { fmtFecha } from '../../utils/fmtFecha';
+import Estado from '../../utils/Estado';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -13,6 +16,7 @@ const FORM_VACIO = { maquinaNombre: '', tipo: '', descripcion: '', costo: '', ho
 
 function Mantenimientos() {
     const toast = useToast();
+    const errMant = useErrores();
     const { confirm, ConfirmUI } = useConfirm();
     const [maquinas, setMaquinas]           = useState([]);
     const [mantenimientos, setMantenimientos] = useState([]);
@@ -33,8 +37,10 @@ function Mantenimientos() {
     const hc = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const guardar = () => {
-        if (!form.maquinaNombre) return toast('Selecciona una máquina', 'e');
-        if (!form.tipo) return toast('Selecciona el tipo de mantenimiento', 'e');
+        if (!errMant.validar([
+            { campo: 'mtMaq', ok: !!form.maquinaNombre, msg: 'Escoge la máquina' },
+            { campo: 'mtTipo', ok: !!form.tipo, msg: 'Escoge el tipo de mantenimiento' },
+        ])) return;
         const costo = Number(form.costo) || 0;
         if (editandoId) {
             updateMantenimiento(editandoId, form)
@@ -117,7 +123,7 @@ function Mantenimientos() {
                         <AlertCircle size={18} color="#e74c3c" />
                         <div>
                             <p>{m.maquinaNombre} — {m.tipo}</p>
-                            <span className="ale-desc">{m.fecha} · Pendiente revisión</span>
+                            <span className="ale-desc">{fmtFecha(m.fecha)} · Pendiente revisión</span>
                         </div>
                     </div>
                 ))}
@@ -129,18 +135,20 @@ function Mantenimientos() {
                         <div className="fg2">
                             <div>
                                 <label className="fl">Máquina *</label>
-                                <select className="fsel" name="maquinaNombre" value={form.maquinaNombre} onChange={hc}>
+                                <select className={errMant.clase('fsel', 'mtMaq')} {...errMant.props('mtMaq')} name="maquinaNombre" value={form.maquinaNombre} onChange={e => { hc(e); errMant.limpiar('mtMaq'); }}>
                                     <option value="">Selecciona...</option>
                                     {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
                                 </select>
+                                <ErrorCampo msg={errMant.errores.mtMaq} />
                             </div>
                             <div>
                                 <label className="fl">Tipo *</label>
-                                <select className="fsel" name="tipo" value={form.tipo} onChange={hc}>
+                                <select className={errMant.clase('fsel', 'mtTipo')} {...errMant.props('mtTipo')} name="tipo" value={form.tipo} onChange={e => { hc(e); errMant.limpiar('mtTipo'); }}>
                                     <option value="">Selecciona...</option>
                                     <option>Preventivo</option><option>Correctivo</option>
                                     <option>Cambio aceite</option><option>Revisión general</option><option>Otro</option>
                                 </select>
+                                <ErrorCampo msg={errMant.errores.mtTipo} />
                             </div>
                         </div>
                         <div className="fg3">
@@ -177,22 +185,20 @@ function Mantenimientos() {
                         <Th campo="maquinaNombre" className="w2">Máquina</Th>
                         <Th campo="tipo">Tipo</Th>
                         <span className="w2">Descripción</span>
-                        <Th campo="costo">Costo</Th>
+                        <Th campo="costo" className="amt">Costo</Th>
                         <Th campo="estado">Estado</Th>
                         <span>Acc.</span>
                     </div>
                     {lista.length === 0 && <p className="vacio">Sin registros</p>}
                     {lista.map(m => (
                         <div className="tr" key={m.id}>
-                            <span>{m.fecha}</span>
+                            <span>{fmtFecha(m.fecha)}</span>
                             <span className="w2">{m.maquinaNombre}</span>
                             <span>{m.tipo}</span>
                             <span className="w2">{m.descripcion || '—'}</span>
-                            <span className="neg">{fmt(m.costo)}</span>
+                            <span className="neg amt">{fmt(m.costo)}</span>
                             <span>
-                                <span className={`b ${m.estado === 'Completado' ? 'comp' : m.estado === 'En proceso' ? 'pend' : 'falla'}`}>
-                                    {m.estado}
-                                </span>
+                                <Estado valor={m.estado} />
                             </span>
                             <span style={{ display: 'flex', gap: '4px' }}>
                                 <button className="icon-btn" onClick={() => abrirEditar(m)}><Pencil size={14} /></button>

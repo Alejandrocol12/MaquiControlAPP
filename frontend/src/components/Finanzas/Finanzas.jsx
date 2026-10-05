@@ -13,6 +13,9 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle, ChevronDown, ChevronUp, Tractor } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import FiltroChips from '../../utils/FiltroChips';
+import Estado from '../../utils/Estado';
+import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import './Finanzas.css';
@@ -394,26 +397,26 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 </div>
 
                 {/* FILTRO PERÍODO */}
-                <div className="fin-filters">
-                    {[
+                <FiltroChips
+                    className="fin-filters"
+                    valor={periodoFiltro}
+                    onChange={setPeriodoFiltro}
+                    opciones={[
                         { key: 'todo',   label: 'Todo' },
                         { key: 'mes',    label: 'Este mes' },
                         { key: 'ultimo', label: 'Mes anterior' },
                         { key: 'anio',   label: 'Este año' },
                         { key: 'rango',  label: 'Personalizado' },
-                    ].map(f => (
-                        <button key={f.key} className={`fin-chip ${periodoFiltro === f.key ? 'on' : ''}`} onClick={() => setPeriodoFiltro(f.key)}>
-                            {f.label}
-                        </button>
-                    ))}
+                    ]}
+                >
                     {periodoFiltro === 'rango' && (
                         <>
-                            <input type="date" className="fin-input" style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }} value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
-                            <span style={{ fontSize: '12px', color: '#6b7a8d' }}>→</span>
-                            <input type="date" className="fin-input" style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }} value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
+                            <input type="date" aria-label="Desde" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)} />
+                            <span style={{ fontSize: '12px', color: '#93a2b3' }}>→</span>
+                            <input type="date" aria-label="Hasta" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)} />
                         </>
                     )}
-                </div>
+                </FiltroChips>
 
                 {/* TABS */}
                 <div className="fin-tabs">
@@ -481,7 +484,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <span style={{ textAlign: 'right' }}>Total</span>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
-                                    {ingFiltrados.length === 0 && <p className="fin-vacio">Sin registros</p>}
+                                    {ingFiltrados.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo ingreso', onClick: abrirNuevo }} />}
                                     {pagIng.paginados.map(i => (
                                         <div className={`fin-lrow ${editandoId === i.id ? 'sel' : ''}`} key={i.id} style={{ gridTemplateColumns: GRID.ingresos }}>
                                             <span className="date">{fmtFecha(i.fecha)}</span>
@@ -532,7 +535,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <span style={{ textAlign: 'right' }}>Monto</span>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
-                                    {gasFiltrados.length === 0 && <p className="fin-vacio">Sin registros</p>}
+                                    {gasFiltrados.length === 0 && <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo gasto', onClick: abrirNuevo }} />}
                                     {pagGas.paginados.map(g => {
                                         const esCombAuto = g.descripcion?.includes('Combustible —');
                                         const esSalAuto  = g.categoria === 'Salario' && g.descripcion?.startsWith('Salario —');
@@ -592,7 +595,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <ThSal campo="estado">Estado</ThSal>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
-                                    {salFiltrados.length === 0 && <p className="fin-vacio">Sin registros</p>}
+                                    {salFiltrados.length === 0 && <EmptyState icono={<HardHat size={20} />} titulo="No hay salarios para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o liquida uno nuevo." accion={{ label: 'Nuevo salario', onClick: abrirNuevo }} />}
                                     {pagSal.paginados.map(s => (
                                         <div className={`fin-lrow ${editandoId === s.id ? 'sel' : ''}`} key={s.id} style={{ gridTemplateColumns: GRID.salarios }}>
                                             <span className="fin-cell strong">{s.operadorNombre}</span>
@@ -601,7 +604,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                             <span className="fin-money pos">{fmt(s.totalBruto)}</span>
                                             <span className="fin-money neg">-{fmt(s.anticipos)}</span>
                                             <span className="fin-money pos">{fmt(s.totalNeto)}</span>
-                                            <span><span className={`fin-badge ${s.estado === 'Pagado' ? 'ok' : 'pend'}`}>{s.estado}</span></span>
+                                            <span><Estado valor={s.estado} /></span>
                                             <div className="fin-actions">
                                                 <button className="fin-iconbtn" onClick={() => abrirEditar(s)}><Pencil size={14} /></button>
                                                 <button className="fin-iconbtn" onClick={() => eliminar('salarios', s.id)}><Trash2 size={14} /></button>
@@ -624,7 +627,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <ThPag campo="estado">Estado</ThPag>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
-                                    {pagFiltrados.length === 0 && <p className="fin-vacio">Sin registros</p>}
+                                    {pagFiltrados.length === 0 && <EmptyState icono={<CreditCard size={20} />} titulo="No hay pagos de clientes para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo pago', onClick: abrirNuevo }} />}
                                     {pagPag.paginados.map(p => {
                                         const ingMaq = ingresos.filter(i => i.maquinaNombre === p.maquinaNombre).reduce((a, i) => a + (Number(i.total) || 0), 0);
                                         const pagMaq = pagos.filter(x => x.maquinaNombre === p.maquinaNombre).reduce((a, x) => a + (Number(x.valorPagado) || 0), 0);
@@ -640,7 +643,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                 <span className="fin-money mut">{fmt(p.valorTotal)}</span>
                                                 <span className="fin-money pos">{fmt(p.valorPagado)}</span>
                                                 <span className="fin-money neg">{fmt(p.saldoPendiente)}</span>
-                                                <span><span className={`fin-badge ${p.estado === 'Pagado' ? 'ok' : p.estado === 'Parcial' ? 'par' : 'deu'}`}>{p.estado}</span></span>
+                                                <span><Estado valor={p.estado} /></span>
                                                 <div className="fin-actions">
                                                     <button className="fin-iconbtn" onClick={() => abrirEditar(p)}><Pencil size={14} /></button>
                                                     <button className="fin-iconbtn" onClick={() => eliminar('pagos', p.id)}><Trash2 size={14} /></button>

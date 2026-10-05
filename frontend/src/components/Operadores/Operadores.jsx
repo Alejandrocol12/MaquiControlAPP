@@ -4,6 +4,7 @@ import { useSortable } from '../../utils/useSortable';
 import DetalleOperador from './DetalleOperador';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -31,6 +32,7 @@ const FORM_VACIO = {
 
 function Operadores() {
     const toast = useToast();
+    const errOp = useErrores();
     const { confirm, ConfirmUI } = useConfirm();
     const [operadores, setOperadores] = useState([]);
     const [maquinas, setMaquinas]     = useState([]);
@@ -85,9 +87,11 @@ function Operadores() {
         const telefono = form.telefono.trim();
         const observaciones = form.observaciones.trim();
 
-        if (!nombre) return toast('El nombre es obligatorio', 'e');
-        if (form.crearAcceso && !email) return toast('El correo es obligatorio para crear acceso', 'e');
-        if (form.crearAcceso && form.password.length < 6) return toast('La clave del operador debe tener al menos 6 caracteres', 'e');
+        if (!errOp.validar([
+            { campo: 'opNombre', ok: !!nombre, msg: 'Escribe el nombre del operador' },
+            { campo: 'opEmail', ok: !form.crearAcceso || !!email, msg: 'Para crearle acceso necesita un correo' },
+            { campo: 'opPass', ok: !form.crearAcceso || form.password.length >= 6, msg: 'La clave debe tener al menos 6 caracteres' },
+        ])) return;
 
         try {
             setRegistrando(true);
@@ -257,7 +261,8 @@ function Operadores() {
                         <p className="fd">Solo datos personales — la máquina y valor/hora se asignan desde el módulo Maquinaria</p>
                         <div className="fg2">
                             <div><label className="fl">Nombre completo *</label>
-                                <input className="fi" value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: Carlos Pérez" />
+                                <input className={errOp.clase('fi', 'opNombre')} {...errOp.props('opNombre')} value={form.nombre} onChange={e => { setForm({ ...form, nombre: e.target.value }); errOp.limpiar('opNombre'); }} placeholder="Ej: Carlos Pérez" />
+                                <ErrorCampo msg={errOp.errores.opNombre} />
                             </div>
                             <div><label className="fl">Cédula</label>
                                 <input className="fi" value={form.cedula} onChange={e => setForm({ ...form, cedula: e.target.value })} placeholder="Ej: 1234567890" />
@@ -289,11 +294,13 @@ function Operadores() {
                             <div className="fg2">
                                 <div>
                                     <label className="fl">Correo de acceso *</label>
-                                    <input className="fi" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="operador@mail.com" />
+                                    <input className={errOp.clase('fi', 'opEmail')} {...errOp.props('opEmail')} type="email" value={form.email} onChange={e => { setForm({ ...form, email: e.target.value }); errOp.limpiar('opEmail'); }} placeholder="operador@mail.com" />
+                                    <ErrorCampo msg={errOp.errores.opEmail} />
                                 </div>
                                 <div>
                                     <label className="fl">Contrasena inicial *</label>
-                                    <input className="fi" type="password" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Minimo 6 caracteres" />
+                                    <input className={errOp.clase('fi', 'opPass')} {...errOp.props('opPass')} type="password" value={form.password} onChange={e => { setForm({ ...form, password: e.target.value }); errOp.limpiar('opPass'); }} placeholder="Mínimo 6 caracteres" />
+                                    <ErrorCampo msg={errOp.errores.opPass} />
                                 </div>
                             </div>
                         )}

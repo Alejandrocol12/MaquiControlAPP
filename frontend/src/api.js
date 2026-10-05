@@ -148,6 +148,7 @@ export const loginPin      = (data) => API.post('/auth/pin/login', data);
 
 // IA
 export const leerFacturaIA = (formData) => API.post('/ia/leer-factura', formData);
+export const interpretarIA = (texto) => API.post('/ia/interpretar', { texto });
 
 // Sesión compartida de solo lectura
 export const crearEnlace    = (data)  => API.post('/compartido', data);

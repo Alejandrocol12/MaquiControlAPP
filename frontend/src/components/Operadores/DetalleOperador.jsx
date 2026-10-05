@@ -39,6 +39,11 @@ import {
     CreditCard,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import ScrollTabs from '../../utils/ScrollTabs';
+import Estado from '../../utils/Estado';
+import EmptyState from '../../utils/EmptyState';
+import Opcional from '../../utils/Opcional';
+import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
@@ -86,6 +91,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     // Pago Operador -- bitácora informativa de cuánto se le ha pagado al operador; no se
     // relaciona con Salarios ni con ningún otro total, solo admin (no visible en el portal).
     const [pagosOperador, setPagosOperador] = useState([]);
+    const errPagoOp = useErrores();
+    const errEdit = useErrores();
     const PAGO_OP_VACIO = { descripcion: '', monto: '', fecha: hoy() };
     const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
     const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
@@ -101,7 +108,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
     const guardarPagoOperador = async () => {
         const monto = parseFloat(pagoOpForm.monto);
-        if (!monto || monto <= 0) return toast('Ingresa un monto válido', 'e');
+        if (!errPagoOp.validar([{ campo: 'poMonto', ok: monto > 0, msg: 'Escribe cuánto le pagaste' }])) return;
         const payload = { operadorNombre: operadorLocal.nombre, descripcion: pagoOpForm.descripcion, monto, fecha: pagoOpForm.fecha };
         try {
             if (editandoPagoOpId) {
@@ -122,7 +129,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), fecha: p.fecha || hoy() });
         setEditandoPagoOpId(p.id);
     };
-    const cancelarPagoOperador = () => { setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); };
+    const cancelarPagoOperador = () => { setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
     const eliminarPagoOperador = async (id) => {
         if (!await confirm('¿Eliminar este registro de pago?')) return;
         const prev = pagosOperador;
@@ -140,7 +147,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [operadorLocal, setOperadorLocal] = useState(operador);
 
     const guardarEdicion = () => {
-        if (!editForm.nombre.trim()) return toast('El nombre es obligatorio', 'e');
+        if (!errEdit.validar([{ campo: 'edNombre', ok: !!editForm.nombre.trim(), msg: 'Escribe el nombre del operador' }])) return;
         updateOperadorAPI(operadorLocal.id, editForm)
             .then(({ data }) => {
                 setOperadorLocal(data);
@@ -238,6 +245,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const salarioNeto = salarioBruto - anticipos;
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
     const totalPagadoOperador = pagosOperador.reduce((a, p) => a + (Number(p.monto) || 0), 0);
+    const pagosOperadorOrdenados = pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
@@ -388,9 +396,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         </div>
                     )}
 
-                    <div className="do-dtabs">
+                    <ScrollTabs className="do-dtabs" activeIndex={tab}>
                         {TABS.map((t, i) => <button key={i} className={`do-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
-                    </div>
+                    </ScrollTabs>
 
                     {tab === 0 && (
                         <>
@@ -440,7 +448,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             </div>
 
                             {periodoActivo && (
-                                <div className="ale" style={{ background: '#fff8e7', borderColor: '#f5a623' }}>
+                                <div className="ale">
                                     <Calendar size={18} />
                                     <div style={{ flex: 1 }}>
                                         {editandoFechaPeriodo ? (
@@ -468,7 +476,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             )}
 
                             {maqAsignada && (
-                                <div className="ale" style={{ background: '#e8f0fe', borderColor: '#2980b9' }}>
+                                <div className="ale blue">
                                     <Gauge size={18} />
                                     <div>
                                         <p>Horometro actual de {maqAsignada.nombre}</p>
@@ -493,7 +501,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                             <div className="tbl">
                                 <div className="th"><strong>Horas de este periodo</strong></div>
-                                <div className="tr hdr"><span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>Horometro fin</span><span>Valor ganado</span></div>
+                                <div className="tr hdr"><span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>Horometro fin</span><span className="amt">Valor ganado</span></div>
                                 {horasDelPeriodo.length === 0 && <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p>}
                                 {horasDelPeriodo.slice(0, 8).map((h) => (
                                     <div className="tr" key={h.id}>
@@ -501,7 +509,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         <span className="w2">{h.maquinaNombre}</span>
                                         <span><strong>{getHrs(h)}</strong> hrs</span>
                                         <span>{h.horometroFin || '-'}</span>
-                                        <span className="pos">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
+                                        <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
                                     </div>
                                 ))}
                             </div>
@@ -519,8 +527,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <ThHora campo="fecha">Fecha</ThHora>
                                 <ThHora campo="maquinaNombre" className="w2">Máquina</ThHora>
                                 <ThHora campo="horas">Horas</ThHora>
-                                <ThHora campo="valorHora">$/Hora</ThHora>
-                                <span>Valor</span>
+                                <ThHora campo="valorHora" className="amt">$/Hora</ThHora>
+                                <span className="amt">Valor</span>
                                 <span>Acc.</span>
                             </div>
                             {horasOrdenadas.length === 0 && <p className="vacio">Sin horas registradas</p>}
@@ -529,8 +537,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <span>{fmtFecha(h.fecha)}</span>
                                     <span className="w2">{h.maquinaNombre}</span>
                                     <span><strong>{getHrs(h)}</strong> hrs</span>
-                                    <span>{fmt(h.valorHora || valorHora)}</span>
-                                    <span className="pos">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
+                                    <span className="amt">{fmt(h.valorHora || valorHora)}</span>
+                                    <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
                                     <span>
                                         <button className="icon-btn" onClick={async () => {
                                             if (await confirm('Eliminar este registro de horas?')) {
@@ -548,7 +556,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                     {tab === 2 && (
                         <>
-                            <div className="ale" style={{ background: '#e8f5e9', borderColor: '#27ae60' }}>
+                            <div className="ale green">
                                 <Info size={18} />
                                 <div>
                                     <p>Cierra el periodo activo para reiniciar las horas y el salario a cero</p>
@@ -570,9 +578,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                                 ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#27ae60', display: 'inline-block' }}></span>Periodo activo</span>
                                                 : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Calendar size={13} />Periodo {periodos.length - i}</span>}
                                         </strong>
-                                        <span className={`b ${p.estado === 'activo' ? 'ok' : 'comp'}`}>
-                                            {p.estado === 'activo' ? 'En curso' : 'Cerrado'}
-                                        </span>
+                                        <Estado valor={p.estado === 'activo' ? 'En curso' : 'Cerrado'} />
                                     </div>
                                     <div className="rr"><span>Inicio</span><span>{fmtFecha(p.fechaInicio)}</span></div>
                                     {p.fechaFin && <div className="rr"><span>Fin</span><span>{fmtFecha(p.fechaFin)}</span></div>}
@@ -608,7 +614,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                     {tab === 3 && !modoPortal && (
                         <>
-                            <div className="ale" style={{ background: '#f5eefa', borderColor: '#8e44ad' }}>
+                            <div className="ale purple">
                                 <CreditCard size={18} color="#8e44ad" />
                                 <div>
                                     <p>Bitácora de pagos al operador</p>
@@ -620,11 +626,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago al operador'}
                                 </h3>
-                                <div className="fg2">
-                                    <div><label className="fl">Monto ($) *</label><MoneyInput className="fi" value={pagoOpForm.monto} onChange={e => setPagoOpForm({ ...pagoOpForm, monto: e.target.value })} placeholder="Ej: 200.000" /></div>
-                                    <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoOpForm.fecha} onChange={e => setPagoOpForm({ ...pagoOpForm, fecha: e.target.value })} /></div>
-                                </div>
-                                <div><label className="fl">Descripción (opcional)</label><input className="fi" value={pagoOpForm.descripcion} onChange={e => setPagoOpForm({ ...pagoOpForm, descripcion: e.target.value })} placeholder="Ej: Pago en efectivo quincena" /></div>
+                                <label className="fl">Monto ($) *</label>
+                                <MoneyInput className={errPagoOp.clase('fi', 'poMonto')} {...errPagoOp.props('poMonto')} value={pagoOpForm.monto}
+                                    onChange={e => { setPagoOpForm({ ...pagoOpForm, monto: e.target.value }); errPagoOp.limpiar('poMonto'); }} placeholder="Ej: 200.000" />
+                                <ErrorCampo msg={errPagoOp.errores.poMonto} />
+                                <Opcional label="Fecha y descripción (opcional)" abierto={!!editandoPagoOpId && !!pagoOpForm.descripcion}>
+                                    <div className="fg2-keep">
+                                        <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoOpForm.fecha} onChange={e => setPagoOpForm({ ...pagoOpForm, fecha: e.target.value })} /></div>
+                                        <div><label className="fl">Descripción</label><input className="fi" value={pagoOpForm.descripcion} onChange={e => setPagoOpForm({ ...pagoOpForm, descripcion: e.target.value })} placeholder="Ej: Quincena" /></div>
+                                    </div>
+                                </Opcional>
                                 <div style={{ display: 'flex', gap: '10px' }}>
                                     <button className="bp" onClick={guardarPagoOperador}>
                                         <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {editandoPagoOpId ? 'Guardar cambios' : 'Registrar pago'}
@@ -635,22 +646,44 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                             <div className="tbl">
                                 <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
-                                <div className="tr hdr"><span>Fecha</span><span className="w2">Descripción</span><span>Monto</span><span>Acc.</span></div>
-                                {pagosOperador.length === 0 && <p className="vacio">Sin pagos registrados</p>}
-                                {pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')).map(p => (
-                                    <div className="tr" key={p.id}>
-                                        <span>{fmtFecha(p.fecha)}</span>
-                                        <span className="w2">{p.descripcion || '—'}</span>
-                                        <span className="pos">{fmt(p.monto)}</span>
-                                        <span>
-                                            <button className="icon-btn" onClick={() => editarPagoOperador(p)}><Pencil size={14} /></button>
-                                            <button className="icon-btn" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={14} /></button>
-                                        </span>
-                                    </div>
-                                ))}
-                                <div style={{ padding: '10px 16px', fontSize: '12px', color: '#6b7a8d', borderTop: '1px solid #eef1f5' }}>
-                                    Total pagado (informativo): <strong className="pos">{fmt(totalPagadoOperador)}</strong>
-                                </div>
+                                {pagosOperador.length === 0 ? (
+                                    <EmptyState
+                                        icono={<CreditCard size={20} />}
+                                        titulo="Aún no hay pagos registrados"
+                                        texto={`Anota aquí lo que le vas pagando a ${operadorLocal.nombre}, para que quede constancia.`}
+                                        accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="poMonto"]')?.focus() }}
+                                    />
+                                ) : (
+                                    <>
+                                        <div className="tr hdr only-desk"><span>Fecha</span><span className="w2">Descripción</span><span className="amt">Monto</span><span>Acc.</span></div>
+                                        {pagosOperadorOrdenados.map(p => (
+                                            <div className="tr only-desk" key={p.id}>
+                                                <span>{fmtFecha(p.fecha)}</span>
+                                                <span className="w2">{p.descripcion || '—'}</span>
+                                                <span className="pos amt">{fmt(p.monto)}</span>
+                                                <span>
+                                                    <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPagoOperador(p)}><Pencil size={14} /></button>
+                                                    <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={14} /></button>
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {pagosOperadorOrdenados.map(p => (
+                                            <div className="mcard only-mob" key={p.id}>
+                                                <div className="mcard-top"><span className="mcard-t">{p.descripcion || 'Pago'}</span><b className="pos" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{fmt(p.monto)}</b></div>
+                                                <div className="mcard-foot">
+                                                    <span>{fmtFecha(p.fecha)}</span>
+                                                    <span>
+                                                        <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPagoOperador(p)}><Pencil size={15} /></button>
+                                                        <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={15} /></button>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="po-total">
+                                            Total pagado (informativo): <strong className="pos">{fmt(totalPagadoOperador)}</strong>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </>
                     )}
@@ -666,11 +699,13 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <div>
                                     <label className="fl">Nombre completo *</label>
                                     <input
-                                        className="fi"
+                                        className={errEdit.clase('fi', 'edNombre')}
+                                        {...errEdit.props('edNombre')}
                                         value={editForm.nombre}
-                                        onChange={e => setEditForm({ ...editForm, nombre: e.target.value })}
+                                        onChange={e => { setEditForm({ ...editForm, nombre: e.target.value }); errEdit.limpiar('edNombre'); }}
                                         placeholder="Ej: Carlos Pérez"
                                     />
+                                    <ErrorCampo msg={errEdit.errores.edNombre} />
                                 </div>
                                 <div>
                                     <label className="fl">Cédula</label>
