@@ -20,6 +20,8 @@ import EmptyState from '../../utils/EmptyState';
 import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
+import CortesFaena from '../Faenas/CortesFaena';
+import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import ScrollTabs from '../../utils/ScrollTabs';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -933,6 +935,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 0 — RESUMEN */}
                 {tab === 0 && (
                     <>
+                        {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} onVer={() => setTab(5)} />}
+
                         <div className="mq-hero4">
                             <div className="mq-kpi good">
                                 <div className="mq-kpi-top"><span className="mq-kpi-label">Ingresos periodo</span><span className="mq-kpi-ico"><TrendingUp size={14} /></span></div>
@@ -1379,6 +1383,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         </>
                                     )}
                                 </div>
+
+                                <CortesFaena faena={faenaActiva} ingresos={ingFaena} onCambio={cargarDatos} />
 
                                 <div className="ale red">
                                     <StopCircle size={18} color="#e74c3c" />
