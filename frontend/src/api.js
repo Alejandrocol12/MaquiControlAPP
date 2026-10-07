@@ -93,11 +93,18 @@ export const createPago  = (data)     => API.post('/pagos', data);
 export const updatePago  = (id, data) => API.put(`/pagos/${id}`, data);
 export const deletePago  = (id)       => API.delete(`/pagos/${id}`);
 
-// Pagos operador -- bitácora informativa, no suma a nada
+// Pagos operador -- cada pago genera su gasto "Pago operador" en el backend
 export const getPagosOperador    = ()         => API.get('/pagos-operador');
 export const createPagoOperador  = (data)     => API.post('/pagos-operador', data);
 export const updatePagoOperador  = (id, data) => API.put(`/pagos-operador/${id}`, data);
 export const deletePagoOperador  = (id)       => API.delete(`/pagos-operador/${id}`);
+export const getPagosOperadorSinGasto = ()  => API.get('/pagos-operador/sin-gasto');
+export const pasarPagosOperadorAGastos = () => API.post('/pagos-operador/pasar-a-gastos');
+
+// Cortes: tramos de un periodo entre dos fechas, para cobrarle al cliente y liquidar al operador
+export const getCortes   = ()     => API.get('/cortes');
+export const createCorte = (data) => API.post('/cortes', data);
+export const deleteCorte = (id)   => API.delete(`/cortes/${id}`);
 
 // Operadores
 export const getOperadoresAPI   = ()         => API.get('/operadores');

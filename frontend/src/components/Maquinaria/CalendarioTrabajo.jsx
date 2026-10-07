@@ -72,7 +72,8 @@ function CalendarioTrabajo({ ingresos }) {
                             className={`mq-cal-day ${futuro ? 'fut' : nivel(h)} ${sel === k ? 'sel' : ''} ${k === hoyISO ? 'hoy' : ''}`}
                             title={futuro ? '' : h > 0 ? `${num(h)} h` : 'No trabajó'}
                             onClick={() => setSel(k)}>
-                            {d}
+                            <span>{d}</span>
+                            {!futuro && h > 0 && <small>{num(h)} h</small>}
                         </button>
                     );
                 })}

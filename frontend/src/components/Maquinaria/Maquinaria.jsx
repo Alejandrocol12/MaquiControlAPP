@@ -1274,8 +1274,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                                 setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
                                             }}><X size={14} style={{ color: '#9aa5b4' }} /></button>
                                         )}
-                                        <button className="icon-btn" onClick={() => editarGasto(g)}><Pencil size={14} /></button>
-                                        <button className="icon-btn" onClick={() => eliminarGasto(g.id)}><Trash2 size={14} /></button>
+                                        {g.categoria !== 'Pago operador' && <button className="icon-btn" onClick={() => editarGasto(g)}><Pencil size={14} /></button>}
+                                        {g.categoria !== 'Pago operador' ? <button className="icon-btn" onClick={() => eliminarGasto(g.id)}><Trash2 size={14} /></button> : <small title="Se edita desde Operadores, pestaña Pago Operador" style={{ color: '#93a2b3', fontSize: '10.5px' }}>Operadores</small>}
                                     </span>
                                 </div>
                             ))}

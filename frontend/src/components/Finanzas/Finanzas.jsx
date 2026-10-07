@@ -14,6 +14,7 @@ import { useConfirm } from '../../utils/ConfirmModal';
 import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle, ChevronDown, ChevronUp, Tractor } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
+import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -33,7 +34,7 @@ const FORM_PAG  = { cliente: '', maquinaNombre: '', descripcion: '', valorTotal:
 
 const CATEGORIA_CLASE = {
     'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange',
-    'Mantenimiento': 'golddeep', 'Salario': 'purple', 'Lubricantes': 'purple',
+    'Mantenimiento': 'golddeep', 'Salario': 'purple', 'Lubricantes': 'purple', 'Pago operador': 'purple',
     'Otros': 'neutral', 'Otro': 'neutral',
 };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
@@ -267,7 +268,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const totalIngresos  = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
     const totalGastos    = gasFiltrados.reduce((a, g) => a + (Number(g.monto) || 0), 0);
     const totalSalarios  = salFiltrados.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
-    const totalEgresos   = totalGastos + totalSalarios;
+    // A egresos solo entran los salarios anotados a mano; el automático del cierre de periodo es
+    // informativo. Lo pagado al operador ya viene dentro de Gastos (categoría "Pago operador").
+    const salariosEgreso = salFiltrados.filter(salarioCuenta);
+    const totalEgresos   = totalGastos + salariosEgreso.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
     const utilidad       = totalIngresos - totalEgresos;
     const margen         = totalIngresos > 0 ? Math.round((utilidad / totalIngresos) * 100) : 0;
 
@@ -366,7 +370,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                     <div className="fin-kpi bad">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Egresos</span><span className="fin-kpi-ico"><TrendingDown size={14} /></span></div>
                         <div className="fin-kpi-val fin-num">{fmt(totalEgresos)}</div>
-                        <div className="fin-kpi-sub">{gasFiltrados.length} gastos + {salFiltrados.length} nóminas</div>
+                        <div className="fin-kpi-sub">{gasFiltrados.length} gastos{salariosEgreso.length > 0 ? ` + ${salariosEgreso.length} nóminas` : ''}</div>
                     </div>
                     <div className="fin-kpi profit">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Utilidad</span><span className="fin-kpi-ico"><BarChart2 size={14} /></span></div>
@@ -518,8 +522,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                 <span className="fin-money neg">{fmt(g.monto)}</span>
                                                 <div className="fin-actions">
                                                     {tieneFact && <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>}
-                                                    <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>
-                                                    <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>
+                                                    {!esPagoOperador(g) && <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>}
+                                                    {!esPagoOperador(g) && <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>}
                                                 </div>
                                             </>
                                         );
@@ -540,8 +544,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         const esCombAuto = g.descripcion?.includes('Combustible —');
                                         const esSalAuto  = g.categoria === 'Salario' && g.descripcion?.startsWith('Salario —');
                                         const esMantAuto = g.categoria === 'Mantenimiento' && g.descripcion?.startsWith('Mantenimiento —');
-                                        const autoIcon   = esCombAuto ? <Fuel size={10} /> : esSalAuto ? <HardHat size={10} /> : esMantAuto ? <Wrench size={10} /> : null;
-                                        const autoTexto  = esCombAuto ? 'Automático desde Combustible' : esSalAuto ? 'Automático desde Salarios' : esMantAuto ? 'Automático desde Mantenimientos' : null;
+                                        const esPagoOp   = esPagoOperador(g);
+                                        const autoIcon   = esCombAuto ? <Fuel size={10} /> : (esSalAuto || esPagoOp) ? <HardHat size={10} /> : esMantAuto ? <Wrench size={10} /> : null;
+                                        const autoTexto  = esCombAuto ? 'Automático desde Combustible' : esSalAuto ? 'Automático desde Salarios' : esMantAuto ? 'Automático desde Mantenimientos' : esPagoOp ? 'Se edita desde Operadores, pestaña Pago Operador' : null;
                                         const tieneFact  = facturasIds.has(String(g.id));
                                         return (
                                             <div className={`fin-lrow ${editandoId === g.id ? 'sel' : ''}`} key={g.id} style={{ gridTemplateColumns: GRID.gastos }}>
@@ -573,8 +578,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                             setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
                                                         }}><X size={14} /></button>
                                                     )}
-                                                    <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>
-                                                    <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>
+                                                    {!esPagoOp && <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>}
+                                                    {!esPagoOp && <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>}
                                                 </div>
                                             </div>
                                         );
@@ -598,7 +603,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                     {salFiltrados.length === 0 && <EmptyState icono={<HardHat size={20} />} titulo="No hay salarios para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o liquida uno nuevo." accion={{ label: 'Nuevo salario', onClick: abrirNuevo }} />}
                                     {pagSal.paginados.map(s => (
                                         <div className={`fin-lrow ${editandoId === s.id ? 'sel' : ''}`} key={s.id} style={{ gridTemplateColumns: GRID.salarios }}>
-                                            <span className="fin-cell strong">{s.operadorNombre}</span>
+                                            <span className="fin-cell strong">{s.operadorNombre}{!salarioCuenta(s) && <small className="fin-info-tag" title="Lo creó la app al cerrar el periodo. Muestra cuánto se ganó el operador y no suma a los egresos: lo que cuenta es lo que le pagas en Operadores.">Informativo</small>}</span>
                                             <span className="fin-cell">{s.horasTrabajadas} hrs</span>
                                             <span className="fin-money mut">{fmt(s.valorHora)}</span>
                                             <span className="fin-money pos">{fmt(s.totalBruto)}</span>

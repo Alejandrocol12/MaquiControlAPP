@@ -216,3 +216,5 @@ body.dark .fin-perhead:hover{background:#243244;}
 body.dark .fin-perinfo .t{color:#e2e8f0;}
 body.dark .fin-perinfo .s{color:#94a3b8;}
 body.dark .fin-perbody{border-top-color:#334155;}
+.fin-info-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#6b7a8d;background:#f0f2f5;border-radius:99px;padding:1px 7px;vertical-align:middle;cursor:help;}
+body.dark .fin-info-tag{background:#0f172a;color:#94a3b8;}

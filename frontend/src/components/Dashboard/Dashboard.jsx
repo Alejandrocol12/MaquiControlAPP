@@ -6,6 +6,7 @@ import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import { useCountUp } from '../../utils/useCountUp';
 import FiltroChips from '../../utils/FiltroChips';
+import { salarioCuenta } from '../../utils/nomina';
 import RegistroRapido from './RegistroRapido';
 import './Dashboard.css';
 
@@ -85,7 +86,9 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
     const gastosOperativos = gastos.filter(g => g.categoria !== 'Salario');
     const ingFiltrados = filtrarPorFecha(ingresos, 'fecha');
     const gasFiltrados = filtrarPorFecha(gastosOperativos, 'fecha');
-    const salFiltrados = filtrarPorFecha(salarios, 'fecha');
+    // Solo los salarios anotados a mano cuentan como egreso; el automático del cierre de periodo es informativo
+    const salariosEgreso = salarios.filter(salarioCuenta);
+    const salFiltrados = filtrarPorFecha(salariosEgreso, 'fecha');
     const totIngMes    = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
     const totGasMes    = gasFiltrados.reduce((a, g) => a + (Number(g.monto) || 0), 0);
     const totSalMes    = salFiltrados.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
@@ -105,7 +108,7 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
         const prefixAnt = dAnt.toISOString().slice(0, 7);
         const ingAnt = ingresos.filter(i => i.fecha?.startsWith(prefixAnt)).reduce((a, i) => a + (Number(i.total) || 0), 0);
         const gasAnt = gastosOperativos.filter(g => g.fecha?.startsWith(prefixAnt)).reduce((a, g) => a + (Number(g.monto) || 0), 0)
-            + salarios.filter(s => s.fecha?.startsWith(prefixAnt)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+            + salariosEgreso.filter(s => s.fecha?.startsWith(prefixAnt)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
         const utilAnt = ingAnt - gasAnt;
         if (utilAnt !== 0) tendenciaPct = Math.round(((utilidadMes - utilAnt) / Math.abs(utilAnt)) * 100);
     }
@@ -242,7 +245,7 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
                     <div className="db-kpi bad">
                         <div className="db-kpi-top"><span className="db-kpi-label">Egresos</span><span className="db-kpi-ico"><TrendingDown size={15} /></span></div>
                         <div className="db-kpi-val db-num"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
-                        <div className="db-kpi-sub">gastos + nómina de operadores</div>
+                        <div className="db-kpi-sub">gastos, con lo pagado a operadores</div>
                     </div>
                     <div className="db-kpi profit">
                         <div>

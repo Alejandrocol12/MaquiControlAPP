@@ -15,6 +15,9 @@ import {
     createPagoOperador,
     updatePagoOperador,
     deletePagoOperador,
+    getPagosOperadorSinGasto,
+    pasarPagosOperadorAGastos,
+    getCortes,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -37,6 +40,7 @@ import {
     StopCircle,
     CheckCircle,
     CreditCard,
+    Scissors,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import ScrollTabs from '../../utils/ScrollTabs';
@@ -45,6 +49,7 @@ import EmptyState from '../../utils/EmptyState';
 import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { diaSiguiente, enRango, ordenarCortes, repartirPagos, fmtHoras } from '../../utils/cortes';
 import { useSortable } from '../../utils/useSortable';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
@@ -82,14 +87,19 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [tgVinculado, setTgVinculado] = useState(!!operador.telegramChatId);
     const [tgCargando, setTgCargando] = useState(false);
 
-    const [anticipoInput, setAnticipoInput] = useState('');
-    const [mostrarAnticipoForm, setMostrarAnticipoForm] = useState(false);
+    // Corte en curso: la fecha desde la que se cuenta se puede ajustar a mano
+    const [editandoCorte, setEditandoCorte] = useState(false);
+    const [corteInput, setCorteInput] = useState('');
+    const [cortes, setCortes] = useState([]);
+    // Pagos anotados cuando Pago Operador era solo informativo (todavía sin gasto)
+    const [pagosSinGasto, setPagosSinGasto] = useState([]);
+    const [pasando, setPasando] = useState(false);
 
     const [editandoFechaPeriodo, setEditandoFechaPeriodo] = useState(false);
     const [fechaPeriodoInput, setFechaPeriodoInput] = useState('');
 
-    // Pago Operador -- bitácora informativa de cuánto se le ha pagado al operador; no se
-    // relaciona con Salarios ni con ningún otro total, solo admin (no visible en el portal).
+    // Pago Operador -- la plata que se le entrega al operador (pagos de corte y adelantos).
+    // Cada pago crea su gasto "Pago operador" en el backend; solo admin (no visible en el portal).
     const [pagosOperador, setPagosOperador] = useState([]);
     const errPagoOp = useErrores();
     const errEdit = useErrores();
@@ -100,9 +110,14 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const refrescarPagosOperador = () =>
         getPagosOperador().then(r => setPagosOperador((r.data || []).filter(p => p.operadorNombre === operador.nombre))).catch(() => {});
 
+    const refrescarPagosSinGasto = () =>
+        getPagosOperadorSinGasto().then(r => setPagosSinGasto(r.data || [])).catch(() => {});
+
     useEffect(() => {
         if (modoPortal) return;
         refrescarPagosOperador();
+        refrescarPagosSinGasto();
+        getCortes().then(r => setCortes(r.data || [])).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [operador.id, modoPortal]);
 
@@ -124,6 +139,19 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         setEditandoPagoOpId(null);
         setPagoOpForm(PAGO_OP_VACIO);
         refrescarPagosOperador();
+    };
+    const pasarPagosViejos = async () => {
+        const total = pagosSinGasto.reduce((a, p) => a + (Number(p.monto) || 0), 0);
+        if (!await confirm(`¿Pasar a Gastos ${pagosSinGasto.length} pago${pagosSinGasto.length === 1 ? '' : 's'} por ${fmt(total)}? Cada uno queda con su fecha original y empieza a contar en los egresos.`)) return;
+        setPasando(true);
+        try {
+            const { data } = await pasarPagosOperadorAGastos();
+            toast(`${data.pasados} pago${data.pasados === 1 ? '' : 's'} pasado${data.pasados === 1 ? '' : 's'} a Gastos`);
+            await Promise.all([refrescarPagosOperador(), refrescarPagosSinGasto()]);
+        } catch {
+            toast('No se pudieron pasar los pagos. Intenta de nuevo.', 'e');
+        }
+        setPasando(false);
     };
     const editarPagoOperador = (p) => {
         setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), fecha: p.fecha || hoy() });
@@ -241,8 +269,37 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const horasPeriodo = horasDelPeriodo.reduce((acc, h) => acc + getHrs(h), 0);
 
     const salarioBruto = horasPeriodo * valorHora;
-    const anticipos = periodoActivo?.anticipos || 0;
+    // Lo entregado al operador en este periodo: los anticipos que venían anotados en el periodo
+    // (antes de unirlos con Pago Operador) más los pagos registrados desde que arrancó.
+    const anticiposViejos = periodoActivo?.anticipos || 0;
+    const inicioPeriodo = String(periodoActivo?.fechaInicio || '').slice(0, 10);
+    const pagosDelPeriodo = periodoActivo ? pagosOperador.filter(p => String(p.fecha || '') >= inicioPeriodo) : [];
+    const anticipos = anticiposViejos + pagosDelPeriodo.reduce((a, p) => a + (Number(p.monto) || 0), 0);
     const salarioNeto = salarioBruto - anticipos;
+
+    // Cortes del operador: los mismos tramos que se cortaron con el cliente en sus máquinas
+    const maquinasDelOperador = new Set([maqAsignada?.nombre, ...horas.map(h => h.maquinaNombre)].filter(Boolean));
+    const cortesDeSusMaquinas = cortes.filter(c => c.conOperador && maquinasDelOperador.has(c.maquinaNombre));
+    const cortesOp = ordenarCortes(cortesDeSusMaquinas.filter(c => true
+        && String(c.fechaFin || '').slice(0, 10) >= inicioPeriodo));
+    // Cortes hechos antes de la fecha de inicio del periodo del operador: no entran en la cuenta
+    const cortesAntesDelPeriodo = cortesDeSusMaquinas.length - cortesOp.length;
+    const ultimoCorte = cortesOp[cortesOp.length - 1];
+    const finUltimoCorte = ultimoCorte ? String(ultimoCorte.fechaFin).slice(0, 10) : '';
+    const corteAuto = ultimoCorte ? diaSiguiente(finUltimoCorte) : inicioPeriodo;
+    // Un ajuste manual deja de valer cuando ya se hizo un corte que lo cubre
+    const corteManual = periodoActivo?.corteDesde && periodoActivo.corteDesde > finUltimoCorte ? periodoActivo.corteDesde : null;
+    const corteDesde = corteManual || corteAuto;
+    const horasEntre = (desde, hasta) => horas.filter(h => enRango(h.fecha, desde, hasta)).reduce((a, h) => a + getHrs(h), 0);
+    const horasCorteEnCurso = !ultimoCorte && !corteManual ? horasPeriodo : horasEntre(corteDesde, null);
+    const { filas: filasCorte, aFavor } = repartirPagos([
+        ...cortesOp.map((c, i) => {
+            const hrs = horasEntre(c.fechaInicio, c.fechaFin);
+            return { id: c.id, nombre: `Corte ${i + 1}`, fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`, horas: hrs, ganado: hrs * valorHora };
+        }),
+        { id: 'curso', nombre: 'En curso', fechas: `${fmtFecha(corteDesde)} a hoy`, horas: horasCorteEnCurso, ganado: horasCorteEnCurso * valorHora },
+    ], anticipos);
+    const filaCurso = filasCorte[filasCorte.length - 1];
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
     const totalPagadoOperador = pagosOperador.reduce((a, p) => a + (Number(p.monto) || 0), 0);
     const pagosOperadorOrdenados = pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
@@ -250,6 +307,20 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
     const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
     const pagHoras = usePaginacion(horasOrdenadas, 20);
+
+    const basePeriodo = (p) => ({
+        estado: p.estado, anticipos: p.anticipos || 0, fechaFin: p.fechaFin || null, horasTotal: p.horasTotal,
+        salarioBruto: p.salarioBruto, salarioNeto: p.salarioNeto, nota: p.nota || null, desdeHoraId: p.desdeHoraId,
+    });
+
+    // sin valor = volver a la fecha automática (día siguiente al último corte); se manda "auto"
+    const guardarCorteDesde = (valor) => {
+        if (!periodoActivo) return toast('No hay periodo activo', 'e');
+        updatePeriodoAPI(periodoActivo.id, { ...basePeriodo(periodoActivo), corteDesde: valor || 'auto' })
+            .then(() => refrescarPeriodos())
+            .then(() => { toast(valor ? 'Fecha del corte en curso actualizada' : 'El corte vuelve a contar desde la fecha automática'); setEditandoCorte(false); })
+            .catch(() => toast('No se pudo cambiar la fecha', 'e'));
+    };
 
     const refrescarPeriodos = () =>
         getPeriodosAPI(operador.id).then((res) => setPeriodos((res.data || []).map(normalizePeriodo)));
@@ -297,28 +368,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             .then(() => {
                 toast('Fecha de inicio del periodo actualizada');
                 setEditandoFechaPeriodo(false);
-            }).catch(console.error);
-    };
-
-    const registrarAnticipo = () => {
-        const val = parseFloat(anticipoInput || 0);
-        if (!val || val <= 0) return toast('Ingresa un monto valido', 'e');
-        if (!periodoActivo) return toast('No hay periodo activo', 'e');
-
-        updatePeriodoAPI(periodoActivo.id, {
-            estado: periodoActivo.estado,
-            anticipos: (periodoActivo.anticipos || 0) + val,
-            fechaFin: periodoActivo.fechaFin || null,
-            horasTotal: periodoActivo.horasTotal,
-            salarioBruto: periodoActivo.salarioBruto,
-            salarioNeto: periodoActivo.salarioNeto,
-            nota: periodoActivo.nota || null,
-            desdeHoraId: periodoActivo.desdeHoraId,
-        }).then(() => refrescarPeriodos())
-            .then(() => {
-                toast(`Anticipo de ${fmt(val)} registrado`);
-                setAnticipoInput('');
-                setMostrarAnticipoForm(false);
             }).catch(console.error);
     };
 
@@ -402,6 +451,37 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                     {tab === 0 && (
                         <>
+                            {!modoPortal && periodoActivo && (
+                                <div className="ct-curso">
+                                    <div>
+                                        <div className="ct-curso-lab"><Scissors size={13} /> Corte en curso</div>
+                                        <div className="ct-curso-big">{fmtHoras(filaCurso.horas)} h</div>
+                                        {editandoCorte ? (
+                                            <div className="ct-curso-edit">
+                                                <input className="fi" type="date" aria-label="Fecha desde la que cuenta el corte" value={corteInput} onChange={(e) => setCorteInput(e.target.value)} />
+                                                <button className="bp" onClick={() => corteInput ? guardarCorteDesde(corteInput) : toast('Selecciona una fecha', 'e')}>Guardar</button>
+                                                {corteManual && <button className="bs" onClick={() => guardarCorteDesde('')}>Usar fecha automática</button>}
+                                                <button className="bs" onClick={() => setEditandoCorte(false)}>Cancelar</button>
+                                            </div>
+                                        ) : (
+                                            <div className="ct-curso-ln">
+                                                Cuenta desde el{' '}
+                                                <button className="ct-curso-fecha" title="Cambiar la fecha desde la que cuenta el corte"
+                                                    onClick={() => { setCorteInput(corteDesde || hoy()); setEditandoCorte(true); }}>
+                                                    {fmtFecha(corteDesde)} <Pencil size={11} />
+                                                </button>
+                                                {corteManual ? ' · ajustada a mano' : ultimoCorte ? ' · día siguiente al último corte' : ' · inicio del periodo'}
+                                            </div>
+                                        )}
+                                        <div className="ct-curso-ln">Ganado <b>{fmt(filaCurso.ganado)}</b> · Pagado <b>{fmt(filaCurso.pagado)}</b></div>
+                                    </div>
+                                    <div className="ct-curso-debe">
+                                        <span>{aFavor > 0 ? 'Le pagaste de más' : 'Le debes en este corte'}</span>
+                                        <b className={aFavor > 0 ? 'fav' : ''}>{fmt(aFavor > 0 ? aFavor : filaCurso.debe)}</b>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className={`do-hero4 ${!modoPortal ? 'with-pago' : ''}`}>
                                 <div className="do-kpi info">
                                     <div className="do-kpi-top">
@@ -421,7 +501,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 </div>
                                 <div className="do-kpi bad">
                                     <div className="do-kpi-top">
-                                        <span className="do-kpi-label">Anticipos</span>
+                                        <span className="do-kpi-label">{modoPortal ? 'Anticipos' : 'Pagos y anticipos'}</span>
                                         <span className="do-kpi-ico"><TrendingDown size={14} /></span>
                                     </div>
                                     <div className="do-kpi-val do-num">{fmt(anticipos)}</div>
@@ -433,7 +513,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         <span className="do-kpi-ico"><Landmark size={14} /></span>
                                     </div>
                                     <div className="do-kpi-val do-num">{fmt(salarioNeto)}</div>
-                                    <div className="do-kpi-sub">bruto - anticipos</div>
+                                    <div className="do-kpi-sub">{modoPortal ? 'bruto - anticipos' : 'bruto − lo pagado'}</div>
                                 </div>
                                 {!modoPortal && (
                                     <div className="do-kpi purple">
@@ -442,7 +522,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                             <span className="do-kpi-ico"><CreditCard size={14} /></span>
                                         </div>
                                         <div className="do-kpi-val do-num">{fmt(totalPagadoOperador)}</div>
-                                        <div className="do-kpi-sub">{pagosOperador.length} registro{pagosOperador.length === 1 ? '' : 's'} · solo informativo</div>
+                                        <div className="do-kpi-sub">{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} · registrados en Gastos</div>
                                     </div>
                                 )}
                             </div>
@@ -469,7 +549,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                             </p>
                                         )}
                                         <span className="ale-desc">
-                                            {horasPeriodo} hrs · {fmt(salarioBruto)} bruto · {fmt(anticipos)} anticipos → neto <strong>{fmt(salarioNeto)}</strong>
+                                            {horasPeriodo} hrs · {fmt(salarioBruto)} bruto · {fmt(anticipos)} {modoPortal ? 'anticipos' : 'pagado'} → neto <strong>{fmt(salarioNeto)}</strong>
                                         </span>
                                     </div>
                                 </div>
@@ -487,15 +567,40 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 </div>
                             )}
 
-                            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                                <button className="bs" onClick={() => setMostrarAnticipoForm(!mostrarAnticipoForm)}><TrendingDown size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Anticipo</button>
-                            </div>
+                            {!modoPortal && (
+                                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                                    <button className="bs" onClick={() => setTab(3)}><CreditCard size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Registrar pago o adelanto</button>
+                                </div>
+                            )}
 
-                            {mostrarAnticipoForm && (
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-                                    <MoneyInput className="fi" style={{ margin: 0, maxWidth: '180px', flex: '1 1 160px' }} placeholder="Monto anticipo ($)" value={anticipoInput} onChange={(e) => setAnticipoInput(e.target.value)} />
-                                    <button className="bp" onClick={registrarAnticipo}>Guardar</button>
-                                    <button className="bs" onClick={() => { setMostrarAnticipoForm(false); setAnticipoInput(''); }}>Cancelar</button>
+                            {!modoPortal && cortesAntesDelPeriodo > 0 && periodoActivo && (
+                                <div className="ct-aviso"><AlertTriangle size={14} /> Hay {cortesAntesDelPeriodo} corte{cortesAntesDelPeriodo === 1 ? '' : 's'} anterior{cortesAntesDelPeriodo === 1 ? '' : 'es'} al inicio de este periodo ({fmtFecha(periodoActivo.fechaInicio)}) que no se están contando. Si el operador viene trabajando desde antes, cambia la fecha en "Periodo activo desde".</div>
+                            )}
+
+                            {!modoPortal && cortesOp.length > 0 && (
+                                <div className="ct-box">
+                                    <div className="ct-head"><b><Scissors size={14} /> Cortes de este periodo</b><span className="ct-sub">Mismas fechas del corte con el cliente</span></div>
+                                    <div className="ct-tabla">
+                                        <div className="ct-row op h"><span>Corte</span><span>Fechas</span><span className="r">Horas</span><span className="r">Se ganó</span><span className="r">Pagado</span><span className="r">Le debes</span></div>
+                                        {filasCorte.map(f => (
+                                            <div className={`ct-row op ${f.id === 'curso' ? 'curso' : ''}`} key={f.id}>
+                                                <span data-l="Corte"><b>{f.nombre}</b></span>
+                                                <span data-l="Fechas">{f.fechas}</span>
+                                                <span data-l="Horas" className="r ct-num">{fmtHoras(f.horas)} h</span>
+                                                <span data-l="Se ganó" className="r ct-num">{fmt(f.ganado)}</span>
+                                                <span data-l="Pagado" className="r ct-num pos">{fmt(f.pagado)}</span>
+                                                <span data-l="Le debes" className={`r ct-num ${f.debe > 0 ? 'neg' : ''}`}>{fmt(f.debe)}</span>
+                                            </div>
+                                        ))}
+                                        <div className="ct-row op tot">
+                                            <span><b>Total</b></span><span />
+                                            <span data-l="Horas" className="r ct-num">{fmtHoras(filasCorte.reduce((a, f) => a + f.horas, 0))} h</span>
+                                            <span data-l="Se ganó" className="r ct-num">{fmt(filasCorte.reduce((a, f) => a + f.ganado, 0))}</span>
+                                            <span data-l="Pagado" className="r ct-num pos">{fmt(filasCorte.reduce((a, f) => a + f.pagado, 0))}</span>
+                                            <span data-l="Le debes" className="r ct-num neg">{fmt(filasCorte.reduce((a, f) => a + f.debe, 0))}</span>
+                                        </div>
+                                    </div>
+                                    <p className="ct-nota">Cada pago se aplica primero al corte más viejo que tenga deuda; lo que sobra pasa al siguiente.{aFavor > 0 ? ` Le has pagado ${fmt(aFavor)} de más: se descuenta de lo que siga trabajando.` : ''}</p>
                                 </div>
                             )}
 
@@ -585,12 +690,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     {p.estado === 'activo' && <div className="rr"><span>Horas acumuladas</span><span><strong>{horasPeriodo} hrs</strong></span></div>}
                                     {p.horasTotal != null && p.estado !== 'activo' && <div className="rr"><span>Horas trabajadas</span><span>{p.horasTotal} hrs</span></div>}
                                     {p.salarioBruto != null && <div className="rr"><span>Salario bruto</span><span className="pos">{fmt(p.estado === 'activo' ? salarioBruto : p.salarioBruto)}</span></div>}
-                                    {p.anticipos > 0 && <div className="rr"><span>Anticipos</span><span className="neg">{fmt(p.estado === 'activo' ? anticipos : p.anticipos)}</span></div>}
+                                    {(p.estado === 'activo' ? anticipos : p.anticipos) > 0 && <div className="rr"><span>{modoPortal ? 'Anticipos' : 'Pagos y anticipos'}</span><span className="neg">{fmt(p.estado === 'activo' ? anticipos : p.anticipos)}</span></div>}
                                     {p.salarioNeto != null && <div className="rr"><span>Salario neto</span><span className="pos" style={{ fontWeight: '700' }}>{fmt(p.estado === 'activo' ? salarioNeto : p.salarioNeto)}</span></div>}
                                     {p.nota && <div className="rr"><span>Nota</span><span style={{ color: '#6b7a8d' }}>{p.nota}</span></div>}
                                     <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                        {p.estado === 'activo' && (
-                                            <button className="bs" style={{ fontSize: '11px' }} onClick={() => { setMostrarAnticipoForm(true); setTab(0); }}>+ Anticipo</button>
+                                        {p.estado === 'activo' && !modoPortal && (
+                                            <button className="bs" style={{ fontSize: '11px' }} onClick={() => setTab(3)}>+ Pago o adelanto</button>
                                         )}
                                         {p.estado === 'activo' && (
                                             <button className="bp" style={{ fontSize: '11px', background: '#e74c3c', border: 'none' }} onClick={() => cerrarPeriodo(p)}>
@@ -617,14 +722,34 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             <div className="ale purple">
                                 <CreditCard size={18} color="#8e44ad" />
                                 <div>
-                                    <p>Bitácora de pagos al operador</p>
-                                    <span className="ale-desc">Es solo informativo — no se relaciona con Salarios ni afecta ningún otro total. Sirve para que quede constancia de cuánto se le ha pagado a {operadorLocal.nombre}.</span>
+                                    <p>Cada pago queda también en Gastos</p>
+                                    <span className="ale-desc">Anota aquí los pagos y adelantos que le das a {operadorLocal.nombre}. La app crea el gasto sola, así que no lo anotes otra vez en Finanzas. Si editas o borras un pago, el gasto cambia igual.</span>
                                 </div>
                             </div>
 
+                            {pagosSinGasto.length > 0 && (
+                                <div className="ct-box ct-migrar">
+                                    <div className="ct-head"><b><AlertTriangle size={14} /> Pagos anteriores que todavía no están en Gastos</b></div>
+                                    <p className="ct-nota" style={{ marginTop: 0 }}>Se anotaron cuando esta pestaña era solo informativa. Revisa la lista: al pasarlos, cada uno entra a Gastos con su fecha original y empieza a contar en los egresos de ese mes.</p>
+                                    <div className="ct-tabla">
+                                        <div className="ct-row mig h"><span>Fecha</span><span>Operador</span><span>Descripción</span><span className="r">Monto</span></div>
+                                        {pagosSinGasto.map(p => (
+                                            <div className="ct-row mig" key={p.id}>
+                                                <span data-l="Fecha">{fmtFecha(p.fecha)}</span>
+                                                <span data-l="Operador">{p.operadorNombre}</span>
+                                                <span data-l="Descripción">{p.descripcion || '—'}</span>
+                                                <span data-l="Monto" className="r ct-num">{fmt(p.monto)}</span>
+                                            </div>
+                                        ))}
+                                        <div className="ct-row mig tot"><span><b>Total</b></span><span /><span>{pagosSinGasto.length} pago{pagosSinGasto.length === 1 ? '' : 's'}</span><span className="r ct-num">{fmt(pagosSinGasto.reduce((a, p) => a + (Number(p.monto) || 0), 0))}</span></div>
+                                    </div>
+                                    <div className="ct-acts"><button className="bp" onClick={pasarPagosViejos} disabled={pasando}><Check size={14} /> {pasando ? 'Pasando…' : 'Pasar a Gastos'}</button></div>
+                                </div>
+                            )}
+
                             <div className="fc">
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago al operador'}
+                                    <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago o adelanto'}
                                 </h3>
                                 <label className="fl">Monto ($) *</label>
                                 <MoneyInput className={errPagoOp.clase('fi', 'poMonto')} {...errPagoOp.props('poMonto')} value={pagoOpForm.monto}
@@ -650,7 +775,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <EmptyState
                                         icono={<CreditCard size={20} />}
                                         titulo="Aún no hay pagos registrados"
-                                        texto={`Anota aquí lo que le vas pagando a ${operadorLocal.nombre}, para que quede constancia.`}
+                                        texto={`Anota aquí los pagos y adelantos que le das a ${operadorLocal.nombre}. Cada uno queda también en Gastos.`}
                                         accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="poMonto"]')?.focus() }}
                                     />
                                 ) : (
@@ -659,7 +784,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         {pagosOperadorOrdenados.map(p => (
                                             <div className="tr only-desk" key={p.id}>
                                                 <span>{fmtFecha(p.fecha)}</span>
-                                                <span className="w2">{p.descripcion || '—'}</span>
+                                                <span className="w2">{p.descripcion || '—'}{!p.gastoGeneradoId && <small className="ct-pend"> · sin pasar a Gastos</small>}</span>
                                                 <span className="pos amt">{fmt(p.monto)}</span>
                                                 <span>
                                                     <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPagoOperador(p)}><Pencil size={14} /></button>
@@ -680,7 +805,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                             </div>
                                         ))}
                                         <div className="po-total">
-                                            Total pagado (informativo): <strong className="pos">{fmt(totalPagadoOperador)}</strong>
+                                            Total pagado: <strong className="pos">{fmt(totalPagadoOperador)}</strong>
                                         </div>
                                     </>
                                 )}

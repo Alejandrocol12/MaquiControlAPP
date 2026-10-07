@@ -15,7 +15,9 @@ import {
 
 import { fmtFecha } from '../../utils/fmtFecha';
 import EmptyState from '../../utils/EmptyState';
+import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
+import CortesFaena from './CortesFaena';
 import './Faenas.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
@@ -62,8 +64,12 @@ function Faenas() {
     // Gastos aquí para no restar la nómina dos veces.
     const aggFaena = (f) => {
         const ing = ingresosAll.filter(i => String(i.faenaId) === String(f.id)).reduce((a, i) => a + (Number(i.total) || 0), 0);
-        const gas = gastosAll.filter(g => String(g.faenaId) === String(f.id) && g.categoria !== 'Salario').reduce((a, g) => a + (Number(g.monto) || 0), 0);
-        const sal = salariosAll.filter(s => String(s.faenaId) === String(f.id)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
+        const gasFaena = gastosAll.filter(g => String(g.faenaId) === String(f.id) && g.categoria !== 'Salario');
+        const gas = gasFaena.filter(g => !esPagoOperador(g)).reduce((a, g) => a + (Number(g.monto) || 0), 0);
+        // "Pago operador" = lo que de verdad se le pagó (gastos creados desde Operadores) más los
+        // salarios anotados a mano. El salario automático del cierre es informativo y no resta.
+        const sal = gasFaena.filter(esPagoOperador).reduce((a, g) => a + (Number(g.monto) || 0), 0)
+            + salariosAll.filter(s => String(s.faenaId) === String(f.id) && salarioCuenta(s)).reduce((a, s) => a + (Number(s.totalNeto) || 0), 0);
         const util = ing - gas - sal;
         const margen = ing > 0 ? Math.round((util / ing) * 100) : 0;
         let dias = null;
@@ -225,7 +231,7 @@ function Faenas() {
 
                 <div className="pe-note">
                     <Info size={16} />
-                    <p>La <strong>Utilidad</strong> de cada periodo ya descuenta la nómina de los operadores (Ingresos − Gastos − Nómina), no solo los gastos generales.</p>
+                    <p>La <strong>Utilidad</strong> de cada periodo descuenta los gastos y lo que de verdad le has pagado al operador (Ingresos − Gastos − Pago operador).</p>
                 </div>
 
                 {/* FORM */}
@@ -379,10 +385,11 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
     // "Salario" es un gasto que el backend genera automáticamente por cada registro de
     // Salarios (para que aparezca en el P&L de Finanzas) — se excluye de Gastos aquí para
     // no restar la nómina dos veces, ya que se resta aparte como Nómina.
-    const gastosSinNomina = det ? det.gastos.filter(x => x.categoria !== 'Salario') : [];
+    const gastosSinNomina = det ? det.gastos.filter(x => x.categoria !== 'Salario' && !esPagoOperador(x)) : [];
     const totalIngDet = det ? det.ingresos.reduce((a, x) => a + (x.total || 0), 0) : 0;
     const totalGasDet = gastosSinNomina.reduce((a, x) => a + (x.monto || 0), 0);
-    const totalSalDet = det ? det.salarios.reduce((a, x) => a + (x.totalNeto || 0), 0) : 0;
+    const totalSalDet = det ? det.gastos.filter(esPagoOperador).reduce((a, x) => a + (x.monto || 0), 0)
+        + det.salarios.filter(salarioCuenta).reduce((a, x) => a + (x.totalNeto || 0), 0) : 0;
     const totalHorasDet = det ? det.ingresos.filter(x => x.tipoTrabajo === 'Horas').reduce((a, x) => a + (Number(x.cantidad) || 0), 0) : 0;
     const utilDet      = totalIngDet - totalGasDet - totalSalDet;
     const catEntries = Object.entries(gastosSinNomina.reduce((acc, g) => { const k = g.categoria || 'Otros'; acc[k] = (acc[k] || 0) + (Number(g.monto) || 0); return acc; }, {}))
@@ -410,7 +417,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                     <span className="pe-arrow">−</span>
                     <div className="pe-mm"><div className="pe-mm-l">Gastos</div><div className="pe-mm-v b pe-num">{fmt(agg.gas)}</div></div>
                     <span className="pe-arrow">−</span>
-                    <div className="pe-mm"><div className="pe-mm-l">Nómina</div><div className="pe-mm-v i pe-num">{fmt(agg.sal)}</div></div>
+                    <div className="pe-mm"><div className="pe-mm-l">Pago operador</div><div className="pe-mm-v i pe-num">{fmt(agg.sal)}</div></div>
                     <div className="pe-util">
                         <div className="pe-util-l">Utilidad real</div>
                         <div className="pe-util-v pe-num" style={{ color: agg.util >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(agg.util)}</div>
@@ -485,7 +492,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                     )}
                                 </div>
                                 <div className="pe-bcard info">
-                                    <div className="pe-bcard-l"><User size={13} /> Nómina</div>
+                                    <div className="pe-bcard-l"><User size={13} /> Pago operador</div>
                                     <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{fmt(totalSalDet)}</div>
                                 </div>
                                 <div className="pe-bcard gold">
@@ -493,6 +500,8 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                     <div className="pe-bcard-v" style={{ color: utilDet >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(utilDet)}</div>
                                 </div>
                             </div>
+
+                            <CortesFaena faena={f} ingresos={det.ingresos} onCambio={() => onRefrescar(f)} />
 
                             {/* Registrar ingreso/gasto olvidado — funciona con el periodo activo o cerrado */}
                             <div style={{ marginBottom: '14px' }}>
