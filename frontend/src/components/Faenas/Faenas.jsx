@@ -279,10 +279,10 @@ function Faenas() {
                                 onChange={e => setForm({ ...form, nota: e.target.value })}
                                 placeholder="Observaciones adicionales" />
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className="fa">
                             <button className="bp" onClick={guardar}>
                                 <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                {editandoId ? 'Actualizar' : 'Abrir periodo'}
+                                {editandoId ? 'Guardar cambios' : 'Abrir periodo'}
                             </button>
                             <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
                         </div>

@@ -1,3 +1,5 @@
+import { esSueldoOperador } from './nomina';
+
 // ExcelJS y file-saver se cargan dinámicamente para no romper el bundle principal
 let _XLS = null;
 let _saveAs = null;
@@ -638,9 +640,10 @@ export async function xlsResumenFlota(maquinas, ingresos, gastos, combustibles, 
     await guardar(wb, 'reporte-flota.xlsx');
 }
 
-export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
+// incluirSueldo: false deja fuera los pagos y salarios del operador (así sale por defecto)
+export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro, incluirSueldo = false) {
     const { ExcelJS } = await getLibs();
-    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre && (incluirSueldo || !esSueldoOperador(x)));
     let faenasMaq = faenas
         .filter(f => f.maquinaNombre === maqNombre)
         .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));

@@ -20,6 +20,7 @@ import EmptyState from '../../utils/EmptyState';
 import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
+import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
@@ -252,9 +253,9 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                         </div>
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="fa">
                     <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '13px' }} onClick={guardar}>
-                        <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />{vista === 'nueva' ? 'Registrar Máquina' : 'Guardar Cambios'}
+                        <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />{vista === 'nueva' ? 'Registrar máquina' : 'Guardar cambios'}
                     </button>
                     <button className="bs" onClick={() => setVista('lista')}>Cancelar</button>
                 </div>
@@ -928,8 +929,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 )}
 
                 {/* TABS */}
-                <ScrollTabs className="mq-dtabs" activeIndex={tab}>
-                    {TABS.map((t, i) => <button key={i} className={`mq-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
+                {/* La pestaña Combustible (índice 4) no se muestra mientras ese módulo esté oculto */}
+                <ScrollTabs className="mq-dtabs" activeIndex={tab - (!moduloVisible('combustible') && tab > 4 ? 1 : 0)}>
+                    {TABS.map((t, i) => (i === 4 && !moduloVisible('combustible'))
+                        ? null
+                        : <button key={i} className={`mq-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
                 </ScrollTabs>
 
                 {/* TAB 0 — RESUMEN */}
@@ -1049,9 +1053,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#f5a623', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingUp size={13} /> Ingresos + Horómetro</div></div>
                                 </div>
                             )}
-                            <div style={{ display: 'flex', gap: '10px' }}>
+                            <div className="fa">
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarIngreso}>
-                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoIngresoId ? 'Guardar cambios' : 'Confirmar y Guardar'}
+                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoIngresoId ? 'Guardar cambios' : 'Registrar trabajo'}
                                 </button>
                                 {editandoIngresoId && <button className="bs" onClick={cancelarEditarIngreso}>Cancelar</button>}
                             </div>
@@ -1205,7 +1209,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 )}
                             </div>
                             </Opcional>
-                            <div style={{ display: 'flex', gap: '10px' }}>
+                            <div className="fa">
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
                                     if (!errGasto.validar([
                                         { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
@@ -1230,7 +1234,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     }
                                 }}>
                                     <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
-                                    {editandoGastoId ? 'Guardar cambios' : 'Registrar Gasto'}
+                                    {editandoGastoId ? 'Guardar cambios' : 'Registrar gasto'}
                                 </button>
                                 {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
                             </div>
@@ -1307,9 +1311,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div><div className="rl">Total del gasto</div><div className="rv">{fmt(totalComb)}</div><div className="rf">{galones || 0} gal × {fmt(parseFloat(precioPorGalon || 0))}</div></div>
                                 <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#e74c3c', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingDown size={13} /> Gastos de esta máquina</div></div>
                             </div>
-                            <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '12px', background: '#e67e22' }} onClick={registrarCombustible}>
-                                <Fuel size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Registrar Carga
-                            </button>
+                            <div className="fa">
+                                <button className="bp" onClick={registrarCombustible}>
+                                    <Fuel size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> Registrar carga
+                                </button>
+                            </div>
                         </div>
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
@@ -1448,7 +1454,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                                     placeholder="Observaciones" />
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                        <div className="fa">
                                             <button className="bp" onClick={abrirFaena}>
                                                 <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} /> Abrir periodo
                                             </button>
@@ -1493,7 +1499,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoForm.fecha} onChange={e => setPagoForm({ ...pagoForm, fecha: e.target.value })} /></div>
                                 </div>
                             </Opcional>
-                            <div style={{ display: 'flex', gap: '10px' }}>
+                            <div className="fa">
                                 <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarPago}>
                                     <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoPagoId ? 'Guardar cambios' : 'Registrar pago'}
                                 </button>

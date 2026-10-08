@@ -126,8 +126,8 @@ function Combustible() {
                                 <div style={{ textAlign: 'right' }}><div style={{ color: '#6b7a8d', fontSize: '11px' }}>Se agrega a</div><div style={{ color: '#e74c3c', fontSize: '12px', fontWeight: '700', display:'flex', alignItems:'center', justifyContent:'flex-end', gap:'4px' }}><TrendingDown size={13} /> Gastos</div></div>
                             </div>
                         )}
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="bp" style={{ background: '#e67e22' }} onClick={registrar}><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Registrar Carga</button>
+                        <div className="fa">
+                            <button className="bp" onClick={registrar}><Fuel size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Registrar carga</button>
                             <button className="bs" onClick={() => setMostrarForm(false)}>Cancelar</button>
                         </div>
                     </div>

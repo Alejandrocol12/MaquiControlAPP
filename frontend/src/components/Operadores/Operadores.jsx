@@ -257,7 +257,7 @@ function Operadores() {
                 {/* FORM NUEVO */}
                 {mostrarForm && (
                     <div className="fc">
-                        <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><HardHat size={18} /> Registrar Operador</h3>
+                        <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><HardHat size={18} /> Registrar operador</h3>
                         <p className="fd">Solo datos personales — la máquina y valor/hora se asignan desde el módulo Maquinaria</p>
                         <div className="fg2">
                             <div><label className="fl">Nombre completo *</label>
@@ -304,7 +304,7 @@ function Operadores() {
                                 </div>
                             </div>
                         )}
-                        <div style={{ display: 'flex', gap: '10px' }}>
+                        <div className="fa">
                             <button className="bp" onClick={registrar} disabled={registrando}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {registrando ? 'Registrando...' : 'Registrar'}</button>
                             <button className="bs" onClick={() => setMostrarForm(false)}>Cancelar</button>
                         </div>

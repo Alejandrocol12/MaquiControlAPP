@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, CheckCircle, BarChart2, DollarSign, Users, Wrench, Fuel, ClipboardList, MapPin, Settings } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
+import { moduloVisible } from '../../utils/modulosOcultos';
 
-const PASOS = [
+const TODOS_LOS_PASOS = [
     {
         modulo: 'dashboard',
         titulo: 'Dashboard',
@@ -58,6 +59,9 @@ const PASOS = [
         desc: 'Configura tu cuenta, cambia contraseña con política de seguridad, activa el PIN de acceso rápido y personaliza los requisitos.',
     },
 ];
+
+// El recorrido no pasa por los módulos que están ocultos
+const PASOS = TODOS_LOS_PASOS.filter(p => moduloVisible(p.modulo));
 
 export default function TourGuiado({ onCerrar, onIrModulo }) {
     const [paso, setPaso] = useState(0);

@@ -39,10 +39,18 @@ const CATEGORIA_CLASE = {
 };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
+// El gasto "Pago operador" se crea con la descripción "Pago operador — Nombre: detalle"
+const partesPagoOp = (g) => {
+    const t = String(g.descripcion || '').replace(/^Pago operador\s*[—-]\s*/, '');
+    const i = t.indexOf(':');
+    return i < 0 ? { operador: t || 'Operador', detalle: '' } : { operador: t.slice(0, i).trim(), detalle: t.slice(i + 1).trim() };
+};
+
 const GRID = {
     ingresos: '70px 1.8fr 1fr 84px 90px 104px 60px',
     gastos:   '70px 1.6fr 120px 1fr 100px 150px',
     salarios: '1.3fr 64px 84px 96px 96px 96px 84px 60px',
+    pagosop:  '70px 1.8fr 1fr 110px 90px',
     pagos:    '70px 1.3fr 1fr 96px 96px 96px 84px 60px',
 };
 
@@ -291,12 +299,18 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const pagIng  = usePaginacion(ingSorted, 20);
     const pagGas  = usePaginacion(gasSorted, 20);
     const pagSal  = usePaginacion(salSorted, 20);
+
+    // Pagos al operador: son gastos categoría "Pago operador"; aquí se ven junto a los salarios
+    const pagosOpPeriodo   = gasPeriodo.filter(esPagoOperador);
+    const pagosOpFiltrados = gasFiltrados.filter(esPagoOperador).slice().sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    const totalPagosOp     = pagosOpFiltrados.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const pagPOp           = usePaginacion(pagosOpFiltrados, 20);
     const pagPag  = usePaginacion(pagSorted, 20);
 
     const TABS = [
         { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp size={14} />, count: ingPeriodo.length },
         { key: 'gastos',   label: 'Gastos',   icon: <TrendingDown size={14} />, count: gasPeriodo.length },
-        { key: 'salarios', label: 'Salarios', icon: <HardHat size={14} />, count: salPeriodo.length },
+        { key: 'salarios', label: 'Salarios', icon: <HardHat size={14} />, count: salPeriodo.length + pagosOpPeriodo.length },
         { key: 'pagos',    label: 'Pagos Clientes', icon: <CreditCard size={14} />, count: pagPeriodo.length },
     ];
 
@@ -341,12 +355,12 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const footTotal = tab === 'ingresos' ? totalIngresos
         : tab === 'gastos' ? totalGastos
-        : tab === 'salarios' ? totalSalarios
+        : tab === 'salarios' ? totalPagosOp + salariosEgreso.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0)
         : pagFiltrados.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
-    const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : 'Total del periodo';
+    const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : tab === 'salarios' ? 'Pagado a operadores' : 'Total del periodo';
     const footTono = tab === 'ingresos' ? 'pos' : tab === 'pagos' ? 'pos' : 'neg';
-    const listaTab = { ingresos: ingFiltrados, gastos: gasFiltrados, salarios: salFiltrados, pagos: pagFiltrados }[tab];
-    const paginadosTab = { ingresos: pagIng, gastos: pagGas, salarios: pagSal, pagos: pagPag }[tab];
+    const listaTab = { ingresos: ingFiltrados, gastos: gasFiltrados, salarios: [...pagosOpFiltrados, ...salFiltrados], pagos: pagFiltrados }[tab];
+    const paginadosTab = { ingresos: pagIng, gastos: pagGas, salarios: { ...pagSal, paginados: [...pagPOp.paginados, ...pagSal.paginados] }, pagos: pagPag }[tab];
 
     return (
         <>{ConfirmUI}
@@ -435,7 +449,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 {tab === 'salarios' && (
                     <div className="fin-note">
                         <Info size={16} />
-                        <p>Cada salario genera automáticamente un Gasto — así se incluye en el P&amp;L. Los <strong>anticipos</strong> se descuentan del neto, pero si fueron pagados en una fecha distinta deberías registrarlos también como un Gasto separado con la fecha real.</p>
+                        <p>Aquí ves lo que se le ha pagado a los operadores. Los pagos se anotan en <strong>Operadores → Pago Operador</strong> y cuentan una sola vez, en Gastos. Si anotas un salario a mano, se muestra abajo en las liquidaciones.</p>
                     </div>
                 )}
                 {tab === 'pagos' && (
@@ -590,6 +604,37 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             {/* ── SALARIOS ── */}
                             {tab === 'salarios' && (
                                 <>
+                                    {pagosOpFiltrados.length === 0 && salFiltrados.length === 0 && (
+                                        <EmptyState icono={<HardHat size={20} />} titulo="No hay pagos a operadores para mostrar" texto="Cambia el filtro de fechas o la búsqueda. Los pagos se registran en Operadores, pestaña Pago Operador." />
+                                    )}
+                                    {pagosOpFiltrados.length > 0 && (
+                                        <>
+                                            {salFiltrados.length > 0 && <div className="fin-subhead">Pagos al operador</div>}
+                                            <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.pagosop }}>
+                                                <span>Fecha</span><span>Operador</span><span>Máquina</span>
+                                                <span style={{ textAlign: 'right' }}>Monto</span><span style={{ textAlign: 'right' }}>Acc.</span>
+                                            </div>
+                                            {pagPOp.paginados.map(g => {
+                                                const p = partesPagoOp(g);
+                                                return (
+                                                    <div className="fin-lrow" key={g.id} style={{ gridTemplateColumns: GRID.pagosop }}>
+                                                        <span className="date">{fmtFecha(g.fecha)}</span>
+                                                        <div className="fin-desc">
+                                                            <div className="t">{p.operador}</div>
+                                                            {p.detalle && <div className="auto">{p.detalle}</div>}
+                                                        </div>
+                                                        <span className="fin-cell">{g.maquinaNombre || '—'}</span>
+                                                        <span className="fin-money neg">{fmt(g.monto)}</span>
+                                                        <div className="fin-actions"><small className="fin-info-tag" title="Se edita desde Operadores, pestaña Pago Operador">Operadores</small></div>
+                                                    </div>
+                                                );
+                                            })}
+                                            <Paginacion pagina={pagPOp.pagina} total={pagPOp.total} ir={pagPOp.ir} totalItems={pagosOpFiltrados.length} porPagina={20} />
+                                        </>
+                                    )}
+                                    {salFiltrados.length > 0 && (
+                                    <>
+                                    {pagosOpFiltrados.length > 0 && <div className="fin-subhead">Liquidaciones de salario</div>}
                                     <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.salarios }}>
                                         <ThSal campo="operadorNombre">Operador</ThSal>
                                         <ThSal campo="horasTrabajadas">Horas</ThSal>
@@ -600,7 +645,6 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <ThSal campo="estado">Estado</ThSal>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
-                                    {salFiltrados.length === 0 && <EmptyState icono={<HardHat size={20} />} titulo="No hay salarios para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o liquida uno nuevo." accion={{ label: 'Nuevo salario', onClick: abrirNuevo }} />}
                                     {pagSal.paginados.map(s => (
                                         <div className={`fin-lrow ${editandoId === s.id ? 'sel' : ''}`} key={s.id} style={{ gridTemplateColumns: GRID.salarios }}>
                                             <span className="fin-cell strong">{s.operadorNombre}{!salarioCuenta(s) && <small className="fin-info-tag" title="Lo creó la app al cerrar el periodo. Muestra cuánto se ganó el operador y no suma a los egresos: lo que cuenta es lo que le pagas en Operadores.">Informativo</small>}</span>
@@ -616,6 +660,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                             </div>
                                         </div>
                                     ))}
+                                    <Paginacion pagina={pagSal.pagina} total={pagSal.total} ir={pagSal.ir} totalItems={salFiltrados.length} porPagina={20} />
+                                    </>
+                                    )}
                                 </>
                             )}
 
@@ -663,7 +710,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <span>{listaTab.length} registros · mostrando {paginadosTab.paginados.length}</span>
                                 <span>{footLabel} <span className={`fin-ledger-total fin-num ${footTono === 'pos' ? 'fin-money pos' : 'fin-money neg'}`}>{fmt(footTotal)}</span></span>
                             </div>
-                            {!(maqFiltro && (tab === 'ingresos' || tab === 'gastos')) && (
+                            {!(maqFiltro && (tab === 'ingresos' || tab === 'gastos')) && tab !== 'salarios' && (
                                 <Paginacion pagina={paginadosTab.pagina} total={paginadosTab.total} ir={paginadosTab.ir} totalItems={listaTab.length} porPagina={20} />
                             )}
                         </div>
@@ -781,7 +828,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
                             <div className="fin-compose-actions">
                                 <button className="fin-btn" onClick={cerrarCompose}>Cancelar</button>
-                                <button className="fin-btn pri" onClick={guardar}><Check size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{editandoId ? 'Actualizar' : 'Guardar'}</button>
+                                <button className="fin-btn pri" onClick={guardar}><Check size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{editandoId ? 'Guardar cambios' : `Registrar ${tab === 'ingresos' ? 'ingreso' : tab === 'gastos' ? 'gasto' : tab === 'salarios' ? 'salario' : 'pago'}`}</button>
                             </div>
                         </div>
                     )}

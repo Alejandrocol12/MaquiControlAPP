@@ -95,7 +95,7 @@
 body.dark .op-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .op-kpi-label{color:#94a3b8;}
 body.dark .op-kpi-sub{color:#64748b;}
-body.dark .op-kpi.profit{color:#1a1004;}
+body.dark .op-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);color:#1a1004;}
 body.dark .op-panel{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .op-panel-head{border-bottom-color:#334155;}
 body.dark .op-panel-head h2{color:#f1f5f9;}

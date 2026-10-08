@@ -11,6 +11,7 @@ import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
+import { moduloVisible } from './utils/modulosOcultos';
 import TourGuiado from './components/TourGuiado/TourGuiado';
 import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword } from './api';
 import { ToastContext, useToastState } from './utils/toast';
@@ -519,7 +520,8 @@ function App() {
     const [installPrompt, setInstallPrompt] = useState(null);
     const [appInstalada, setAppInstalada] = useState(false);
 
-    const ir = (mod) => { setModulo(mod); setSbMob(false); };
+    // Un módulo oculto no se puede abrir (ni desde un enlace ni desde el tour): se va al Dashboard
+    const ir = (mod) => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); };
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
     const toggleDark = () => setTema(darkMode ? 'claro' : 'oscuro');
 
@@ -635,8 +637,8 @@ function App() {
             case 'maquinaria': return <Maquinaria vistaInicial={maqVista} key={`maq-${maqVista}`} />;
             case 'finanzas': return <Finanzas tabInicial={finTab} />;
             case 'operadores': return <Operadores />;
-            case 'mantenimientos': return <Mantenimientos />;
-            case 'combustible': return <Combustible />;
+            case 'mantenimientos': return moduloVisible('mantenimientos') ? <Mantenimientos /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
+            case 'combustible': return moduloVisible('combustible') ? <Combustible /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
             case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} />;
@@ -651,7 +653,7 @@ function App() {
             {tourActivo && (
                 <TourGuiado
                     onCerrar={() => setTourActivo(false)}
-                    onIrModulo={mod => { setModulo(mod); setSbMob(false); }}
+                    onIrModulo={mod => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); }}
                 />
             )}
             {isOffline ? (
@@ -730,18 +732,24 @@ function App() {
                             <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} onClick={() => ir('operadores')}>
                                 <span className="ico"><HardHat size={18} /></span><span className="sb-label">Operadores</span>
                             </div>
-                            <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} onClick={() => ir('mantenimientos')}>
-                                <span className="ico"><Wrench size={18} /></span><span className="sb-label">Mantenimientos</span>
-                            </div>
+                            {moduloVisible('mantenimientos') && (
+                                <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} onClick={() => ir('mantenimientos')}>
+                                    <span className="ico"><Wrench size={18} /></span><span className="sb-label">Mantenimientos</span>
+                                </div>
+                            )}
                             <div className={`ni ${modulo === 'reportes' ? 'active' : ''}`} onClick={() => ir('reportes')}>
                                 <span className="ico"><FileText size={18} /></span><span className="sb-label">Reportes</span>
                             </div>
-                            <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => ir('combustible')}>
-                                <span className="ico"><Fuel size={18} /></span><span className="sb-label">Combustible</span>
-                            </div>
-                            <div className={`ni ${modulo === 'mapa' ? 'active' : ''}`} onClick={() => ir('mapa')}>
-                                <span className="ico"><Map size={18} /></span><span className="sb-label">Mapa</span>
-                            </div>
+                            {moduloVisible('combustible') && (
+                                <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => ir('combustible')}>
+                                    <span className="ico"><Fuel size={18} /></span><span className="sb-label">Combustible</span>
+                                </div>
+                            )}
+                            {moduloVisible('mapa') && (
+                                <div className={`ni ${modulo === 'mapa' ? 'active' : ''}`} onClick={() => ir('mapa')}>
+                                    <span className="ico"><Map size={18} /></span><span className="sb-label">Mapa</span>
+                                </div>
+                            )}
                         </nav>
 
                         {sbCol && !sbMob ? (
@@ -771,14 +779,17 @@ function App() {
                     </div>
 
                     <div className="main">
-                        {/* Mapa siempre montado — visibility toggle evita que Leaflet se destruya al cambiar módulo */}
-                        <div style={modulo === 'mapa'
-                            ? { display: 'flex', flexDirection: 'column', height: '100%' }
-                            : { position: 'absolute', top: 0, left: 0, width: '100%', height: '100vh', visibility: 'hidden', pointerEvents: 'none' }
-                        }>
-                            <Mapa />
-                        </div>
-                        {modulo !== 'mapa' && renderModulo()}
+                        {/* Mapa siempre montado — visibility toggle evita que Leaflet se destruya al cambiar módulo.
+                            Mientras el módulo esté oculto no se monta, para no cargar el mapa en segundo plano. */}
+                        {moduloVisible('mapa') && (
+                            <div style={modulo === 'mapa'
+                                ? { display: 'flex', flexDirection: 'column', height: '100%' }
+                                : { position: 'absolute', top: 0, left: 0, width: '100%', height: '100vh', visibility: 'hidden', pointerEvents: 'none' }
+                            }>
+                                <Mapa />
+                            </div>
+                        )}
+                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && renderModulo()}
                     </div>
 
                     {/* Navegación inferior: solo se ve en celular */}

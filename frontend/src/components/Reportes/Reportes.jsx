@@ -11,6 +11,7 @@ import { GiBulldozer } from 'react-icons/gi';
 import {
     xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo, xlsPeriodoMaquina,
 } from '../../utils/excelReportes';
+import { esSueldoOperador } from '../../utils/nomina';
 import './Reportes.css';
 
 // ── helpers ────────────────────────────────────────────────────
@@ -673,8 +674,9 @@ function pdfPeriodos(faenas) {
 // ══════════════════════════════════════════════════════════════
 // 9. GASTOS POR MÁQUINA DESGLOSADO POR PERIODOS
 // ══════════════════════════════════════════════════════════════
-function pdfGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro) {
-    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre);
+// incluirSueldo: false deja fuera los pagos y salarios del operador (así sale por defecto)
+function pdfGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFiltro, incluirSueldo = false) {
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqNombre && (incluirSueldo || !esSueldoOperador(x)));
     let faenasMaq = faenas
         .filter(f => f.maquinaNombre === maqNombre)
         .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
@@ -882,6 +884,7 @@ function Reportes() {
     const [maqSelGastos,       setMaqSelGastos]       = useState('');
     const [maqSelIngresos,     setMaqSelIngresos]     = useState('');
     const [periodoSelGastos,   setPeriodoSelGastos]   = useState('');
+    const [incluirSueldoGas,   setIncluirSueldoGas]   = useState(false);
     const [periodoSelIngresos, setPeriodoSelIngresos] = useState('');
     const [maqSelPeriodo,      setMaqSelPeriodo]      = useState('');
     const [periodoSelPeriodo,  setPeriodoSelPeriodo]  = useState('');
@@ -946,9 +949,10 @@ function Reportes() {
     const periodoGasLabel = periodoSelGastos
         ? (faenas.find(f => String(f.id) === String(periodoSelGastos))?.nombreObra || 'Periodo')
         : 'Todos los periodos';
+    const gastosParaReporte  = gastos.filter(x => incluirSueldoGas || !esSueldoOperador(x));
     const totalGasPeriodoSel = periodoSelGastos
-        ? gastos.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
-        : gastos.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
+        ? gastosParaReporte.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
+        : gastosParaReporte.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
 
     // ── Reporte por periodo de máquina — ingresos, gastos y utilidad de un periodo, para exportar ──
     const faenasDeMaqPeriodo = faenas.filter(f => f.maquinaNombre === maqSelPeriodo)
@@ -1030,6 +1034,7 @@ function Reportes() {
             titulo: 'Gastos por periodo',
             desc: 'Desglosa los gastos de una máquina, periodo por periodo',
             control: (
+                <>
                 <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
                     <select className="rp-select" value={maqSelGastos}
                         onChange={e => { setMaqSelGastos(e.target.value); setPeriodoSelGastos(''); }}>
@@ -1044,12 +1049,17 @@ function Reportes() {
                             ))}
                     </select>
                 </div>
+                <label className="rp-opt">
+                    <input type="checkbox" checked={incluirSueldoGas} onChange={e => setIncluirSueldoGas(e.target.checked)} />
+                    <span>Incluir el sueldo del operador</span>
+                </label>
+                </>
             ),
             metricLabel: periodoGasLabel,
             metricValor: totalGasPeriodoSel,
             metricTono: 'neg',
-            accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
-            xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos),
+            accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos, incluirSueldoGas),
+            xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos, incluirSueldoGas),
         },
         {
             id: 'periodo-maquina', ico: <Calendar size={19} />, color: '#2980b9',

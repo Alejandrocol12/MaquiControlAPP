@@ -153,8 +153,8 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
         maquinasMantenimiento.length > 0 && {
             tipo: 'warn',
             texto: `${maquinasMantenimiento.map(m => m.nombre).join(', ')} — en mantenimiento`,
-            desc: 'Revisar módulo de Mantenimientos',
-            accion: () => onIrModulo?.('mantenimientos'),
+            desc: 'Ver las máquinas',
+            accion: () => onIrMaquinaria?.(),
         },
         totalPorCobrar > 0 && {
             tipo: 'warn',

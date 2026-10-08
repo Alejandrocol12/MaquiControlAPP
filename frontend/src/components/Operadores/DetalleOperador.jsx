@@ -767,7 +767,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         <div><label className="fl">Descripción</label><input className="fi" value={pagoOpForm.descripcion} onChange={e => setPagoOpForm({ ...pagoOpForm, descripcion: e.target.value })} placeholder="Ej: Quincena" /></div>
                                     </div>
                                 </Opcional>
-                                <div style={{ display: 'flex', gap: '10px' }}>
+                                <div className="fa">
                                     <button className="bp" onClick={guardarPagoOperador}>
                                         <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {editandoPagoOpId ? 'Guardar cambios' : 'Registrar pago'}
                                     </button>
@@ -878,9 +878,11 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     placeholder="Ej: Licencia C2, experiencia en excavadoras"
                                 />
                             </div>
-                            <button className="bp" onClick={guardarEdicion}>
-                                <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Guardar cambios
-                            </button>
+                            <div className="fa">
+                                <button className="bp" onClick={guardarEdicion}>
+                                    <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Guardar cambios
+                                </button>
+                            </div>
 
                             {/* ── Telegram ── */}
                             <div style={{ marginTop: '24px', padding: '16px', background: '#f0f8ff', border: '1px solid #aed6f1', borderRadius: '10px' }}>

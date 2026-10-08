@@ -715,7 +715,7 @@ body.dark .estado.neutral{background:#0f172a;color:#94a3b8;}
 .tr>.amt{text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums;}
 
 /* tarjetas solo en celular / tabla solo en computador */
-.only-mob{display:none;}
+.only-mob,.mcard.only-mob{display:none!important;}
 .mcard{padding:12px 14px;border-bottom:1px solid #dde4ed;display:grid;gap:6px;}
 .mcard:last-child{border-bottom:none;}
 .mcard-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
@@ -746,7 +746,8 @@ body.dark .fopt{border-color:#334155;color:#94a3b8;}
   .fchips-row::-webkit-scrollbar{display:none;}
   .fchip{flex-shrink:0;}
 
-  .only-mob{display:block;}
+  .only-mob{display:block!important;}
+  .mcard.only-mob{display:grid!important;}
   .only-desk{display:none!important;}
 
   /* el menú ☰ queda dentro de la barra superior, que se queda fija arriba al bajar */
@@ -858,3 +859,42 @@ body.dark .ct-nota,body.dark .ct-sub,body.dark .ct-vacio{color:#94a3b8;}
 body.dark .ct-error{color:#f59b91;}
 body.dark .ct-migrar{background:rgba(245,166,35,.06);border-color:#f5a623;}
 body.dark .ct-curso{background:linear-gradient(135deg,#0b1220,#16283b);border:1px solid #334155;}
+
+/* ══ FORMULARIOS UNIFICADOS ══
+   Un solo aspecto para todos los formularios (Maquinaria, Operadores, Periodos, Perfil, Finanzas...).
+   El espacio entre campos lo pone cada campo (margin-bottom) y la cuadrícula no suma el suyo; así,
+   cuando una pareja se apila en el celular, el espacio sigue siendo el mismo. */
+.fl,.form-label{font-size:11px;font-weight:700;letter-spacing:.6px;color:#5c7086;margin-bottom:6px;}
+.fi,.fsel,.form-input,.form-select{min-height:42px;padding:9px 12px;font-size:14px;border-radius:10px;margin-bottom:16px;}
+textarea.fi{min-height:84px;}
+.fsel,.form-select,.fin-select{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%2393a2b3' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;}
+.fg2,.fg2-keep{gap:0 14px;}
+.fc,.fcard{padding:20px;border-radius:14px;}
+.fc h3,.fcard h3{display:flex;align-items:center;gap:12px!important;font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;line-height:1.15;color:#16283b;margin-bottom:16px;}
+.fc h3+.fd,.fcard h3+.fdesc{margin-top:-12px;}
+.fc h3>svg:first-child,.fcard h3>svg:first-child{box-sizing:content-box;flex:none;padding:8px;border-radius:10px;background:#fff3dc;color:#b86e00;}
+.fc .fd,.fdesc{font-size:12.5px;margin:0 0 18px;}
+/* barra de botones: Cancelar a la izquierda, el botón principal naranja a la derecha */
+.fa{display:flex;flex-direction:row-reverse;justify-content:flex-start;gap:10px;margin-top:6px;padding-top:16px;border-top:1px solid #e3e8ef;}
+.fa .bp,.fa .bs{height:42px;padding:0 18px!important;flex:none!important;width:auto!important;margin:0!important;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;}
+.fa .bp{background:#f5a623!important;border-color:#f5a623!important;color:#241705!important;}
+@media (max-width:760px){
+  .fi,.fsel,.form-input,.form-select,.fin-input,.fin-select{min-height:46px;font-size:16px;}
+  .fc,.fcard{padding:16px;}
+  /* en el celular la barra queda fija, justo encima de la navegación de abajo */
+  .fa{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:20;background:#fff;margin:6px -16px -16px;padding:12px 16px;box-shadow:0 -8px 18px -14px rgba(0,0,0,.35);border-radius:0 0 14px 14px;}
+  .fa .bs{flex:1!important;}
+  .fa .bp{flex:2!important;}
+  .fa .bp,.fa .bs{height:46px;font-size:15px;}
+}
+body.dark .fl,body.dark .form-label{color:#94a3b8;}
+body.dark .fc h3,body.dark .fcard h3{color:#f1f5f9;}
+body.dark .fc h3>svg:first-child,body.dark .fcard h3>svg:first-child{background:rgba(245,166,35,.14);color:#f8c66b;}
+body.dark .fa{border-top-color:#334155;}
+@media (max-width:760px){ body.dark .fa{background:#1e293b;} }
+/* tarjetas de lista en celular: faltaba el modo oscuro */
+body.dark .mcard{background:#1e293b;border-color:#334155;}
+body.dark .mcard-t{color:#f1f5f9;}
+body.dark .mcard-d{color:#94a3b8;}
+body.dark .mcard-nums div{background:#0f172a;}
+body.dark .mcard-nums span,body.dark .mcard-foot{color:#64748b;}

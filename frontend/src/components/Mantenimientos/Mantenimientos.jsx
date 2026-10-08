@@ -165,8 +165,8 @@ function Mantenimientos() {
                             </div>
                             <div><label className="fl">Descripción</label><input className="fi" name="descripcion" value={form.descripcion} onChange={hc} placeholder="Detalle del mantenimiento" /></div>
                         </div>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="bp" onClick={guardar}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {editandoId ? 'Actualizar' : 'Registrar'}</button>
+                        <div className="fa">
+                            <button className="bp" onClick={guardar}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {editandoId ? 'Guardar cambios' : 'Registrar mantenimiento'}</button>
                             <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
                         </div>
                     </div>

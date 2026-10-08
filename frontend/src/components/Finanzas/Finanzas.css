@@ -111,12 +111,12 @@
 /* ── compose panel ── */
 .fin-compose{position:sticky;top:0;}
 .fin-compose-head{padding:14px 18px;border-bottom:1px solid #dde4ed;display:flex;align-items:center;justify-content:space-between;}
-.fin-compose-head h2{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;margin:0;color:#1a2d42;}
-.fin-compose-x{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#93a2b3;background:#f7f9fb;border:none;cursor:pointer;flex-shrink:0;}
-.fin-compose-body{padding:16px 18px;display:flex;flex-direction:column;gap:13px;max-height:calc(100vh - 260px);overflow-y:auto;}
-.fin-fld label{display:block;font-size:11px;font-weight:700;color:#6b7a8d;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
-.fin-fld-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.fin-input,.fin-select{width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #dde4ed;background:#f7f9fb;color:#1a2d42;font-size:13px;font-family:'Barlow',sans-serif;transition:border-color .15s,box-shadow .15s;}
+.fin-compose-head h2{font-family:'Barlow Condensed',sans-serif;font-size:21px;font-weight:700;margin:0;color:#16283b;}
+.fin-compose-x{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#93a2b3;background:#f7f9fb;border:none;cursor:pointer;flex-shrink:0;}
+.fin-compose-body{padding:16px 18px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 260px);overflow-y:auto;}
+.fin-fld label{display:block;font-size:11px;font-weight:700;color:#5c7086;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px;}
+.fin-fld-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fin-input,.fin-select{width:100%;min-height:42px;padding:9px 12px;border-radius:10px;border:1.5px solid #dde4ed;background:#fafbfc;color:#1a2d42;font-size:14px;font-family:'Barlow',sans-serif;transition:border-color .15s,box-shadow .15s;}
 .fin-input:focus,.fin-select:focus{outline:none;border-color:#f5a623;box-shadow:0 0 0 3px rgba(245,166,35,.15);background:#fff;}
 .fin-input.money{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:600;}
 .fin-catpick{display:flex;flex-wrap:wrap;gap:6px;}
@@ -132,8 +132,8 @@
 .fin-drop.active{border-color:#e67e22;background:rgba(230,126,34,.05);}
 .fin-drop-text{font-size:12px;color:#6b7a8d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
 .fin-compose-actions{display:flex;gap:8px;padding:14px 18px;border-top:1px solid #dde4ed;}
-.fin-btn{flex:1;padding:10px;border-radius:9px;font-size:13px;font-weight:700;text-align:center;border:1px solid #dde4ed;color:#6b7a8d;background:#fff;cursor:pointer;font-family:'Barlow',sans-serif;}
-.fin-btn.pri{background:#1a2d42;color:#fff;border-color:#1a2d42;flex:2;}
+.fin-btn{flex:1;min-height:42px;padding:10px;border-radius:10px;font-size:14px;font-weight:700;text-align:center;border:1px solid #dde4ed;color:#6b7a8d;background:#fff;cursor:pointer;font-family:'Barlow',sans-serif;}
+.fin-btn.pri{background:#f5a623;color:#241705;border-color:#f5a623;flex:2;}
 
 .fin-note{display:flex;gap:10px;align-items:flex-start;background:#f0f7ff;border:1px solid #2980b9;border-radius:10px;padding:11px 14px;margin-bottom:14px;}
 .fin-note svg{color:#2980b9;flex-shrink:0;margin-top:1px;}
@@ -218,3 +218,16 @@ body.dark .fin-perinfo .s{color:#94a3b8;}
 body.dark .fin-perbody{border-top-color:#334155;}
 .fin-info-tag{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#6b7a8d;background:#f0f2f5;border-radius:99px;padding:1px 7px;vertical-align:middle;cursor:help;}
 body.dark .fin-info-tag{background:#0f172a;color:#94a3b8;}
+
+.fin-subhead{padding:10px 18px 4px;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#93a2b3;}
+body.dark .fin-subhead{color:#64748b;}
+
+/* formularios unificados: en el celular el cuerpo no tiene scroll propio y los botones quedan fijos abajo */
+@media (max-width:760px){
+  .fin-compose{overflow:visible;}
+  .fin-compose-body{max-height:none;overflow:visible;}
+  .fin-compose-actions{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:20;background:#fff;box-shadow:0 -8px 18px -14px rgba(0,0,0,.35);border-radius:0 0 12px 12px;}
+  .fin-btn{min-height:46px;font-size:15px;}
+}
+body.dark .fin-compose-head h2{color:#f1f5f9;}
+@media (max-width:760px){ body.dark .fin-compose-actions{background:#1e293b;} }

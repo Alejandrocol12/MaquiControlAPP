@@ -11,5 +11,8 @@ export const CAT_PAGO_OPERADOR = 'Pago operador';
 
 export const esPagoOperador = (gasto) => gasto?.categoria === CAT_PAGO_OPERADOR;
 
+// Todo lo que es sueldo del operador: sus pagos y los salarios anotados a mano
+export const esSueldoOperador = (gasto) => esPagoOperador(gasto) || gasto?.categoria === 'Salario';
+
 // true = salario anotado a mano (cuenta en egresos). false = automático del cierre (informativo).
 export const salarioCuenta = (salario) => salario?.gastoGeneradoId != null;
