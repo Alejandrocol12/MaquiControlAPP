@@ -292,11 +292,17 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const corteDesde = corteManual || corteAuto;
     const horasEntre = (desde, hasta) => horas.filter(h => enRango(h.fecha, desde, hasta)).reduce((a, h) => a + getHrs(h), 0);
     const horasCorteEnCurso = !ultimoCorte && !corteManual ? horasPeriodo : horasEntre(corteDesde, null);
+    const tramosCorte = cortesOp.map((c, i) => {
+        const hrs = horasEntre(c.fechaInicio, c.fechaFin);
+        return { id: c.id, nombre: `Corte ${i + 1}`, fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`, horas: hrs, ganado: hrs * valorHora };
+    });
+    // Horas del periodo que no están en ningún corte ni en el corte en curso (por ejemplo, lo
+    // trabajado antes de la fecha que se ajustó a mano). Son trabajo ya hecho: los pagos se
+    // aplican primero ahí, o parecería que al operador se le pagó de más.
+    const horasSinCortar = Math.max(0, Math.round((horasPeriodo - tramosCorte.reduce((a, t) => a + t.horas, 0) - horasCorteEnCurso) * 100) / 100);
     const { filas: filasCorte, aFavor } = repartirPagos([
-        ...cortesOp.map((c, i) => {
-            const hrs = horasEntre(c.fechaInicio, c.fechaFin);
-            return { id: c.id, nombre: `Corte ${i + 1}`, fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`, horas: hrs, ganado: hrs * valorHora };
-        }),
+        ...(horasSinCortar > 0 ? [{ id: 'antes', nombre: 'Sin cortar', fechas: `antes del ${fmtFecha(cortesOp[0]?.fechaInicio || corteDesde)}`, horas: horasSinCortar, ganado: horasSinCortar * valorHora }] : []),
+        ...tramosCorte,
         { id: 'curso', nombre: 'En curso', fechas: `${fmtFecha(corteDesde)} a hoy`, horas: horasCorteEnCurso, ganado: horasCorteEnCurso * valorHora },
     ], anticipos);
     const filaCurso = filasCorte[filasCorte.length - 1];
@@ -497,7 +503,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         <span className="do-kpi-ico"><TrendingUp size={14} /></span>
                                     </div>
                                     <div className="do-kpi-val do-num">{fmt(salarioBruto)}</div>
-                                    <div className="do-kpi-sub">{horasPeriodo} hrs x {fmt(valorHora)}</div>
+                                    <div className="do-kpi-sub">{fmtHoras(horasPeriodo)} hrs x {fmt(valorHora)}</div>
                                 </div>
                                 <div className="do-kpi bad">
                                     <div className="do-kpi-top">
@@ -549,7 +555,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                             </p>
                                         )}
                                         <span className="ale-desc">
-                                            {horasPeriodo} hrs · {fmt(salarioBruto)} bruto · {fmt(anticipos)} {modoPortal ? 'anticipos' : 'pagado'} → neto <strong>{fmt(salarioNeto)}</strong>
+                                            {fmtHoras(horasPeriodo)} hrs · {fmt(salarioBruto)} bruto · {fmt(anticipos)} {modoPortal ? 'anticipos' : 'pagado'} → neto <strong>{fmt(salarioNeto)}</strong>
                                         </span>
                                     </div>
                                 </div>
@@ -577,7 +583,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <div className="ct-aviso"><AlertTriangle size={14} /> Hay {cortesAntesDelPeriodo} corte{cortesAntesDelPeriodo === 1 ? '' : 's'} anterior{cortesAntesDelPeriodo === 1 ? '' : 'es'} al inicio de este periodo ({fmtFecha(periodoActivo.fechaInicio)}) que no se están contando. Si el operador viene trabajando desde antes, cambia la fecha en "Periodo activo desde".</div>
                             )}
 
-                            {!modoPortal && cortesOp.length > 0 && (
+                            {!modoPortal && filasCorte.length > 1 && (
                                 <div className="ct-box">
                                     <div className="ct-head"><b><Scissors size={14} /> Cortes de este periodo</b><span className="ct-sub">Mismas fechas del corte con el cliente</span></div>
                                     <div className="ct-tabla">
@@ -687,7 +693,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     </div>
                                     <div className="rr"><span>Inicio</span><span>{fmtFecha(p.fechaInicio)}</span></div>
                                     {p.fechaFin && <div className="rr"><span>Fin</span><span>{fmtFecha(p.fechaFin)}</span></div>}
-                                    {p.estado === 'activo' && <div className="rr"><span>Horas acumuladas</span><span><strong>{horasPeriodo} hrs</strong></span></div>}
+                                    {p.estado === 'activo' && <div className="rr"><span>Horas acumuladas</span><span><strong>{fmtHoras(horasPeriodo)} hrs</strong></span></div>}
                                     {p.horasTotal != null && p.estado !== 'activo' && <div className="rr"><span>Horas trabajadas</span><span>{p.horasTotal} hrs</span></div>}
                                     {p.salarioBruto != null && <div className="rr"><span>Salario bruto</span><span className="pos">{fmt(p.estado === 'activo' ? salarioBruto : p.salarioBruto)}</span></div>}
                                     {(p.estado === 'activo' ? anticipos : p.anticipos) > 0 && <div className="rr"><span>{modoPortal ? 'Anticipos' : 'Pagos y anticipos'}</span><span className="neg">{fmt(p.estado === 'activo' ? anticipos : p.anticipos)}</span></div>}
