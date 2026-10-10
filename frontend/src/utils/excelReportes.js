@@ -18,21 +18,24 @@ async function getLibs() {
 // Columna A queda vacía como margen visual; los datos empiezan en B (columna 2)
 const C0 = 2;
 
-// ── Colores de marca ──────────────────────────────────────────
+// ── Colores: diseño "Obra" (negro y amarillo de maquinaria) ───
+// Se conservan los nombres AZUL y DORADO por los usos existentes: AZUL es el negro y DORADO el amarillo.
 const C = {
-    AZUL:    'FF1A2D42',
-    DORADO:  'FFF5A623',
-    VERDE:   'FF27AE60',
-    ROJO:    'FFE74C3C',
-    AZULC:   'FF2980B9',
-    GRIS:    'FF6B7A8D',
+    AZUL:    'FF111111',
+    DORADO:  'FFFFC400',
+    AMBAR:   'FF8A5A00',
+    VERDE:   'FF1C8A4B',
+    ROJO:    'FFC0392B',
+    AZULC:   'FF111111',
+    GRIS:    'FF555555',
     BLANCO:  'FFFFFFFF',
-    BGALT:   'FFF0F4F8',
-    BGVERDE: 'FFE8F5E9',
-    BGROJO:  'FFFDF3F3',
-    BGDORADO:'FFFFF8E7',
-    BGAZUL:  'FFE8F0FE',
+    BGALT:   'FFF4F4EF',
+    BGVERDE: 'FFFFFFFF',
+    BGROJO:  'FFFFFFFF',
+    BGDORADO:'FFFFC400',
+    BGAZUL:  'FFFFFFFF',
 };
+const MONO = 'Consolas';
 
 const fmt = (v) => '$' + (v || 0).toLocaleString('es-CO');
 const fmtN = (v) => (v || 0).toLocaleString('es-CO');
@@ -43,69 +46,80 @@ function fill(argb) {
     return { type: 'pattern', pattern: 'solid', fgColor: { argb } };
 }
 function border() {
-    const s = { style: 'thin', color: { argb: 'FFD1D5DB' } };
-    return { top: s, left: s, bottom: s, right: s };
+    return { bottom: { style: 'thin', color: { argb: C.AZUL } } };
 }
 function borderAzul() {
     const s = { style: 'thin', color: { argb: C.AZUL } };
     return { top: s, left: s, bottom: s, right: s };
 }
+function borderCaja() {
+    const s = { style: 'medium', color: { argb: C.AZUL } };
+    return { top: s, left: s, bottom: s, right: s };
+}
 
-function applyHeader(cell, text, bg = C.AZUL, color = C.BLANCO) {
-    cell.value = text;
+// Encabezado de columna: negro con letras amarillas en mayúscula
+function applyHeader(cell, text, bg = C.AZUL, color = C.DORADO) {
+    cell.value = typeof text === 'string' ? text.toUpperCase() : text;
     cell.fill = fill(bg);
-    cell.font = { bold: true, color: { argb: color }, name: 'Calibri', size: 10 };
+    cell.font = { bold: true, color: { argb: color }, name: 'Calibri', size: 9.5 };
     cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     cell.border = borderAzul();
 }
 
 function applyData(cell, value, color = null, bold = false, halign = 'left') {
     cell.value = value;
-    cell.font = { name: 'Calibri', size: 10, color: color ? { argb: color } : undefined, bold };
+    cell.font = { name: halign === 'right' ? MONO : 'Calibri', size: 10, color: color ? { argb: color } : undefined, bold };
     cell.alignment = { vertical: 'middle', horizontal: halign };
     cell.border = border();
 }
 
+// Fila de total: amarilla con letras negras
 function applyTotal(cell, value, halign = 'right') {
     cell.value = value;
-    cell.fill = fill(C.AZUL);
-    cell.font = { bold: true, color: { argb: C.BLANCO }, name: 'Calibri', size: 10 };
+    cell.fill = fill(C.DORADO);
+    cell.font = { bold: true, color: { argb: C.AZUL }, name: halign === 'right' ? MONO : 'Calibri', size: 10 };
     cell.alignment = { vertical: 'middle', horizontal: halign };
-    cell.border = borderAzul();
+    const s = { style: 'medium', color: { argb: C.AZUL } };
+    cell.border = { top: s, bottom: s };
 }
 
 // ── Cabecera del libro ─────────────────────────────────────────
 function addCabecera(ws, titulo, subtitulo, ncols) {
     ws.getColumn(1).width = 2.5;
     const last = C0 + ncols - 1;
+    const negro = (r, c) => { const x = ws.getCell(r, c); x.fill = fill(C.AZUL); return x; };
 
     ws.mergeCells(1, C0, 1, last);
     const c1 = ws.getCell(1, C0);
-    c1.value = 'MaquiControl';
+    c1.value = 'MAQUICONTROL';
     c1.fill = fill(C.AZUL);
-    c1.font = { bold: true, size: 18, color: { argb: C.DORADO }, name: 'Calibri' };
-    c1.alignment = { vertical: 'middle', horizontal: 'center' };
+    c1.font = { bold: true, size: 20, color: { argb: C.DORADO }, name: 'Calibri' };
+    c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
     ws.getRow(1).height = 36;
 
     ws.mergeCells(2, C0, 2, last);
     const c2 = ws.getCell(2, C0);
-    c2.value = titulo;
+    c2.value = String(titulo).toUpperCase();
     c2.fill = fill(C.AZUL);
-    c2.font = { bold: true, size: 13, color: { argb: C.BLANCO }, name: 'Calibri' };
-    c2.alignment = { vertical: 'middle', horizontal: 'center' };
-    ws.getRow(2).height = 22;
+    c2.font = { bold: true, size: 14, color: { argb: C.BLANCO }, name: 'Calibri' };
+    c2.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    ws.getRow(2).height = 24;
 
+    const filaFinal = subtitulo ? 3 : 2;
     if (subtitulo) {
         ws.mergeCells(3, C0, 3, last);
         const c3 = ws.getCell(3, C0);
         c3.value = subtitulo + '   |   Generado: ' + hoyStr();
         c3.fill = fill(C.AZUL);
-        c3.font = { size: 9, color: { argb: 'FFADB5BD' }, name: 'Calibri' };
-        c3.alignment = { vertical: 'middle', horizontal: 'center' };
-        ws.getRow(3).height = 16;
-        return 4;
+        c3.font = { size: 9, color: { argb: 'FFBDBDBD' }, name: MONO };
+        c3.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(3).height = 18;
     }
-    return 3;
+    // filo amarillo bajo la cabecera
+    for (let c = C0; c <= last; c++) {
+        negro(filaFinal, c).border = { bottom: { style: 'thick', color: { argb: C.DORADO } } };
+    }
+    return filaFinal + 1;
 }
 
 // ── Fila KPI ──────────────────────────────────────────────────
@@ -114,7 +128,6 @@ function addKPIs(ws, rowIdx, ncols, items) {
     ws.mergeCells(rowIdx, C0, rowIdx, last);
     const blank = ws.getCell(rowIdx, C0);
     blank.value = '';
-    blank.fill = fill('FFF8FAFC');
     ws.getRow(rowIdx).height = 8;
     rowIdx++;
 
@@ -125,27 +138,33 @@ function addKPIs(ws, rowIdx, ncols, items) {
         if (col !== end) ws.mergeCells(rowIdx, col, rowIdx, end);
         if (col !== end) ws.mergeCells(rowIdx + 1, col, rowIdx + 1, end);
 
-        const bgMap = { ing: C.BGVERDE, gas: C.BGROJO, util: C.BGDORADO, neu: C.BGAZUL };
-        const fgMap = { ing: C.VERDE, gas: C.ROJO, util: C.DORADO, neu: C.AZULC };
-        const bg = bgMap[kpi.tipo] || 'FFF0F4F8';
-        const fg = fgMap[kpi.tipo] || C.GRIS;
+        const negativo = kpi.tipo === 'util' && kpi._raw !== undefined && kpi._raw < 0;
+        const fgMap = { ing: C.VERDE, gas: C.ROJO, util: negativo ? C.ROJO : C.AZUL, neu: C.AZUL };
+        const fg = fgMap[kpi.tipo] || C.AZUL;
+        const bg = kpi.tipo === 'util' && !negativo ? C.DORADO : C.BLANCO;
 
+        // etiqueta: franja negra con letras amarillas
         const lbl = ws.getCell(rowIdx, col);
-        lbl.value = kpi.label;
-        lbl.fill = fill(bg);
-        lbl.font = { size: 8, color: { argb: C.GRIS }, name: 'Calibri' };
-        lbl.alignment = { vertical: 'middle', horizontal: 'center' };
-        lbl.border = border();
+        lbl.value = String(kpi.label).toUpperCase();
+        lbl.fill = fill(C.AZUL);
+        lbl.font = { bold: true, size: 8, color: { argb: C.DORADO }, name: 'Calibri' };
+        lbl.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        for (let c = col + 1; c <= end; c++) ws.getCell(rowIdx, c).fill = fill(C.AZUL);
 
+        // cifra: caja con marco negro grueso
         const val = ws.getCell(rowIdx + 1, col);
         val.value = kpi.valor;
-        val.fill = fill(bg);
-        val.font = { bold: true, size: 11, color: { argb: fg }, name: 'Calibri' };
-        val.alignment = { vertical: 'middle', horizontal: 'center' };
-        val.border = border();
+        val.font = { bold: true, size: 12, color: { argb: fg }, name: MONO };
+        val.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        for (let c = col; c <= end; c++) {
+            const x = ws.getCell(rowIdx + 1, c);
+            x.fill = fill(bg);
+            const s = { style: 'medium', color: { argb: C.AZUL } };
+            x.border = { bottom: s, top: s, left: c === col ? s : undefined, right: c === end ? s : undefined };
+        }
     });
     ws.getRow(rowIdx).height = 14;
-    ws.getRow(rowIdx + 1).height = 20;
+    ws.getRow(rowIdx + 1).height = 24;
     return rowIdx + 2;
 }
 
@@ -153,9 +172,8 @@ function addKPIs(ws, rowIdx, ncols, items) {
 function addSep(ws, rowIdx, ncols) {
     ws.mergeCells(rowIdx, C0, rowIdx, C0 + ncols - 1);
     const c = ws.getCell(rowIdx, C0);
-    c.fill = fill('FFF8FAFC');
     c.value = '';
-    ws.getRow(rowIdx).height = 6;
+    ws.getRow(rowIdx).height = 8;
     return rowIdx + 1;
 }
 
@@ -163,11 +181,13 @@ function addSep(ws, rowIdx, ncols) {
 function addSeccion(ws, rowIdx, ncols, texto) {
     ws.mergeCells(rowIdx, C0, rowIdx, C0 + ncols - 1);
     const c = ws.getCell(rowIdx, C0);
-    c.value = texto;
-    c.fill = fill(C.AZUL);
-    c.font = { bold: true, size: 10, color: { argb: C.BLANCO }, name: 'Calibri' };
-    c.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-    ws.getRow(rowIdx).height = 18;
+    c.value = String(texto).toUpperCase();
+    c.font = { bold: true, size: 12, color: { argb: C.AZUL }, name: 'Calibri' };
+    c.alignment = { vertical: 'bottom', horizontal: 'left', indent: 0 };
+    for (let k = C0; k < C0 + ncols; k++) {
+        ws.getCell(rowIdx, k).border = { bottom: { style: 'thick', color: { argb: C.AZUL } } };
+    }
+    ws.getRow(rowIdx).height = 24;
     return rowIdx + 1;
 }
 
@@ -175,21 +195,20 @@ function addSeccion(ws, rowIdx, ncols, texto) {
 // cols: [{ key, header, width, color?, bold?, halign?, isNum? }]
 function addTabla(ws, rowIdx, cols, rows, totalRow = null) {
     // Encabezado
-    cols.forEach((col, i) => applyHeader(ws.getCell(rowIdx, C0 + i), col.header, C.DORADO, C.AZUL));
-    ws.getRow(rowIdx).height = 18;
+    cols.forEach((col, i) => applyHeader(ws.getCell(rowIdx, C0 + i), col.header, C.AZUL, C.DORADO));
+    ws.getRow(rowIdx).height = 20;
     rowIdx++;
 
     // Datos
-    rows.forEach((row, ri) => {
-        const isAlt = ri % 2 === 1;
-        const bgRow = isAlt ? C.BGALT : C.BLANCO;
+    rows.forEach((row) => {
         cols.forEach((col, ci) => {
             const cell = ws.getCell(rowIdx, C0 + ci);
             const val  = row[ci];
-            cell.fill  = fill(bgRow);
+            // el amarillo no se lee como letra sobre blanco: se usa ámbar oscuro
+            const color = col.color === C.DORADO ? C.AMBAR : col.color;
             cell.font  = {
-                name: 'Calibri', size: 9.5,
-                color: col.color ? { argb: col.color } : undefined,
+                name: col.halign === 'right' ? MONO : 'Calibri', size: 9.5,
+                color: color ? { argb: color } : undefined,
                 bold: col.bold || false,
             };
             cell.alignment = { vertical: 'middle', horizontal: col.halign || 'left' };
@@ -203,7 +222,7 @@ function addTabla(ws, rowIdx, cols, rows, totalRow = null) {
     // Total
     if (totalRow) {
         cols.forEach((col, ci) => applyTotal(ws.getCell(rowIdx, C0 + ci), totalRow[ci], col.halign || 'right'));
-        ws.getRow(rowIdx).height = 18;
+        ws.getRow(rowIdx).height = 19;
         rowIdx++;
     }
 
