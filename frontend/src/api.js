@@ -178,6 +178,3 @@ export const createUsuario       = (data)     => API.post('/usuarios', data);
 export const updateUsuarioRol    = (id, rol)  => API.put(`/usuarios/${id}/rol`, { rol });
 export const updateUsuarioActivo = (id, activo) => API.put(`/usuarios/${id}/activo`, { activo });
 export const vincularUsuarioOperador = (id, operadorId) => API.put(`/usuarios/${id}/vincular-operador`, { operadorId });
-
-// Socios y reparto de la máquina (JSON con socios, porcentajes, entregas y gastos pagados de bolsillo)
-export const guardarSociosMaquina = (id, sociosJson) => API.put(`/maquinaria/${id}/socios`, { sociosJson });
