@@ -24,13 +24,14 @@ import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
+import SociosMaquina from './SociosMaquina';
 import ScrollTabs from '../../utils/ScrollTabs';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
-    Target, Eye, CreditCard, History,
+    Target, Eye, CreditCard, History, Users,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -884,6 +885,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
         <><CreditCard size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Pagos Clientes</>,
         <><History size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Historia</>,
+        <><Users size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Socios</>,
     ];
 
     return (
@@ -1466,6 +1468,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         )}
                     </div>
                 )}
+
+                {/* TAB 8 — SOCIOS Y REPARTO */}
+                {tab === 8 && <SociosMaquina maq={maq} onGuardado={setMaq} />}
 
                 {/* TAB 7 — HISTORIA */}
                 {tab === 7 && (
