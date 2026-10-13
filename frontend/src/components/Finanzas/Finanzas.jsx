@@ -7,7 +7,7 @@ import {
     getGastos, createGasto, updateGasto, deleteGasto,
     getSalarios, createSalario, updateSalario, deleteSalario,
     getPagos, createPago, updatePago, deletePago,
-    getFaenas,
+    getFaenas, createFaena,
     contarRegistrosHuerfanos, limpiarRegistrosHuerfanos,
 } from '../../api';
 import { useToast } from '../../utils/toast';
@@ -22,6 +22,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import ReporteGastosPersona from '../Gastos/ReporteGastosPersona';
+import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto } from '../Gastos/DestinoGasto';
 import { quienPago, SIN_ASIGNAR } from '../../utils/gastosPersona';
 import './Finanzas.css';
 
@@ -121,6 +122,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [maqFiltro, setMaqFiltro]         = useState('');
     const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
     const [adminPag, setAdminPag]               = useState(false);
+    const [destGas, setDestGas]                = useState(''); // '' = el que corresponda por defecto
     const [huerfanos, setHuerfanos]            = useState(null);
     const [limpiando, setLimpiando]            = useState(false);
     const [verRepPersona, setVerRepPersona]     = useState(false);
@@ -186,6 +188,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const abrirNuevo = () => {
         setEditandoId(null);
         setFormIng(FORM_ING); setFormGas(FORM_GAS); setFormSal(FORM_SAL); setFormPag(FORM_PAG);
+        setDestGas('');
         setGastoFactura(null);
         setMostrarForm(true);
     };
@@ -193,7 +196,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const abrirEditar = (item) => {
         setEditandoId(item.id);
         if (tab === 'ingresos') setFormIng({ ...item });
-        if (tab === 'gastos')   setFormGas({ ...item });
+        if (tab === 'gastos')   { setFormGas({ ...item }); setDestGas(destinoDeGasto(item)); }
         if (tab === 'salarios') setFormSal({ ...item });
         if (tab === 'pagos')    setFormPag(normalizarPago(item));
         setGastoFactura(null);
@@ -210,7 +213,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         const esEditar = editandoId !== null;
         let op;
         if (tab === 'ingresos') op = esEditar ? updateIngreso(editandoId, formIng) : createIngreso(formIng);
-        if (tab === 'gastos')   op = esEditar ? updateGasto(editandoId, formGas)   : createGasto(formGas);
+        if (tab === 'gastos') {
+            const fid = faenaIdDeDestino(destGas || destinoPorDefecto(faenas, formGas.maquinaNombre));
+            const payload = fid !== undefined ? { ...formGas, faenaId: fid } : formGas;
+            op = esEditar ? updateGasto(editandoId, payload) : createGasto(payload);
+        }
         if (tab === 'salarios') op = esEditar ? updateSalario(editandoId, formSal) : createSalario(formSal);
         if (tab === 'pagos')    op = esEditar ? updatePago(editandoId, formPag)    : createPago(formPag);
         const res = await op.catch(console.error);
@@ -282,8 +289,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             return {
                 id: String(f.id),
                 nombre: f.nombreObra || 'Periodo',
-                activa: f.estado === 'activa',
-                rango: f.estado === 'activa' ? `Activo desde ${fmtFecha(f.fechaInicio)}` : `${fmtFecha(f.fechaInicio)} → ${fmtFecha(f.fechaFin)}`,
+                activa: f.estado === 'activa' || f.estado === 'abierta',
+                rango: (f.estado === 'activa' || f.estado === 'abierta') ? `${f.tipo === 'gastos' ? 'Gastos externos · abierto' : 'Activo'} desde ${fmtFecha(f.fechaInicio)}` : `${fmtFecha(f.fechaInicio)} → ${fmtFecha(f.fechaFin)}`,
                 items: propios,
                 total: propios.reduce((a, x) => a + (Number(x[campoTotal]) || 0), 0),
             };
@@ -818,6 +825,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         </div>
                                         <div className="fin-fld"><label>Descripción</label><input className="fin-input" value={formGas.descripcion} onChange={e => setFormGas({ ...formGas, descripcion: e.target.value })} placeholder="Ej: Mantenimiento preventivo" /></div>
                                         <div className="fin-fld"><label htmlFor="fin-quien">¿Quién pagó?</label><QuienPago id="fin-quien" conEtiqueta={false} selectClass="fin-select" inputClass="fin-input" value={formGas.pagadoPor || ''} onChange={v => setFormGas({ ...formGas, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} /></div>
+                                        {formGas.maquinaNombre && (
+                                            <div className="fin-fld"><DestinoGasto id="fin-destino" faenas={faenas} maquina={formGas.maquinaNombre} selectClass="fin-select" inputClass="fin-input" labelClass=""
+                                                value={destGas || destinoPorDefecto(faenas, formGas.maquinaNombre)} onChange={setDestGas}
+                                                onAbrir={async (nombre) => { const r = await createFaena({ maquinaNombre: formGas.maquinaNombre, nombreObra: nombre, tipo: 'gastos' }); const fr = await getFaenas(); setFaenas(fr.data || []); setDestGas(String(r.data.id)); toast('Periodo de gastos externos abierto'); }} /></div>
+                                        )}
                                         <div className="fin-fld">
                                             <label>Factura (PDF)</label>
                                             {editandoId && facturasIds.has(String(editandoId)) && !gastoFactura ? (

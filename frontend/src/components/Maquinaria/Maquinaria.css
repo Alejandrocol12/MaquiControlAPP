@@ -250,5 +250,7 @@ body.dark .mq-tl-m.pos{color:#6fd99a;} body.dark .mq-tl-m.neg{color:#f59b91;} bo
 }
 
 /* Quién pagó el gasto */
-.mq-pago{display:block;font-size:11.5px;color:#93a2b3;font-weight:500;margin-top:1px;}
+.mq-pago{display:none;font-size:11.5px;color:#93a2b3;font-weight:500;margin-top:1px;}
+.mq-pagocol{font-size:12.5px;}
+@media (max-width:760px){.mq-pago{display:block;}}
 body.dark .mq-pago{color:#94a3b8;}

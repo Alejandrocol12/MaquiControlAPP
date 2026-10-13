@@ -25,6 +25,7 @@ import CortesFaena from '../Faenas/CortesFaena';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
+import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
@@ -322,7 +323,7 @@ function Maquinaria({ vistaInicial = 'lista' }) {
     );
 }
 
-function FiltroRango({ rangoFiltro, setRangoFiltro, fechaDesde, setFechaDesde, fechaHasta, setFechaHasta }) {
+function FiltroRango({ rangoFiltro, setRangoFiltro, fechaDesde, setFechaDesde, fechaHasta, setFechaHasta, extra = [] }) {
     return (
         <FiltroChips
             className="mq-filtros"
@@ -330,6 +331,7 @@ function FiltroRango({ rangoFiltro, setRangoFiltro, fechaDesde, setFechaDesde, f
             onChange={setRangoFiltro}
             opciones={[
                 { key: 'periodo', label: 'Periodo activo' },
+                ...extra,
                 { key: 'todo',    label: 'Todo' },
                 { key: 'mes',     label: 'Este mes' },
                 { key: 'ultimo',  label: 'Mes anterior' },
@@ -452,6 +454,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: hoy(), pagadoPor: '' };
     const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
     const [adminPag, setAdminPag] = useState(false);
+    const [gastoDestino, setGastoDestino] = useState(''); // '' = el que corresponda por defecto
     const [gastoForm, setGastoForm] = useState(GASTO_VACIO);
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds] = useState(new Set());
@@ -459,11 +462,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [cargandoIA, setCargandoIA] = useState(false);
 
     const editarGasto = (g) => {
-        setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha });
+        setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha, pagadoPor: g.pagadoPor || '' });
+        setGastoDestino(destinoDeGasto(g));
         setEditandoGastoId(g.id);
         setGastoFactura(null);
     };
-    const cancelarEditar = () => { setEditandoGastoId(null); setGastoForm(GASTO_VACIO); setGastoFactura(null); errGasto.setErrores({}); };
+    const cancelarEditar = () => { setEditandoGastoId(null); setGastoDestino(''); setGastoForm(GASTO_VACIO); setGastoFactura(null); errGasto.setErrores({}); };
 
     const leerConIA = async (e) => {
         const archivo = e.target.files[0];
@@ -662,7 +666,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         return prefix ? arr.filter(x => x.fecha?.startsWith(prefix)) : arr;
     };
     const ingBaseF  = rangoFiltro === 'periodo' ? ingFaena  : porFechaMaq(ingresos);
-    const gasBaseF  = rangoFiltro === 'periodo' ? gasFaena  : porFechaMaq(gastos);
+    const extAbierto = gastosExternosAbierto(faenasMaq, maq.nombre);
+    const gasBaseF  = rangoFiltro === 'periodo' ? gasFaena
+        : rangoFiltro === 'externo' ? (extAbierto ? gastos.filter(g => String(g.faenaId) === String(extAbierto.id)) : [])
+        : porFechaMaq(gastos);
     const combBaseF = rangoFiltro === 'periodo' ? combFaena : porFechaMaq(combustibles);
     const ingFiltradosF  = ingBaseF.filter(i =>
         !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
@@ -1176,6 +1183,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                             <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
                             <QuienPago id="mq-quien" value={gastoForm.pagadoPor || ''} onChange={v => setGastoForm({ ...gastoForm, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} />
+                            <DestinoGasto id="mq-destino" faenas={faenasMaq} maquina={maq.nombre} value={gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre)} onChange={setGastoDestino}
+                                onAbrir={async (nombre) => { const r = await createFaena({ maquinaNombre: maq.nombre, nombreObra: nombre, tipo: 'gastos' }); cargarFaena(); setGastoDestino(String(r.data.id)); toast('Periodo de gastos externos abierto'); }} />
                             <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
                             <div>
@@ -1220,18 +1229,21 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
                                     ])) return;
                                     if (editandoGastoId) {
-                                        const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) };
-                                        setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoActualizado : g));
+                                        const fidU = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                        const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidU !== undefined ? { faenaId: fidU } : {}) };
+                                        const gastoLocal = { ...gastoActualizado, faenaId: fidU === undefined ? (gastos.find(x => x.id === editandoGastoId)?.faenaId ?? null) : (fidU === -1 ? null : fidU) };
+                                        setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoLocal : g));
                                         cancelarEditar(); toast('Gasto actualizado');
                                         updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
                                         if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
                                     } else {
                                         const tempId = `tmp_${Date.now()}`;
-                                        const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: faenaActiva?.id ?? null };
+                                        const fidC = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                        const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: fidC === undefined ? (faenaActiva?.id ?? null) : (fidC === -1 ? null : fidC) };
                                         setGastos(prev => [...prev, gastoOptimista]);
                                         const facturaCapturada = gastoFactura;
                                         setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
-                                        createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto) }).then(res => {
+                                        createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidC !== undefined ? { faenaId: fidC } : {}) }).then(res => {
                                             if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
                                             if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
                                         }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
@@ -1245,15 +1257,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         </div>
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
-                            fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
+                            fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq}
+                            extra={extAbierto ? [{ key: 'externo', label: 'Gastos externos' }] : []} />
                         <div className="tbl tbl-r">
                             <div className="th">
-                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalGasF)}`}</strong>
+                                <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : rangoFiltro === 'externo' ? `${extAbierto?.nombreObra || 'gastos externos'} · total ${fmt(totalGasF)}` : `total ${fmt(totalGasF)}`}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
                             </div>
                             <div className="tr hdr">
                                 <ThGasF campo="fecha">Fecha</ThGasF>
                                 <ThGasF campo="descripcion" className="w2">Descripción</ThGasF>
+                                <ThGasF campo="pagadoPor">Pagó</ThGasF>
                                 <ThGasF campo="categoria">Categoría</ThGasF>
                                 <ThGasF campo="monto" className="amt">Total</ThGasF>
                                 <span>Acc.</span>
@@ -1261,6 +1275,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             {pagGasF.paginados.map(g => (
                                 <div className="tr" key={g.id}>
                                     <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}{g.pagadoPor ? <small className="mq-pago">Pagó: {g.pagadoPor}</small> : null}</span>
+                                    <span className="mq-pagocol">{g.pagadoPor || '—'}</span>
                                     <span><span className={`mq-catpill mq-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span></span>
                                     <span className="neg amt">{fmt(g.monto)}</span>
                                     <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>

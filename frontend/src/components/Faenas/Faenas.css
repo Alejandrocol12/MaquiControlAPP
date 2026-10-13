@@ -133,3 +133,29 @@ body.dark .pe-cat-neutral{background:#0f172a;color:#94a3b8;}
 
 .pe-quickform{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;background:#f8f9fa;padding:10px;border-radius:8px;}
 body.dark .pe-quickform{background:#0f172a;}
+
+/* Periodos de gastos externos */
+.ge-nota{font-size:12.5px;color:#5c7086;margin:8px 0 0;line-height:1.45;}
+.ge-card{background:#fff;border:1px solid #dbe1e9;border-radius:12px;margin-bottom:10px;min-width:0;overflow:hidden;}
+.ge-card.on{border-color:#f5a623;}
+.ge-top{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;}
+.ge-info{flex:1;min-width:0;}
+.ge-t{font:700 15px 'Barlow',sans-serif;color:#16283b;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ge-s{font-size:12px;color:#93a2b3;}
+.ge-tag{font-size:10.5px;font-weight:700;border-radius:99px;padding:1px 8px;background:#eef1f5;color:#5c7086;}
+.ge-tag.on{background:#fff3dc;color:#b86e00;}
+.ge-total{font-family:'IBM Plex Mono',monospace;font-weight:600;color:#c0392b;white-space:nowrap;}
+.ge-body{border-top:1px solid #e3e8ef;padding:8px 16px 14px;}
+.ge-fila{display:grid;grid-template-columns:90px minmax(0,1fr) auto;gap:10px;padding:8px 0;border-bottom:1px solid #eef1f5;font-size:13px;align-items:baseline;}
+.ge-f{font-size:11.5px;color:#6b7a8d;font-family:'IBM Plex Mono',monospace;}
+.ge-d small{display:block;font-size:11.5px;color:#93a2b3;}
+.ge-m{font-family:'IBM Plex Mono',monospace;font-weight:600;color:#c0392b;}
+.ge-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+body.dark .ge-card{background:#1e293b;border-color:#334155;}
+body.dark .ge-card.on{border-color:#f5a623;}
+body.dark .ge-t{color:#f1f5f9;}
+body.dark .ge-nota{color:#94a3b8;}
+body.dark .ge-body,body.dark .ge-fila{border-color:#334155;}
+body.dark .ge-tag{background:#334155;color:#cbd5e1;}
+body.dark .ge-tag.on{background:rgba(245,166,35,.15);color:#f8c66b;}
+@media (max-width:640px){.ge-fila{grid-template-columns:minmax(0,1fr) auto;}.ge-f{grid-column:1/-1;}}

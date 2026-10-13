@@ -18,6 +18,7 @@ import EmptyState from '../../utils/EmptyState';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import CortesFaena from './CortesFaena';
+import FiltroChips from '../../utils/FiltroChips';
 import './Faenas.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
@@ -27,7 +28,7 @@ const diasEntre = (a, b) => Math.max(1, Math.round((b - a) / 86400000));
 const folioDe = (f) => `OB-${(f.fechaInicio || '').slice(0, 4) || new Date().getFullYear()}-${String(f.id).padStart(3, '0')}`;
 
 
-const FORM_VACIO = { maquinaNombre: '', nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' };
+const FORM_VACIO = { maquinaNombre: '', nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '', tipo: 'trabajo' };
 
 function Faenas() {
     const toast = useToast();
@@ -88,7 +89,7 @@ function Faenas() {
 
     const abrirEditar = (f) => {
         setEditandoId(f.id);
-        setForm({ nombreObra: f.nombreObra || '', cliente: f.cliente || '', nota: f.nota || '' });
+        setForm({ nombreObra: f.nombreObra || '', cliente: f.cliente || '', nota: f.nota || '', tipo: f.tipo || 'trabajo' });
         setMostrarForm(true);
     };
 
@@ -115,14 +116,14 @@ function Faenas() {
     };
 
     const handleCerrar = async (f) => {
-        if (!await confirm(`¿Cerrar el periodo "${f.nombreObra}"?\nSe calculará el resumen financiero y quedará archivado.`)) return;
+        if (!await confirm(f.tipo === 'gastos' ? `¿Cerrar el periodo de gastos externos "${f.nombreObra}"?\nYa no se podrán anotar más gastos ahí hasta reabrirlo.` : `¿Cerrar el periodo "${f.nombreObra}"?\nSe calculará el resumen financiero y quedará archivado.`)) return;
         await cerrarFaena(f.id).catch(console.error);
         toast('Periodo cerrado — resumen guardado');
         cargar();
     };
 
     const handleReabrir = async (f) => {
-        if (!await confirm(`¿Reabrir el periodo "${f.nombreObra}"?\nVolverá a "En campo" y podrás registrar más ingresos, gastos o mantenimientos. El resumen se recalculará cuando lo cierres de nuevo.`)) return;
+        if (!await confirm(f.tipo === 'gastos' ? `¿Reabrir el periodo de gastos externos "${f.nombreObra}"?` : `¿Reabrir el periodo "${f.nombreObra}"?\nVolverá a "En campo" y podrás registrar más ingresos, gastos o mantenimientos. El resumen se recalculará cuando lo cierres de nuevo.`)) return;
         try {
             await reabrirFaena(f.id);
             toast('Periodo reabierto');
@@ -183,8 +184,10 @@ function Faenas() {
         await Promise.all([cargar(), cargarDetalle(f)]);
     };
 
-    const activas  = faenas.filter(f => f.estado === 'activa');
-    const cerradas = faenas.filter(f => f.estado === 'cerrada');
+    const deTrabajo = faenas.filter(f => f.tipo !== 'gastos');
+    const externos  = faenas.filter(f => f.tipo === 'gastos');
+    const activas  = deTrabajo.filter(f => f.estado === 'activa');
+    const cerradas = deTrabajo.filter(f => f.estado === 'cerrada');
 
     const nomsMaquinas = maquinas.map(m => m.nombre);
 
@@ -247,6 +250,13 @@ function Faenas() {
                             <Briefcase size={18} /> {editandoId ? 'Editar periodo' : 'Abrir nuevo periodo'}
                         </h3>
                         {!editandoId && (
+                            <div style={{ marginBottom: '12px' }}>
+                                <label className="fl">Tipo de periodo</label>
+                                <FiltroChips valor={form.tipo} onChange={t => setForm({ ...form, tipo: t })} opciones={[{ key: 'trabajo', label: 'Periodo de trabajo' }, { key: 'gastos', label: 'Gastos externos' }]} />
+                                <p className="ge-nota">{form.tipo === 'gastos' ? 'Para anotar gastos de la máquina que no son de una obra: taller, repuestos, impuestos. No cuenta como periodo en campo y no toca los ingresos ni la nómina.' : 'La máquina sale a trabajar a una obra: ahí se juntan sus ingresos, gastos y horas.'}</p>
+                            </div>
+                        )}
+                        {!editandoId && (
                             <div className="fg2">
                                 <div>
                                     <label className="fl">Máquina *</label>
@@ -266,18 +276,20 @@ function Faenas() {
                         )}
                         <div className="fg2">
                             <div>
-                                <label className="fl">Nombre de la obra *</label>
+                                <label className="fl">{form.tipo === 'gastos' ? 'Nombre del periodo *' : 'Nombre de la obra *'}</label>
                                 <input className={errForm.clase('fi', 'pfObra')} {...errForm.props('pfObra')} value={form.nombreObra}
                                     onChange={e => { setForm({ ...form, nombreObra: e.target.value }); errForm.limpiar('pfObra'); }}
-                                    placeholder="Ej: Carretera Vía Caucasia" />
+                                    placeholder={form.tipo === 'gastos' ? 'Ej: Gastos de taller' : 'Ej: Carretera Vía Caucasia'} />
                                 <ErrorCampo msg={errForm.errores.pfObra} />
                             </div>
-                            <div>
-                                <label className="fl">Cliente</label>
-                                <input className="fi" value={form.cliente}
-                                    onChange={e => setForm({ ...form, cliente: e.target.value })}
-                                    placeholder="Ej: Municipio de..." />
-                            </div>
+                            {form.tipo !== 'gastos' && (
+                                <div>
+                                    <label className="fl">Cliente</label>
+                                    <input className="fi" value={form.cliente}
+                                        onChange={e => setForm({ ...form, cliente: e.target.value })}
+                                        placeholder="Ej: Municipio de..." />
+                                </div>
+                            )}
                         </div>
                         <div>
                             <label className="fl">Nota (opcional)</label>
@@ -288,7 +300,7 @@ function Faenas() {
                         <div className="fa">
                             <button className="bp" onClick={guardar}>
                                 <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                {editandoId ? 'Guardar cambios' : 'Abrir periodo'}
+                                {editandoId ? 'Guardar cambios' : form.tipo === 'gastos' ? 'Abrir periodo de gastos' : 'Abrir periodo'}
                             </button>
                             <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
                         </div>
@@ -307,6 +319,20 @@ function Faenas() {
                                 expandida={expandida} detalle={detalle} cargandoDet={cargandoDet}
                                 onToggle={toggleDetalle} onEditar={abrirEditar} onRefrescar={refrescarFaena}
                                 onCerrar={handleCerrar} onEliminar={handleEliminar} />
+                        ))}
+                    </>
+                )}
+
+                {/* GASTOS EXTERNOS */}
+                {externos.length > 0 && (
+                    <>
+                        <div className="pe-sec-head off">
+                            <TrendingDown size={12} /> GASTOS EXTERNOS ({externos.length})
+                        </div>
+                        {externos.map(f => (
+                            <TarjetaGastosExternos key={f.id} f={f} gastos={gastosAll.filter(g => String(g.faenaId) === String(f.id))}
+                                expandida={expandida === f.id} onToggle={() => setExpandida(expandida === f.id ? null : f.id)}
+                                onEditar={abrirEditar} onCerrar={handleCerrar} onReabrir={handleReabrir} onEliminar={handleEliminar} />
                         ))}
                     </>
                 )}
@@ -338,6 +364,44 @@ function Faenas() {
             </div></div>
         </div>
         </>
+    );
+}
+
+// Periodo de gastos externos: solo gastos, sin ingresos ni nómina
+function TarjetaGastosExternos({ f, gastos, expandida, onToggle, onEditar, onCerrar, onReabrir, onEliminar }) {
+    const abierto = f.estado === 'abierta';
+    const total = gastos.reduce((a, g) => a + (Number(g.monto) || 0), 0);
+    const lista = [...gastos].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
+    return (
+        <div className={`ge-card ${abierto ? 'on' : ''}`}>
+            <div className="ge-top" onClick={onToggle} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onToggle(); }}>
+                <div className="ge-info">
+                    <div className="ge-t">{f.nombreObra || 'Gastos externos'} <span className={`ge-tag ${abierto ? 'on' : ''}`}>{abierto ? 'Abierto' : 'Cerrado'}</span></div>
+                    <div className="ge-s">{f.maquinaNombre} · desde {fmtFecha(f.fechaInicio)}{f.fechaFin ? ` hasta ${fmtFecha(f.fechaFin)}` : ''} · {gastos.length} gasto{gastos.length === 1 ? '' : 's'}</div>
+                </div>
+                <div className="ge-total">{fmt(total)}</div>
+                {expandida ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+            {expandida && (
+                <div className="ge-body">
+                    {lista.length === 0 && <p className="ge-nota">Todavía no hay gastos en este periodo. Al registrar un gasto en la máquina, escoge este periodo en "¿A qué periodo va?".</p>}
+                    {lista.map(g => (
+                        <div className="ge-fila" key={g.id}>
+                            <span className="ge-f">{fmtFecha(g.fecha)}</span>
+                            <span className="ge-d">{g.descripcion}{g.pagadoPor ? <small>Pagó: {g.pagadoPor}</small> : null}</span>
+                            <span className="ge-m">{fmt(g.monto)}</span>
+                        </div>
+                    ))}
+                    <div className="ge-acts">
+                        <button className="bs" onClick={() => onEditar(f)}><Pencil size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Renombrar</button>
+                        {abierto
+                            ? <button className="bs" onClick={() => onCerrar(f)}><StopCircle size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Cerrar</button>
+                            : <button className="bs" onClick={() => onReabrir(f)}><RotateCcw size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Reabrir</button>}
+                        <button className="bs" style={{ color: '#c0392b' }} onClick={() => onEliminar(f)}><Trash2 size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Eliminar</button>
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }
 

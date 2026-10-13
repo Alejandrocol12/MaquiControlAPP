@@ -11,7 +11,6 @@ import {
     xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo, xlsPeriodoMaquina,
 } from '../../utils/excelReportes';
 import { esSueldoOperador } from '../../utils/nomina';
-import ReporteGastosPersona from '../Gastos/ReporteGastosPersona';
 import './Reportes.css';
 import {
     fmt, fmtNum, AZUL, DORADO, GRIS, VERDE, ROJO, AZULC,
@@ -942,8 +941,6 @@ function Reportes() {
                         ))}
                     </div>
                 )}
-
-                {!cargando && <ReporteGastosPersona />}
 
             </div></div>
         </div>
