@@ -27,12 +27,13 @@ import CalendarioTrabajo from './CalendarioTrabajo';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
+import Rentabilidad from './Rentabilidad';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
-    Target, Eye, CreditCard, History,
+    Target, Eye, CreditCard, History, Gauge,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -894,6 +895,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         <><Briefcase size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Periodo</>,
         <><CreditCard size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Pagos Clientes</>,
         <><History size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Historia</>,
+        <><Gauge size={14} style={{marginRight:'5px',verticalAlign:'middle'}} />Rentabilidad</>,
     ];
 
     return (
@@ -1487,6 +1489,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 )}
 
                 {adminPag && <AdministrarPagadores pagadores={pagadores} gastos={gastos} onCambio={async () => { await recargarPagadores(); await refreshGastos(); }} onCerrar={() => setAdminPag(false)} />}
+                {/* TAB 8 — RENTABILIDAD (utilidad por hora) */}
+                {tab === 8 && <Rentabilidad maq={maq} />}
+
                 {/* TAB 7 — HISTORIA */}
                 {tab === 7 && (
                     <HistoriaMaquina
