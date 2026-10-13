@@ -231,3 +231,11 @@ body.dark .fin-subhead{color:#64748b;}
 }
 body.dark .fin-compose-head h2{color:#f1f5f9;}
 @media (max-width:760px){ body.dark .fin-compose-actions{background:#1e293b;} }
+
+/* Quién pagó el gasto */
+.fin-pago{font-size:12.5px;color:#16283b;}
+.fin-pago small{display:none;color:#93a2b3;}
+.fin-pago em{color:#b86e00;font-style:normal;font-size:12px;}
+@media (max-width:760px){.fin-pago small{display:inline;}}
+body.dark .fin-pago{color:#f1f5f9;}
+body.dark .fin-pago em{color:#f8c66b;}

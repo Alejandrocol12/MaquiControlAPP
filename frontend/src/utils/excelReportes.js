@@ -955,3 +955,97 @@ export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaId
         await guardar(wb, `ingresos-periodos-${maqNombre.replace(/\s+/g,'-')}.xlsx`);
     }
 }
+
+// ══════════════════════════════════════════════════════════════
+// GASTOS POR PERSONA (quién pagó)
+// ══════════════════════════════════════════════════════════════
+// grupos: [{ clave: persona, n, total, gastos }] ya agrupados y ordenados por quien más puso.
+// o: { modo: 'junto' | 'sep', desde, hasta, maquina, categoria }
+export async function xlsGastosPorPersona(grupos, o) {
+    const { ExcelJS } = await getLibs();
+    const dia = (f) => (f ? String(f).slice(0, 10) : '—');
+    const total = grupos.reduce((a, g) => a + g.total, 0);
+    const nGastos = grupos.reduce((a, g) => a + g.n, 0);
+    const rango = `${o.desde && o.desde > '2001-01-01' ? o.desde : 'Inicio'} a ${o.hasta || 'hoy'}`;
+    const sub = `${rango}  ·  ${o.maquina || 'Todas las máquinas'}${o.categoria ? '  ·  ' + o.categoria : ''}`;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MaquiControl';
+    const N = 5;
+
+    // Resumen: quién pagó cuánto
+    const colsRes = [
+        { header: 'Persona', width: 26 },
+        { header: 'Gastos', width: 12, halign: 'right' },
+        { header: 'Monto', width: 18, color: C.ROJO, bold: true, halign: 'right' },
+        { header: '% del total', width: 14, halign: 'right' },
+        { header: '', width: 4 },
+    ];
+    const ws = wb.addWorksheet('Resumen');
+    let r = addCabecera(ws, 'Gastos por persona', sub, N);
+    r = addKPIs(ws, r, N, [
+        { label: 'Total gastos', valor: fmt(total), tipo: 'gas' },
+        { label: 'Registros', valor: String(nGastos), tipo: 'neu' },
+        { label: 'Personas', valor: String(grupos.length), tipo: 'util', _raw: 1 },
+    ]);
+    r = addSep(ws, r, N);
+    addTabla(ws, r, colsRes.slice(0, 4),
+        grupos.map(g => [g.clave, g.n, fmt(g.total), total ? `${Math.round(g.total / total * 100)}%` : '—']),
+        ['TOTAL', nGastos, fmt(total), '100%']);
+    setColWidths(ws, colsRes);
+    ws.views = [{ state: 'frozen', ySplit: 3 }];
+
+    const usados = new Set(['resumen']);
+    const nombreHoja = (txt) => {
+        let base = String(txt).replace(/[\/?*[\]:]/g, ' ').trim().slice(0, 28) || 'Persona';
+        let nombre = base, i = 2;
+        while (usados.has(nombre.toLowerCase())) nombre = `${base.slice(0, 26)} ${i++}`;
+        usados.add(nombre.toLowerCase());
+        return nombre;
+    };
+
+    if (o.modo === 'sep') {
+        const cols = [
+            { header: 'Fecha', width: 13 },
+            { header: 'Descripción', width: 34 },
+            { header: 'Máquina', width: 20 },
+            { header: 'Categoría', width: 18 },
+            { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
+        ];
+        grupos.forEach(g => {
+            const w = wb.addWorksheet(nombreHoja(g.clave));
+            let y = addCabecera(w, `Gastos de ${g.clave}`, sub, N);
+            y = addKPIs(w, y, N, [
+                { label: 'Total gastos', valor: fmt(g.total), tipo: 'gas' },
+                { label: 'Registros', valor: String(g.n), tipo: 'neu' },
+                { label: 'Del total', valor: total ? `${Math.round(g.total / total * 100)}%` : '—', tipo: 'util', _raw: 1 },
+            ]);
+            y = addSep(w, y, N);
+            addTabla(w, y, cols,
+                g.gastos.map(x => [dia(x.fecha), x.descripcion || '—', x.maquinaNombre || '—', x.categoria || '—', fmt(x.monto)]),
+                ['', '', '', 'TOTAL', fmt(g.total)]);
+            setColWidths(w, cols);
+            w.views = [{ state: 'frozen', ySplit: 3 }];
+        });
+    } else {
+        const cols = [
+            { header: 'Fecha', width: 13 },
+            { header: 'Descripción', width: 32 },
+            { header: 'Máquina', width: 18 },
+            { header: 'Categoría', width: 16 },
+            { header: 'Pagó', width: 20, bold: true },
+            { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
+        ];
+        const w = wb.addWorksheet('Detalle');
+        const NN = cols.length;
+        let y = addCabecera(w, 'Detalle de gastos', sub, NN);
+        y = addSep(w, y, NN);
+        const filas = [];
+        grupos.forEach(g => g.gastos.forEach(x => filas.push([dia(x.fecha), x.descripcion || '—', x.maquinaNombre || '—', x.categoria || '—', g.clave, fmt(x.monto)])));
+        addTabla(w, y, cols, filas, ['', '', '', '', 'TOTAL', fmt(total)]);
+        setColWidths(w, cols);
+        w.views = [{ state: 'frozen', ySplit: 3 }];
+    }
+
+    await guardar(wb, `gastos-por-persona-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.xlsx`);
+}

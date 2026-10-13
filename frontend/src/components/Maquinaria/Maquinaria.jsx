@@ -24,6 +24,7 @@ import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
+import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import ScrollTabs from '../../utils/ScrollTabs';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
@@ -448,7 +449,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     // Gastos
-    const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: hoy() };
+    const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: hoy(), pagadoPor: '' };
+    const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
+    const [adminPag, setAdminPag] = useState(false);
     const [gastoForm, setGastoForm] = useState(GASTO_VACIO);
     const [gastoFactura, setGastoFactura] = useState(null);
     const [facturasIds, setFacturasIds] = useState(new Set());
@@ -1172,6 +1175,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     placeholder="O escribe una categoría distinta" />
                             </div>
                             <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
+                            <QuienPago id="mq-quien" value={gastoForm.pagadoPor || ''} onChange={v => setGastoForm({ ...gastoForm, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} />
                             <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
                             <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
                             <div>
@@ -1256,7 +1260,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                             {pagGasF.paginados.map(g => (
                                 <div className="tr" key={g.id}>
-                                    <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}</span>
+                                    <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}{g.pagadoPor ? <small className="mq-pago">Pagó: {g.pagadoPor}</small> : null}</span>
                                     <span><span className={`mq-catpill mq-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span></span>
                                     <span className="neg amt">{fmt(g.monto)}</span>
                                     <span style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -1467,6 +1471,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     </div>
                 )}
 
+                {adminPag && <AdministrarPagadores pagadores={pagadores} gastos={gastos} onCambio={async () => { await recargarPagadores(); await refreshGastos(); }} onCerrar={() => setAdminPag(false)} />}
                 {/* TAB 7 — HISTORIA */}
                 {tab === 7 && (
                     <HistoriaMaquina

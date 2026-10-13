@@ -19,13 +19,16 @@ import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
+import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
+import ReporteGastosPersona from '../Gastos/ReporteGastosPersona';
+import { quienPago, SIN_ASIGNAR } from '../../utils/gastosPersona';
 import './Finanzas.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
 
 const FORM_ING  = { descripcion: '', tipoTrabajo: 'Horas', cantidad: 0, valorUnitario: 0, fecha: hoy(), maquinaNombre: '' };
-const FORM_GAS  = { descripcion: '', categoria: '', monto: 0, fecha: hoy(), maquinaNombre: '' };
+const FORM_GAS  = { descripcion: '', categoria: '', monto: 0, fecha: hoy(), maquinaNombre: '', pagadoPor: '' };
 // Sugerencias fijas del selector de categoría — no se le agregan categorías personalizadas
 // que el usuario haya escrito antes, para que el picker no crezca sin control
 const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', 'Lubricantes'];
@@ -48,7 +51,7 @@ const partesPagoOp = (g) => {
 
 const GRID = {
     ingresos: '70px 1.8fr 1fr 84px 90px 104px 60px',
-    gastos:   '70px 1.6fr 120px 1fr 100px 150px',
+    gastos:   '70px 1.5fr 120px 1fr 110px 100px 150px',
     salarios: '1.3fr 64px 84px 96px 96px 96px 84px 60px',
     pagosop:  '70px 1.8fr 1fr 110px 90px',
     pagos:    '70px 1.3fr 1fr 96px 96px 96px 84px 60px',
@@ -115,6 +118,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [faenas, setFaenas]     = useState([]);
 
     const [maqFiltro, setMaqFiltro]         = useState('');
+    const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
+    const [adminPag, setAdminPag]               = useState(false);
+    const [verRepPersona, setVerRepPersona]     = useState(false);
+    const [pagFiltro, setPagFiltro]             = useState('');
     const [periodoAbierto, setPeriodoAbierto] = useState(null);
 
     const [cargando, setCargando] = useState(true);
@@ -240,7 +247,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const pagPeriodo = porFecha([...pagos].reverse(), 'fecha');
 
     const ingFiltrados = ingPeriodo.filter(i => !q || i.descripcion?.toLowerCase().includes(q) || i.maquinaNombre?.toLowerCase().includes(q) || i.tipoTrabajo?.toLowerCase().includes(q)).filter(i => !maqFiltro || i.maquinaNombre === maqFiltro);
-    const gasFiltrados = gasPeriodo.filter(g => !q || g.descripcion?.toLowerCase().includes(q) || g.maquinaNombre?.toLowerCase().includes(q) || g.categoria?.toLowerCase().includes(q)).filter(g => !maqFiltro || g.maquinaNombre === maqFiltro);
+    const gasFiltrados = gasPeriodo.filter(g => !q || g.descripcion?.toLowerCase().includes(q) || g.maquinaNombre?.toLowerCase().includes(q) || g.categoria?.toLowerCase().includes(q)).filter(g => !maqFiltro || g.maquinaNombre === maqFiltro).filter(g => !pagFiltro || quienPago(g) === pagFiltro);
     const salFiltrados = salPeriodo.filter(s => !q || s.operadorNombre?.toLowerCase().includes(q) || s.maquinaNombre?.toLowerCase().includes(q)).filter(s => !maqFiltro || s.maquinaNombre === maqFiltro);
     const pagFiltrados = pagPeriodo.filter(p => !q || p.cliente?.toLowerCase().includes(q) || p.maquinaNombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q)).filter(p => !maqFiltro || p.maquinaNombre === maqFiltro);
 
@@ -409,10 +416,24 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         <option value="">Todas las máquinas</option>
                         {nomsMaquinas.map(n => <option key={n}>{n}</option>)}
                     </select>
+                    {tab === 'gastos' && (
+                        <>
+                            <label style={{ marginLeft: '12px' }}>Pagó</label>
+                            <select className="fin-select" style={{ width: 'auto', minWidth: '160px', maxWidth: '100%' }} aria-label="Filtrar por quién pagó"
+                                value={pagFiltro} onChange={e => setPagFiltro(e.target.value)}>
+                                <option value="">Todas las personas</option>
+                                {[...new Set([...pagadores.map(p => p.nombre), ...gastos.map(g => quienPago(g))])].map(n => <option key={n}>{n}</option>)}
+                            </select>
+                            <button type="button" className="fin-btn" style={{ marginLeft: 'auto', flex: '0 0 auto', width: 'auto' }} onClick={() => setVerRepPersona(v => !v)}>{verRepPersona ? 'Ocultar reporte por persona' : 'Reporte por persona'}</button>
+                        </>
+                    )}
                     {maqFiltro && (tab === 'ingresos' || tab === 'gastos') && (
                         <span className="fin-machinebar-note">Agrupado por periodo — clic en uno para ver el detalle</span>
                     )}
                 </div>
+
+                {tab === 'gastos' && verRepPersona && <ReporteGastosPersona />}
+                {adminPag && <AdministrarPagadores pagadores={pagadores} gastos={gastos} onCambio={async () => { await recargarPagadores(); await cargarTodo(); }} onCerrar={() => setAdminPag(false)} />}
 
                 {/* FILTRO PERÍODO */}
                 <FiltroChips
@@ -533,6 +554,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                 <div className="fin-desc"><div className="t">{g.descripcion}</div></div>
                                                 <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
                                                 <span className="fin-cell">{g.maquinaNombre}</span>
+                                                <span className="fin-cell fin-pago"><small>Pagó: </small>{g.pagadoPor || <em>{SIN_ASIGNAR}</em>}</span>
                                                 <span className="fin-money neg">{fmt(g.monto)}</span>
                                                 <div className="fin-actions">
                                                     {tieneFact && <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>}
@@ -550,6 +572,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                         <ThGas campo="descripcion">Descripción</ThGas>
                                         <ThGas campo="categoria">Categoría</ThGas>
                                         <ThGas campo="maquinaNombre">Máquina</ThGas>
+                                        <ThGas campo="pagadoPor">Pagó</ThGas>
                                         <span style={{ textAlign: 'right' }}>Monto</span>
                                         <span style={{ textAlign: 'right' }}>Acc.</span>
                                     </div>
@@ -571,6 +594,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                 </div>
                                                 <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
                                                 <span className="fin-cell">{g.maquinaNombre}</span>
+                                                <span className="fin-cell fin-pago"><small>Pagó: </small>{g.pagadoPor || <em>{SIN_ASIGNAR}</em>}</span>
                                                 <span className="fin-money neg">{fmt(g.monto)}</span>
                                                 <div className="fin-actions">
                                                     {tieneFact && (
@@ -763,6 +787,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                             <div className="fin-fld"><label>Fecha</label><input className="fin-input" type="date" value={formGas.fecha} onChange={e => setFormGas({ ...formGas, fecha: e.target.value })} /></div>
                                         </div>
                                         <div className="fin-fld"><label>Descripción</label><input className="fin-input" value={formGas.descripcion} onChange={e => setFormGas({ ...formGas, descripcion: e.target.value })} placeholder="Ej: Mantenimiento preventivo" /></div>
+                                        <div className="fin-fld"><label htmlFor="fin-quien">¿Quién pagó?</label><QuienPago id="fin-quien" conEtiqueta={false} selectClass="fin-select" inputClass="fin-input" value={formGas.pagadoPor || ''} onChange={v => setFormGas({ ...formGas, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} /></div>
                                         <div className="fin-fld">
                                             <label>Factura (PDF)</label>
                                             {editandoId && facturasIds.has(String(editandoId)) && !gastoFactura ? (

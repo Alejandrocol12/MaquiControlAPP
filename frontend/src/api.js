@@ -178,3 +178,9 @@ export const createUsuario       = (data)     => API.post('/usuarios', data);
 export const updateUsuarioRol    = (id, rol)  => API.put(`/usuarios/${id}/rol`, { rol });
 export const updateUsuarioActivo = (id, activo) => API.put(`/usuarios/${id}/activo`, { activo });
 export const vincularUsuarioOperador = (id, operadorId) => API.put(`/usuarios/${id}/vincular-operador`, { operadorId });
+
+// Personas que pagan gastos (la lista la arma cada usuario)
+export const getPagadores     = ()         => API.get('/pagadores');
+export const createPagador    = (nombre)   => API.post('/pagadores', { nombre });
+export const renombrarPagador = (id, nombre) => API.put(`/pagadores/${id}`, { nombre });
+export const quitarPagador    = (id)       => API.delete(`/pagadores/${id}`);
