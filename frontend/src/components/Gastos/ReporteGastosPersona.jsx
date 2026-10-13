@@ -32,9 +32,7 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
     const [cargando, setCargando] = useState(true);
     const [rango, setRango] = useState('mes');
     const [[desde, hasta], setFechas] = useState(rangoDe('mes'));
-    const [personas, setPersonas] = useState([]);
-    const [modo, setModo] = useState('junto');
-    const [salida, setSalida] = useState('uno');
+    const [persona, setPersona] = useState('');
     const [maquina, setMaquina] = useState('');
     const [categoria, setCategoria] = useState('');
     const [generando, setGenerando] = useState('');
@@ -59,24 +57,21 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
     }, [pagadores, gastos]);
     const categorias = useMemo(() => [...new Set(gastos.map(g => g.categoria).filter(Boolean))].sort(), [gastos]);
 
-    const opciones = { desde, hasta, maquina, categoria, personas };
-    const lista = useMemo(() => filtrarGastos(gastos, opciones), [gastos, desde, hasta, maquina, categoria, personas]); // eslint-disable-line react-hooks/exhaustive-deps
+    const opciones = { desde, hasta, maquina, categoria, persona, personas: persona ? [persona] : [] };
+    const lista = useMemo(() => filtrarGastos(gastos, opciones), [gastos, desde, hasta, maquina, categoria, persona]); // eslint-disable-line react-hooks/exhaustive-deps
     const grupos = useMemo(() => agruparPor(lista, quienPago), [lista]);
     const total = totalDe(lista);
     const fechasMal = desde && hasta && desde > hasta;
-
-    const alternar = (n) => setPersonas(p => p.includes(n) ? p.filter(x => x !== n) : [...p, n]);
 
     const ejecutar = async (tipo) => {
         if (!lista.length || fechasMal) return;
         setGenerando(tipo);
         try {
-            const o = { ...opciones, modo, salida };
             if (tipo === 'pdf') {
-                const n = await pdfGastosPersona(lista, o);
-                toast(n > 1 ? `${n} PDF generados` : 'PDF generado');
+                await pdfGastosPersona(lista, opciones);
+                toast('PDF generado');
             } else {
-                await xlsGastosPorPersona(grupos, o);
+                await xlsGastosPorPersona(grupos, opciones);
                 toast('Excel generado');
             }
         } catch (e) { console.error(e); toast('No se pudo generar el reporte', 'e'); }
@@ -111,29 +106,13 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
 
             <div className="gp-sec">
                 <span className="gp-lab">¿De quién?</span>
-                <div className="gp-personas" role="group" aria-label="Personas">
-                    <button type="button" className={`fchip ${personas.length === 0 ? 'on' : ''}`} aria-pressed={personas.length === 0} onClick={() => setPersonas([])}>Todas las personas</button>
+                <div className="gp-personas" role="group" aria-label="Persona">
+                    <button type="button" className={`fchip ${persona === '' ? 'on' : ''}`} aria-pressed={persona === ''} onClick={() => setPersona('')}>Todas las personas</button>
                     {nombres.map(n => (
-                        <button type="button" key={n} className={`fchip ${personas.includes(n) ? 'on' : ''}`} aria-pressed={personas.includes(n)} onClick={() => alternar(n)}>
-                            {personas.includes(n) ? '✓ ' : ''}{n}
-                        </button>
+                        <button type="button" key={n} className={`fchip ${persona === n ? 'on' : ''}`} aria-pressed={persona === n} onClick={() => setPersona(n)}>{n}</button>
                     ))}
                 </div>
-                <span className="gp-hint">Toca una o varias personas. Sin ninguna marcada se incluyen todas.</span>
-            </div>
-
-            <div className="gp-sec">
-                <span className="gp-lab">Cómo generarlo</span>
-                <div className="gp-opts">
-                    <label className={`gp-opt ${modo === 'junto' ? 'on' : ''}`}><input type="radio" name="gp-modo" checked={modo === 'junto'} onChange={() => setModo('junto')} /><span><b>Todas juntas en un reporte</b><small>Un reporte con los gastos de las personas elegidas.</small></span></label>
-                    <label className={`gp-opt ${modo === 'sep' ? 'on' : ''}`}><input type="radio" name="gp-modo" checked={modo === 'sep'} onChange={() => setModo('sep')} /><span><b>Un reporte por persona</b><small>Cada persona con su propia hoja: lo que gastó y en qué.</small></span></label>
-                </div>
-                {modo === 'sep' && (
-                    <div className="gp-opts" style={{ marginTop: '8px' }}>
-                        <label className={`gp-opt ${salida === 'uno' ? 'on' : ''}`}><input type="radio" name="gp-sal" checked={salida === 'uno'} onChange={() => setSalida('uno')} /><span><b>Un solo PDF</b><small>Una hoja por persona. El Excel trae una pestaña por persona.</small></span></label>
-                        <label className={`gp-opt ${salida === 'varios' ? 'on' : ''}`}><input type="radio" name="gp-sal" checked={salida === 'varios'} onChange={() => setSalida('varios')} /><span><b>Un PDF por persona</b><small>Un archivo para entregar a cada una.</small></span></label>
-                    </div>
-                )}
+                <span className="gp-hint">{persona ? `Un reporte solo con los gastos de ${persona}.` : 'Un reporte con los gastos de todas, cada una con su subtotal.'}</span>
             </div>
 
             <div className="gp-sec gp-dos">
@@ -165,7 +144,7 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
 
             <div className="gp-acts">
                 <button className="bp" disabled={!lista.length || fechasMal || !!generando} onClick={() => ejecutar('pdf')}>
-                    {generando === 'pdf' ? <><Clock size={13} /> PDF…</> : <>↓ {modo === 'sep' && salida === 'varios' ? `${grupos.length} PDF` : 'PDF'}</>}
+                    {generando === 'pdf' ? <><Clock size={13} /> PDF…</> : <>↓ PDF</>}
                 </button>
                 <button className="bs" disabled={!lista.length || fechasMal || !!generando} onClick={() => ejecutar('xls')}>
                     {generando === 'xls' ? <><Clock size={13} /> Excel…</> : <><FileSpreadsheet size={13} /> Excel</>}

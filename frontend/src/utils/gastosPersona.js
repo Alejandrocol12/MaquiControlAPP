@@ -74,34 +74,21 @@ function paginaPersona(doc, grupo, totalGeneral, o) {
         { redCols: [4], totalRow: ['', '', '', 'TOTAL', fmt(grupo.total)] });
 }
 
-// opciones: { modo: 'junto'|'sep', salida: 'uno'|'varios', desde, hasta, maquina, categoria, personas }
+// opciones: { desde, hasta, maquina, categoria, persona }  (persona vacía = todas)
 export async function pdfGastosPersona(L, o) {
     const grupos = agruparPor(L, quienPago);
     const total = totalDe(L);
+    const doc = new jsPDF();
 
-    if (o.modo === 'sep') {
-        if (o.salida === 'varios') {
-            for (const gr of grupos) {
-                const doc = new jsPDF();
-                paginaPersona(doc, gr, total, o);
-                pie(doc, `Gastos de ${gr.clave}`);
-                doc.save(`gastos-${slug(gr.clave)}-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
-                await new Promise(r => setTimeout(r, 350));
-            }
-            return grupos.length;
-        }
-        const doc = new jsPDF();
-        grupos.forEach((gr, i) => {
-            if (i > 0) doc.addPage();
-            paginaPersona(doc, gr, total, o);
-        });
-        pie(doc, 'Gastos por persona');
-        doc.save(`gastos-por-persona-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
-        return 1;
+    // Una sola persona: su hoja con lo que gastó y en qué
+    if (o.persona && grupos.length === 1) {
+        paginaPersona(doc, grupos[0], total, o);
+        pie(doc, `Gastos de ${grupos[0].clave}`);
+        doc.save(`gastos-${slug(grupos[0].clave)}-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
+        return;
     }
 
-    // Todas juntas: resumen y luego el detalle de cada persona con su subtotal
-    const doc = new jsPDF();
+    // Todas las personas: el detalle de cada una con su subtotal
     let y = cabecera(doc, 'Gastos por persona', subtitulo(o));
     y = cajaResumen(doc, y, [
         { label: 'Total gastos', valor: fmt(total), tipo: 'gas', _raw: total },
@@ -109,15 +96,12 @@ export async function pdfGastosPersona(L, o) {
         { label: 'Personas', valor: String(grupos.length), tipo: 'util', _raw: 1 },
         { label: 'Promedio', valor: fmt(Math.round(total / Math.max(L.length, 1))), tipo: 'neu' },
     ]);
-    y = barChart(doc, y, grupos.slice(0, 8).map((g, i) => ({ label: g.clave, valor: g.total, color: colorDe(i) })), 'Quién pagó cuánto');
     grupos.forEach(gr => {
         y = seccion(doc, y, `${gr.clave} · ${gr.n} gasto${gr.n === 1 ? '' : 's'}`);
         y = tabla(doc, y, colsDetalle, filasDetalle(gr.gastos), { 4: { halign: 'right' } },
             { redCols: [4], totalRow: ['', '', '', 'SUBTOTAL', fmt(gr.total)] });
     });
-    // total general al final
-    tabla(doc, y, ['Concepto', 'Monto'], [['TOTAL DE LAS PERSONAS ELEGIDAS', fmt(total)]], { 1: { halign: 'right' } }, { orangeCols: [1] });
+    tabla(doc, y, ['Concepto', 'Monto'], [['TOTAL DE TODAS LAS PERSONAS', fmt(total)]], { 1: { halign: 'right' } }, { orangeCols: [1] });
     pie(doc, 'Gastos por persona');
     doc.save(`gastos-por-persona-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
-    return 1;
 }
