@@ -62,11 +62,14 @@ function paginaPersona(doc, grupo, totalGeneral, o) {
     y = cajaResumen(doc, y, [
         { label: 'Total gastos', valor: fmt(grupo.total), tipo: 'gas', _raw: grupo.total },
         { label: 'Registros', valor: String(grupo.n), tipo: 'neu' },
-        { label: 'Del total', valor: totalGeneral ? `${Math.round(grupo.total / totalGeneral * 100)}%` : '—', tipo: 'util', _raw: 1 },
+        // Si el reporte es de una sola persona, "del total" siempre sería 100%: se muestra el gasto mayor
+        totalGeneral && totalGeneral > grupo.total + 0.5
+            ? { label: 'Del total de las personas', valor: `${Math.round(grupo.total / totalGeneral * 100)}%`, tipo: 'util', _raw: 1 }
+            : { label: 'Gasto mayor', valor: fmt(Math.max(...grupo.gastos.map(g => Number(g.monto) || 0))), tipo: 'util', _raw: 1 },
         { label: 'Promedio', valor: fmt(Math.round(grupo.total / Math.max(grupo.n, 1))), tipo: 'neu' },
     ]);
     y = barChart(doc, y, barrasCategoria(grupo.gastos), 'Gastos por categoría');
-    y = seccion(doc, y, `Detalle (${grupo.n} gastos)`);
+    y = seccion(doc, y, `Detalle (${grupo.n} gasto${grupo.n === 1 ? '' : 's'})`);
     tabla(doc, y, colsDetalle, filasDetalle(grupo.gastos), { 4: { halign: 'right' } },
         { redCols: [4], totalRow: ['', '', '', 'TOTAL', fmt(grupo.total)] });
 }
