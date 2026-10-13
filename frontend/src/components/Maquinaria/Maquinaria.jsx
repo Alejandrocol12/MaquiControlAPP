@@ -949,7 +949,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 0 — RESUMEN */}
                 {tab === 0 && (
                     <>
-                        {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} onVer={() => setTab(5)} />}
+                        {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onVer={() => setTab(5)} />}
 
                         <div className="mq-hero4">
                             <div className="mq-kpi good">
@@ -1409,7 +1409,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     )}
                                 </div>
 
-                                <CortesFaena faena={faenaActiva} ingresos={ingFaena} onCambio={cargarDatos} />
+                                <CortesFaena faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} />
 
                                 <div className="ale red">
                                     <StopCircle size={18} color="#e74c3c" />

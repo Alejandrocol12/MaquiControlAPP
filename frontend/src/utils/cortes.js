@@ -1,3 +1,5 @@
+import { esSueldoOperador } from './nomina';
+
 // Cuentas de los cortes, compartidas entre Periodos (corte con el cliente) y Operadores
 // (corte con el operador). Todas las fechas son texto 'YYYY-MM-DD', que se compara bien
 // como texto sin pasar por Date (y sin líos de zona horaria).
@@ -68,3 +70,34 @@ export const repartirPagos = (tramos, totalPagado) => {
 };
 
 export const fmtHoras = (n) => String(Math.round((Number(n) || 0) * 10) / 10).replace('.', ',');
+
+// ── Gastos por corte ───────────────────────────────────────────────
+// Los gastos de un corte son los de la máquina en esas fechas. El pago al operador cuenta como
+// gasto salvo que se apague (por ejemplo si el operador no cobra). Esta preferencia se recuerda.
+const CLAVE_OPERADOR = 'mc_cortes_gasto_operador';
+export const leerContarOperador = () => { try { return localStorage.getItem(CLAVE_OPERADOR) !== '0'; } catch { return true; } };
+export const guardarContarOperador = (v) => { try { localStorage.setItem(CLAVE_OPERADOR, v ? '1' : '0'); } catch { /* sin almacenamiento */ } };
+
+const montoDe = (g) => Number(g.monto) || 0;
+
+export const resumenGastosTramo = (gastos, desde, hasta, contarOperador = true) => {
+    const lista = gastos
+        .filter(g => enRango(g.fecha, desde, hasta) && (contarOperador || !esSueldoOperador(g)))
+        .sort((a, b) => soloFecha(a.fecha).localeCompare(soloFecha(b.fecha)));
+    const cats = {};
+    lista.forEach(g => { const k = g.categoria || 'Sin categoría'; cats[k] = (cats[k] || 0) + montoDe(g); });
+    return {
+        total: lista.reduce((a, g) => a + montoDe(g), 0),
+        n: lista.length,
+        lista,
+        categorias: Object.entries(cats).sort((a, b) => b[1] - a[1]),
+    };
+};
+
+// Gastos que quedaron por fuera de todos los cortes, en fechas anteriores al último corte
+export const gastosSinCortarAntesDe = (gastos, cortes, limite, contarOperador = true) => {
+    const sueltos = gastos.filter(g => soloFecha(g.fecha) && soloFecha(g.fecha) <= soloFecha(limite)
+        && (contarOperador || !esSueldoOperador(g))
+        && !cortes.some(c => enRango(g.fecha, c.fechaInicio, c.fechaFin)));
+    return { n: sueltos.length, total: sueltos.reduce((a, g) => a + montoDe(g), 0) };
+};

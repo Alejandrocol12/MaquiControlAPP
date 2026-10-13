@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { Scissors } from 'lucide-react';
 import { getCortes } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
-import { diaSiguiente, ordenarCortes, resumenTramo, fmtHoras } from '../../utils/cortes';
+import { diaSiguiente, ordenarCortes, resumenTramo, fmtHoras, resumenGastosTramo, leerContarOperador } from '../../utils/cortes';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
 
 // Tarjeta resumen del corte en curso de un periodo: horas y plata que van desde el último
 // corte. Para hacer el corte se va a la sección Cortes (onVer).
-function CorteEnCurso({ faena, ingresos, onVer }) {
+function CorteEnCurso({ faena, ingresos, gastos = [], onVer }) {
     const [cortes, setCortes] = useState([]);
 
     useEffect(() => {
@@ -22,6 +22,8 @@ function CorteEnCurso({ faena, ingresos, onVer }) {
     const ultimo = cortes[cortes.length - 1];
     const desde = ultimo ? diaSiguiente(ultimo.fechaFin) : String(faena.fechaInicio || '').slice(0, 10);
     const enCurso = resumenTramo(ingresos, desde, null);
+    const gas = resumenGastosTramo(gastos, desde, null, leerContarOperador());
+    const util = enCurso.total - gas.total;
 
     return (
         <div className="ct-curso">
@@ -40,6 +42,10 @@ function CorteEnCurso({ faena, ingresos, onVer }) {
             <div className="ct-curso-debe">
                 <span>Por cobrar en este corte</span>
                 <b className="fav">{fmt(enCurso.total)}</b>
+                <span style={{ marginTop: 8 }}>Gastos en este corte ({gas.n})</span>
+                <b>{fmt(gas.total)}</b>
+                <span style={{ marginTop: 8 }}>Utilidad hasta hoy</span>
+                <b className={util < 0 ? '' : 'fav'}>{fmt(util)}</b>
             </div>
         </div>
     );

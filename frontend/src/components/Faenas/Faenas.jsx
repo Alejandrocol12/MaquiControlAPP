@@ -571,7 +571,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                 </div>
                             </div>
 
-                            <CortesFaena faena={f} ingresos={det.ingresos} onCambio={() => onRefrescar(f)} />
+                            <CortesFaena faena={f} ingresos={det.ingresos} gastos={det.gastos || []} onCambio={() => onRefrescar(f)} />
 
                             {/* Registrar ingreso/gasto olvidado — funciona con el periodo activo o cerrado */}
                             <div style={{ marginBottom: '14px' }}>
