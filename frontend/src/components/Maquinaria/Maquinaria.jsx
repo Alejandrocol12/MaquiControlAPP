@@ -589,17 +589,26 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             setCortesCompartir((c.data || []).filter(x => x._n).sort((a, b) => String(b.fechaInicio).localeCompare(String(a.fechaInicio))));
         }).catch(() => {});
     };
+    // Día en que arranca el corte en curso de un periodo: el siguiente al último corte, o el inicio del periodo
+    const desdeEnCurso = (f) => {
+        const ult = cortesCompartir.filter(c => String(c.faenaId) === String(f.id)).map(c => String(c.fechaFin).slice(0, 10)).sort().pop();
+        if (!ult) return String(f.fechaInicio || '').slice(0, 10);
+        const d = new Date(ult + 'T00:00:00'); d.setDate(d.getDate() + 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
     const etiquetaCorte = (c) => {
         const f = faenasCompartir.find(x => String(x.id) === String(c.faenaId));
         return `Corte ${c._n} (${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)})${f ? ' · ' + (f.nombreObra || 'periodo') : ''}`;
     };
 
     const crearNuevoEnlace = () => {
+        const esCurso = alcanceCompartir.startsWith('curso:');
+        const faenaCurso = esCurso ? faenasCompartir.find(f => String(f.id) === alcanceCompartir.slice(6)) : null;
         const esCorte = alcanceCompartir.startsWith('c:');
         const corteElegido = esCorte ? cortesCompartir.find(c => String(c.id) === alcanceCompartir.slice(2)) : null;
         const faenaElegida = !esCorte && alcanceCompartir ? faenasCompartir.find(f => String(f.id) === alcanceCompartir) : null;
-        const etiquetaPorDefecto = corteElegido ? `${maq.nombre} — Corte ${corteElegido._n}` : faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
-        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: !esCorte && alcanceCompartir ? Number(alcanceCompartir) : null, corteId: corteElegido ? corteElegido.id : null })
+        const etiquetaPorDefecto = faenaCurso ? `${maq.nombre} — Corte en curso` : corteElegido ? `${maq.nombre} — Corte ${corteElegido._n}` : faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
+        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: faenaCurso ? faenaCurso.id : (!esCorte && alcanceCompartir ? Number(alcanceCompartir) : null), corteId: corteElegido ? corteElegido.id : null, corteEnCurso: !!faenaCurso })
             .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); setAlcanceCompartir(''); toast('Enlace creado'); })
             .catch(() => toast('Error al crear enlace', 'e'));
     };
@@ -1617,6 +1626,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 Solo el periodo: {f.nombreObra} {f.estado === 'activa' ? '(en campo)' : f.estado === 'abierta' ? '(gastos externos, abierto)' : '(cerrado)'}
                             </option>
                         ))}
+                        {faenasCompartir.filter(f => f.estado === 'activa' && f.tipo !== 'gastos').map(f => (
+                            <option key={`curso${f.id}`} value={`curso:${f.id}`}>Solo el corte en curso (desde {fmtFecha(desdeEnCurso(f))}) · {f.nombreObra || 'periodo'}</option>
+                        ))}
                         {cortesCompartir.map(c => (
                             <option key={`c${c.id}`} value={`c:${c.id}`}>Solo el corte: {etiquetaCorte(c)}</option>
                         ))}
@@ -1647,7 +1659,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
                                             <div style={{ fontSize: '11px', color: e.faenaId ? '#f5a623' : '#9aa5b4', fontWeight: e.faenaId ? '600' : '400' }}>
-                                                {e.corteId
+                                                {e.corteEnCurso
+                                                    ? `Corte en curso: ${(() => { const f = faenasCompartir.find(x => x.id === e.faenaId); return f ? `desde ${fmtFecha(desdeEnCurso(f))} · ${f.nombreObra || 'periodo'}` : 'periodo'; })()}`
+                                                    : e.corteId
                                                     ? `Corte: ${(() => { const c = cortesCompartir.find(x => x.id === e.corteId); return c ? etiquetaCorte(c) : `#${e.corteId}`; })()}`
                                                     : e.faenaId
                                                         ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
