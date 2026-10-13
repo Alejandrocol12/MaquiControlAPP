@@ -9,7 +9,7 @@ import {
     crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
     getPagos, createPago, updatePago, deletePago,
-    getMantenimientos,
+    getMantenimientos, getCortes,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -389,6 +389,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [nombreEnlace, setNombreEnlace] = useState('');
     const [cargandoEnlaces, setCargandoEnlaces] = useState(false);
     const [faenasCompartir, setFaenasCompartir] = useState([]);
+    const [cortesCompartir, setCortesCompartir] = useState([]);
     const [alcanceCompartir, setAlcanceCompartir] = useState(''); // '' = toda la máquina, o el id de una faena
     const [vistasAbiertas, setVistasAbiertas] = useState(null); // token del enlace cuyas visitas se están mostrando
     const [vistasPorToken, setVistasPorToken] = useState({});
@@ -579,15 +580,26 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             const propios = (r.data || []).filter(e => e.maquinaNombre === maq.nombre);
             setEnlaces(propios);
         }).catch(() => {}).finally(() => setCargandoEnlaces(false));
-        getFaenas().then(r => {
-            setFaenasCompartir((r.data || []).filter(f => f.maquinaNombre === maq.nombre));
+        Promise.all([getFaenas(), getCortes()]).then(([f, c]) => {
+            const propias = (f.data || []).filter(x => x.maquinaNombre === maq.nombre);
+            setFaenasCompartir(propias);
+            const porFaena = {};
+            (c.data || []).filter(x => propias.some(p => String(p.id) === String(x.faenaId))).sort((a, b) => String(a.fechaInicio).localeCompare(String(b.fechaInicio)))
+                .forEach(x => { porFaena[x.faenaId] = (porFaena[x.faenaId] || 0) + 1; x._n = porFaena[x.faenaId]; });
+            setCortesCompartir((c.data || []).filter(x => x._n).sort((a, b) => String(b.fechaInicio).localeCompare(String(a.fechaInicio))));
         }).catch(() => {});
+    };
+    const etiquetaCorte = (c) => {
+        const f = faenasCompartir.find(x => String(x.id) === String(c.faenaId));
+        return `Corte ${c._n} (${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)})${f ? ' · ' + (f.nombreObra || 'periodo') : ''}`;
     };
 
     const crearNuevoEnlace = () => {
-        const faenaElegida = alcanceCompartir ? faenasCompartir.find(f => String(f.id) === alcanceCompartir) : null;
-        const etiquetaPorDefecto = faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
-        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: alcanceCompartir ? Number(alcanceCompartir) : null })
+        const esCorte = alcanceCompartir.startsWith('c:');
+        const corteElegido = esCorte ? cortesCompartir.find(c => String(c.id) === alcanceCompartir.slice(2)) : null;
+        const faenaElegida = !esCorte && alcanceCompartir ? faenasCompartir.find(f => String(f.id) === alcanceCompartir) : null;
+        const etiquetaPorDefecto = corteElegido ? `${maq.nombre} — Corte ${corteElegido._n}` : faenaElegida ? `${maq.nombre} — ${faenaElegida.nombreObra}` : `Enlace de ${maq.nombre}`;
+        crearEnlace({ maquinaId: maq.id, nombre: nombreEnlace || etiquetaPorDefecto, faenaId: !esCorte && alcanceCompartir ? Number(alcanceCompartir) : null, corteId: corteElegido ? corteElegido.id : null })
             .then(r => { setEnlaces(prev => [...prev, r.data]); setNombreEnlace(''); setAlcanceCompartir(''); toast('Enlace creado'); })
             .catch(() => toast('Error al crear enlace', 'e'));
     };
@@ -1602,8 +1614,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         <option value="">Toda la máquina (todos los periodos)</option>
                         {faenasCompartir.map(f => (
                             <option key={f.id} value={String(f.id)}>
-                                Solo el periodo: {f.nombreObra} {f.estado === 'activa' ? '(en campo)' : '(cerrado)'}
+                                Solo el periodo: {f.nombreObra} {f.estado === 'activa' ? '(en campo)' : f.estado === 'abierta' ? '(gastos externos, abierto)' : '(cerrado)'}
                             </option>
+                        ))}
+                        {cortesCompartir.map(c => (
+                            <option key={`c${c.id}`} value={`c:${c.id}`}>Solo el corte: {etiquetaCorte(c)}</option>
                         ))}
                     </select>
 
@@ -1632,9 +1647,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         <div style={{ flex: 1, minWidth: 0 }}>
                                             <div style={{ fontWeight: '600', fontSize: '13px', color: '#1a2d42' }}>{e.nombre}</div>
                                             <div style={{ fontSize: '11px', color: e.faenaId ? '#f5a623' : '#9aa5b4', fontWeight: e.faenaId ? '600' : '400' }}>
-                                                {e.faenaId
-                                                    ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
-                                                    : 'Toda la máquina'}
+                                                {e.corteId
+                                                    ? `Corte: ${(() => { const c = cortesCompartir.find(x => x.id === e.corteId); return c ? etiquetaCorte(c) : `#${e.corteId}`; })()}`
+                                                    : e.faenaId
+                                                        ? `Periodo: ${faenasCompartir.find(f => f.id === e.faenaId)?.nombreObra || `#${e.faenaId}`}`
+                                                        : 'Toda la máquina'}
                                             </div>
                                             <div style={{ fontSize: '11px', color: '#9aa5b4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {window.location.origin}/?token={e.token}

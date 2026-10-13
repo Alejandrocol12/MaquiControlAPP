@@ -88,7 +88,7 @@ export default function VistaCompartida({ token }) {
         </div>
     );
 
-    const { nombre, periodoNombre, maquina, resumen, faenas, ingresos = [], gastos = [], mantenimientos } = datos;
+    const { nombre, periodoNombre, corte, maquina, resumen, faenas, ingresos = [], gastos = [], mantenimientos } = datos;
     const estadoTono = maquina.estado === 'Activa' ? 'ok' : maquina.estado === 'En mantenimiento' ? 'warn' : 'off';
 
     return (
@@ -139,7 +139,9 @@ export default function VistaCompartida({ token }) {
                             <span>{maquina.tipo} · {maquina.placa} · {(maquina.horometroActual || 0).toLocaleString('es-CO')} hrs</span>
                             <span className={`vc-pill ${estadoTono}`}><i></i>{maquina.estado}</span>
                         </div>
-                        {periodoNombre && (
+                        {corte ? (
+                            <div className="vc-periodo-tag"><Briefcase size={11} /> Mostrando solo el corte {corte.numero}: {fmtFecha(corte.fechaInicio)} a {fmtFecha(corte.fechaFin)}{periodoNombre ? ` · ${periodoNombre}` : ''}</div>
+                        ) : periodoNombre && (
                             <div className="vc-periodo-tag"><Briefcase size={11} /> Mostrando solo el periodo: {periodoNombre}</div>
                         )}
                     </div>
