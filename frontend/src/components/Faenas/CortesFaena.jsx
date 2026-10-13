@@ -197,20 +197,12 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio }) {
     );
 }
 
-// Detalle de los gastos de un corte: por categoría y uno por uno
+// Gastos de un corte, uno por uno y en dos columnas para ahorrar espacio
 function DetalleGastos({ gas }) {
-    const mayor = gas.categorias.length ? gas.categorias[0][1] : 1;
     if (gas.n === 0) return <div className="ct-det"><p className="ct-vacio" style={{ margin: 0 }}>No hay gastos en estas fechas.</p></div>;
     return (
         <div className="ct-det">
-            <div>
-                <div className="ct-det-t">En qué se gastó</div>
-                {gas.categorias.map(([cat, v]) => (
-                    <div className="ct-cat" key={cat}><span>{cat}</span><div className="ct-bar"><i style={{ width: `${Math.max(3, v / mayor * 100)}%` }} /></div><b className="ct-num">{fmt(v)}</b></div>
-                ))}
-            </div>
-            <div>
-                <div className="ct-det-t">Los gastos</div>
+            <div className="ct-glist">
                 {gas.lista.map(g => (
                     <div className="ct-gl" key={g.id}>
                         <span className="ct-gf">{fmtFecha(g.fecha)}</span>
