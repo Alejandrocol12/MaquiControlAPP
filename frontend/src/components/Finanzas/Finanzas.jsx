@@ -8,6 +8,7 @@ import {
     getSalarios, createSalario, updateSalario, deleteSalario,
     getPagos, createPago, updatePago, deletePago,
     getFaenas,
+    contarRegistrosHuerfanos, limpiarRegistrosHuerfanos,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -120,6 +121,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [maqFiltro, setMaqFiltro]         = useState('');
     const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
     const [adminPag, setAdminPag]               = useState(false);
+    const [huerfanos, setHuerfanos]            = useState(null);
+    const [limpiando, setLimpiando]            = useState(false);
     const [verRepPersona, setVerRepPersona]     = useState(false);
     const [pagFiltro, setPagFiltro]             = useState('');
     const [periodoAbierto, setPeriodoAbierto] = useState(null);
@@ -141,6 +144,23 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
 
     useEffect(() => { cargarTodo(); }, []);
+
+    // Registros que quedaron de periodos eliminados (se eliminaron antes de que el borrado fuera en cascada)
+    const revisarHuerfanos = () => contarRegistrosHuerfanos().then(r => setHuerfanos(r.data)).catch(() => {});
+    useEffect(() => { revisarHuerfanos(); }, []);
+    const totalHuerfanos = huerfanos ? Object.values(huerfanos).reduce((a, v) => a + (Number(v) || 0), 0) : 0;
+    const limpiarHuerfanos = async () => {
+        const partes = huerfanos ? [['ingresos', 'ingresos'], ['gastos', 'gastos'], ['combustibles', 'cargas de combustible'], ['mantenimientos', 'mantenimientos'], ['horas', 'registros de horas'], ['cortes', 'cortes']]
+            .filter(([k]) => huerfanos[k] > 0).map(([k, t]) => `${huerfanos[k]} ${t}`).join(', ') : '';
+        if (!await confirm(`Se van a borrar ${partes}. Son de periodos que ya eliminaste. Esta acción no se puede deshacer. ¿Continuar?`)) return;
+        setLimpiando(true);
+        try {
+            await limpiarRegistrosHuerfanos();
+            toast('Listo, se borraron los registros de periodos eliminados');
+            await Promise.all([cargarTodo(), revisarHuerfanos()]);
+        } catch { toast('No se pudieron borrar. Intenta de nuevo.', 'e'); }
+        setLimpiando(false);
+    };
     useEffect(() => { setTab(tabInicial); }, [tabInicial]);
 
     const cargarTodo = () => {
@@ -405,6 +425,16 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         <div className="fin-cob-foot"><span>{pctCobrado}% cobrado</span>{totalPorCobrar > 0 && <span className="warn">{fmt(totalPorCobrar)} por cobrar</span>}</div>
                     </div>
                 </div>
+
+                {totalHuerfanos > 0 && (
+                    <div className="ct-aviso" style={{ alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between', gap: '10px', padding: '12px 14px' }}>
+                        <span style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', flex: '1 1 260px' }}>
+                            <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                            <span><b>Hay {totalHuerfanos} registro{totalHuerfanos === 1 ? '' : 's'} de periodos que ya eliminaste.</b> Siguen apareciendo aquí como "Sin periodo asignado" y cuentan en los totales. Puedes borrarlos todos de una vez.</span>
+                        </span>
+                        <button type="button" className="fin-btn pri" onClick={limpiarHuerfanos} disabled={limpiando} style={{ flex: '0 0 auto', width: 'auto' }}><Trash2 size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{limpiando ? 'Borrando…' : 'Borrar registros sueltos'}</button>
+                    </div>
+                )}
 
                 {/* SELECCIONAR MÁQUINA */}
                 <div className="fin-machinebar">

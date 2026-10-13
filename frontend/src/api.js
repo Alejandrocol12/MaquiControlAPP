@@ -132,6 +132,9 @@ export const updateFaena           = (id, data)      => API.put(`/faenas/${id}`,
 export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/cerrar`);
 export const reabrirFaena          = (id)            => API.post(`/faenas/${id}/reabrir`);
 export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
+// Registros que quedaron de periodos que ya no existen ("Sin periodo asignado" en Finanzas)
+export const contarRegistrosHuerfanos = ()          => API.get('/faenas/huerfanos');
+export const limpiarRegistrosHuerfanos = ()         => API.delete('/faenas/huerfanos');
 
 // Ubicación de máquinas
 export const actualizarUbicacion  = (id, data) => API.put(`/maquinaria/${id}/ubicacion`, data);

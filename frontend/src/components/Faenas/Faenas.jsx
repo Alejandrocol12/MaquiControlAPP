@@ -133,9 +133,15 @@ function Faenas() {
     };
 
     const handleEliminar = async (f) => {
-        if (!await confirm(`¿Eliminar el periodo "${f.nombreObra}"? Esta acción no se puede deshacer.`)) return;
-        await deleteFaena(f.id).catch(console.error);
-        toast('Periodo eliminado');
+        if (!await confirm(`¿Eliminar el periodo "${f.nombreObra}"? También se borran todos sus ingresos, gastos, combustible, mantenimientos y horas. Esta acción no se puede deshacer.`)) return;
+        try {
+            const { data } = await deleteFaena(f.id);
+            const n = Object.values(data || {}).reduce((a, v) => a + (Number(v) || 0), 0);
+            toast(n > 0 ? `Periodo eliminado con sus ${n} registros` : 'Periodo eliminado');
+        } catch (e) {
+            console.error(e);
+            toast('No se pudo eliminar el periodo', 'e');
+        }
         cargar();
     };
 
