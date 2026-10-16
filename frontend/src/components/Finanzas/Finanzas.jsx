@@ -22,6 +22,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import ReporteGastosPersona from '../Gastos/ReporteGastosPersona';
+import IngresosPorCorte from '../Faenas/IngresosPorCorte';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto } from '../Gastos/DestinoGasto';
 import { quienPago, SIN_ASIGNAR } from '../../utils/gastosPersona';
 import './Finanzas.css';
@@ -531,23 +532,12 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
                             {/* ── INGRESOS ── */}
                             {tab === 'ingresos' && maqFiltro && (
-                                <GruposPeriodo grupos={agruparPorPeriodo(ingFiltrados, 'total')}
-                                    periodoAbierto={periodoAbierto} setPeriodoAbierto={setPeriodoAbierto}
-                                    cols={GRID.ingresos} tono="pos"
-                                    renderFila={i => (
-                                        <>
-                                            <span className="date">{fmtFecha(i.fecha)}</span>
-                                            <div className="fin-desc"><div className="t">{i.descripcion}</div></div>
-                                            <span className="fin-cell">{i.maquinaNombre}</span>
-                                            <span className="fin-catpill fin-cat-info"><i />{i.tipoTrabajo}</span>
-                                            <span className="fin-cell">{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
-                                            <span className="fin-money pos">{fmt(i.total)}</span>
-                                            <div className="fin-actions">
-                                                <button className="fin-iconbtn" onClick={() => abrirEditar(i)}><Pencil size={14} /></button>
-                                                <button className="fin-iconbtn" onClick={() => eliminar('ingresos', i.id)}><Trash2 size={14} /></button>
-                                            </div>
-                                        </>
-                                    )} />
+                                <div style={{ padding: '12px 18px' }}>
+                                    {ingFiltrados.length === 0
+                                        ? <p className="fin-vacio">Sin registros para esta máquina</p>
+                                        : <IngresosPorCorte ingresos={ingFiltrados} faenas={periodosDeMaqFiltro} resumen={false}
+                                            onEditar={abrirEditar} onEliminar={i => eliminar('ingresos', i.id)} />}
+                                </div>
                             )}
                             {tab === 'ingresos' && !maqFiltro && (
                                 <>

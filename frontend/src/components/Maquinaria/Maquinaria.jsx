@@ -22,6 +22,7 @@ import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
+import IngresosPorCorte from '../Faenas/IngresosPorCorte';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
@@ -703,10 +704,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const combFiltradosF = combBaseF.filter(c =>
         !buscarComb || String(c.galones).includes(buscarComb) || c.fecha?.includes(buscarComb)
     );
-    const { sorted: ingOrdenadosF,  Th: ThIngF  } = useSortable(ingFiltradosF,  'fecha', 'desc');
+    const { sorted: ingOrdenadosF } = useSortable(ingFiltradosF,  'fecha', 'desc');
     const { sorted: gasOrdenadosF,  Th: ThGasF  } = useSortable(gasFiltradosF,  'fecha', 'desc');
     const { sorted: combOrdenadosF, Th: ThCombF } = useSortable(combFiltradosF, 'fecha', 'desc');
-    const pagIngsF  = usePaginacion(ingOrdenadosF, 20);
     const pagGasF   = usePaginacion(gasOrdenadosF, 20);
     const pagCombF  = usePaginacion(combOrdenadosF, 20);
     const totalIngF  = ingOrdenadosF.reduce((a, i) => a + (Number(i.total) || 0), 0);
@@ -1142,36 +1142,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalIngF)}`}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
                             </div>
-                            <div className="tr hdr">
-                                <ThIngF campo="fecha">Fecha</ThIngF>
-                                <ThIngF campo="descripcion" className="w2">Descripción</ThIngF>
-                                <ThIngF campo="tipoTrabajo">Tipo</ThIngF>
-                                <ThIngF campo="cantidad">Horas/Cant.</ThIngF>
-                                <ThIngF campo="total" className="amt">Total</ThIngF>
-                                <span>Acc.</span>
-                            </div>
-                            {pagIngsF.paginados.map(i => (
-                                <div className="tr" key={i.id}>
-                                    <span>{fmtFecha(i.fecha)}</span><span className="w2">{i.descripcion}</span>
-                                    <span><span className="b hrs">{i.tipoTrabajo}</span></span>
-                                    <span>
-                                        {i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}
-                                        {i.tipoTrabajo === 'Horas' && i.horometroInicio != null && i.horometroFin != null && (
-                                            <span style={{ display: 'block', fontSize: '10px', color: '#9aa5b4', fontWeight: 400 }}>
-                                                {i.horometroInicio.toLocaleString('es-CO')} → {i.horometroFin.toLocaleString('es-CO')}
-                                            </span>
-                                        )}
-                                    </span>
-                                    <span className="pos amt">{fmt(i.total)}</span>
-                                    <span>
-                                        <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
-                                        <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
-                                    </span>
-                                </div>
-                            ))}
-                            {ingOrdenadosF.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos en este rango" texto="Prueba con otro filtro de fechas o registra un trabajo nuevo." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
-                            <Paginacion pagina={pagIngsF.pagina} total={pagIngsF.total} ir={pagIngsF.ir} totalItems={ingOrdenadosF.length} porPagina={20} />
                         </div>
+                        <IngresosPorCorte ingresos={ingOrdenadosF} faenas={faenasMaq} onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />
+                        {ingOrdenadosF.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos en este rango" texto="Prueba con otro filtro de fechas o registra un trabajo nuevo." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
                     </>
                 )}
 
