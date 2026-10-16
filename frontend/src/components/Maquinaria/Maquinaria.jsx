@@ -572,7 +572,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
 
-    const abrirCompartir = () => {
+    // alcanceInicial (opcional): 'c:<id del corte>' o 'curso:<id del periodo>' para abrir con eso ya elegido
+    const abrirCompartir = (alcanceInicial) => {
         setModalCompartir(true);
         setAlcanceCompartir('');
         setCargandoEnlaces(true);
@@ -587,6 +588,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             (c.data || []).filter(x => propias.some(p => String(p.id) === String(x.faenaId))).sort((a, b) => String(a.fechaInicio).localeCompare(String(b.fechaInicio)))
                 .forEach(x => { porFaena[x.faenaId] = (porFaena[x.faenaId] || 0) + 1; x._n = porFaena[x.faenaId]; });
             setCortesCompartir((c.data || []).filter(x => x._n).sort((a, b) => String(b.fechaInicio).localeCompare(String(a.fechaInicio))));
+            if (typeof alcanceInicial === 'string') setAlcanceCompartir(alcanceInicial);
         }).catch(() => {});
     };
     // Día en que arranca el corte en curso de un periodo: el siguiente al último corte, o el inicio del periodo
@@ -1430,20 +1432,25 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     )}
                                 </div>
 
-                                <CortesFaena faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} />
+                                <CortesFaena faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} onCompartir={abrirCompartir} />
 
-                                <div className="ale red">
-                                    <StopCircle size={18} color="#e74c3c" />
-                                    <div>
-                                        <p>Rendir cuentas — cerrar periodo</p>
-                                        <span className="ale-desc">Al confirmar, se archivará el resumen financiero y los registros de esta máquina volverán a cero. El periodo quedará guardado en el módulo <strong>Periodos</strong>.</span>
+                                <details className="mq-mas">
+                                    <summary>Más acciones</summary>
+                                    <div className="mq-mas-cuerpo">
+                                        <div className="ale red">
+                                            <StopCircle size={18} color="#e74c3c" />
+                                            <div>
+                                                <p>Rendir cuentas — cerrar periodo</p>
+                                                <span className="ale-desc">Al confirmar, se archivará el resumen financiero y los registros de esta máquina volverán a cero. El periodo quedará guardado en el módulo <strong>Periodos</strong>.</span>
+                                            </div>
+                                        </div>
+                                        <button className="bp" style={{ background: '#c0392b', width: '100%', justifyContent: 'center', padding: '13px', marginTop: '10px' }}
+                                            onClick={handleCerrarFaena}>
+                                            <StopCircle size={15} style={{ marginRight: '7px', verticalAlign: 'middle' }} />
+                                            Rendir cuentas / Cerrar periodo
+                                        </button>
                                     </div>
-                                </div>
-                                <button className="bp" style={{ background: '#c0392b', width: '100%', justifyContent: 'center', padding: '13px', marginTop: '10px' }}
-                                    onClick={handleCerrarFaena}>
-                                    <StopCircle size={15} style={{ marginRight: '7px', verticalAlign: 'middle' }} />
-                                    Rendir cuentas / Cerrar periodo
-                                </button>
+                                </details>
                             </>
                         ) : (
                             <>

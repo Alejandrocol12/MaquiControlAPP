@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, Check, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Scissors, Check, RotateCcw, AlertTriangle, Share2 } from 'lucide-react';
 import { getCortes, createCorte, deleteCorte, getPagos, getHoras } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { fmtFecha } from '../../utils/fmtFecha';
 import Estado from '../../utils/Estado';
+import CalendarioCorte from './CalendarioCorte';
 import {
     hoyISO, diaSiguiente, ordenarCortes, resumenTramo, resumenOperador, sinCortarAntesDe, fmtHoras,
     resumenGastosTramo, gastosSinCortarAntesDe, leerContarOperador, guardarContarOperador,
@@ -15,7 +16,7 @@ const ESTADO_PAGO = { Pagado: 'Pagado', Parcial: 'Parcial', Deuda: 'Pendiente' }
 
 // Cortes de un periodo: tramos entre dos fechas que digita el admin. De cada corte salen las
 // horas y la plata a cobrar al cliente; las mismas fechas sirven para liquidar al operador.
-function CortesFaena({ faena, ingresos, gastos = [], onCambio }) {
+function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
     const [cortes, setCortes] = useState([]);
@@ -102,6 +103,22 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio }) {
         }
     };
 
+    // Una fila por corte con lo que sale de los trabajos de esas fechas y de su cobro
+    const filas = cortes.map((c, i) => {
+        const vivo = resumenTramo(ingresos, c.fechaInicio, c.fechaFin);
+        const pago = c.pagoClienteId ? pagos.find(p => String(p.id) === String(c.pagoClienteId)) : null;
+        const gas = resumenGastosTramo(gastos, c.fechaInicio, c.fechaFin, contarOp);
+        const pagado = pago ? Math.min(Number(pago.valorPagado) || 0, vivo.total) : 0;
+        return { c, i, vivo, pago, gas, pagado };
+    });
+    const cobrado = filas.reduce((a, f) => a + f.pagado, 0);
+    const porCobrar = filas.reduce((a, f) => a + Math.max(0, f.vivo.total - f.pagado), 0);
+    const sinCortar = enCurso.total + sueltos.total;
+    const baseTotal = cobrado + porCobrar + sinCortar;
+    const pct = (v) => (baseTotal > 0 ? (v / baseTotal) * 100 : 0);
+    const hayAlgo = cortes.length > 0 || enCurso.registros > 0 || gasEnCurso.n > 0;
+    const tonoPago = (pago) => (!pago ? 'neutral' : pago.estado === 'Pagado' ? 'ok' : pago.estado === 'Parcial' ? 'warn' : 'bad');
+
     return (
         <div className="ct-box">
             {ConfirmUI}
@@ -114,10 +131,8 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio }) {
 
             {abierto && (
                 <div className="ct-form">
-                    <div className="fg2-keep">
-                        <div><label className="fl" htmlFor={`ctd${faena.id}`}>Desde</label><input id={`ctd${faena.id}`} className="fi" type="date" value={desde} min={inicioPeriodo || undefined} onChange={e => { setDesde(e.target.value); setError(''); }} /></div>
-                        <div><label className="fl" htmlFor={`cth${faena.id}`}>Hasta</label><input id={`cth${faena.id}`} className="fi" type="date" value={hasta} min={inicioPeriodo || undefined} onChange={e => { setHasta(e.target.value); setError(''); }} /></div>
-                    </div>
+                    <CalendarioCorte desde={desde} hasta={hasta} min={inicioPeriodo} max={finPeriodo} cortes={cortes} ingresos={ingresos}
+                        onCambio={r => { setDesde(r.desde); setHasta(r.hasta); setError(''); }} />
                     <div className="ct-calc">
                         <div><span>Horas en esas fechas</span><b>{fmtHoras(previa.horas)} h</b></div>
                         <div><span>A cobrar al cliente</span><b className="pos">{fmt(previa.total)}</b></div>
@@ -143,51 +158,67 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio }) {
                 <div className="ct-aviso"><AlertTriangle size={14} /> Hay {gastosSueltos.n} gasto{gastosSueltos.n === 1 ? '' : 's'} ({fmt(gastosSueltos.total)}) sin cortar en fechas anteriores al último corte.</div>
             )}
 
-            <div className="ct-tabla">
-                <div className="ct-row cli h"><span>Corte</span><span>Fechas</span><span className="r">Horas</span><span className="r">A cobrar</span><span className="r">Gastos</span><span className="r">Utilidad</span><span>Estado</span><span /></div>
-                {cortes.length === 0 && enCurso.registros === 0 && (
-                    <div className="ct-vacio">Todavía no hay cortes ni trabajos en este periodo.</div>
-                )}
-                {cortes.map((c, i) => {
-                    const vivo = resumenTramo(ingresos, c.fechaInicio, c.fechaFin);
-                    const pago = c.pagoClienteId ? pagos.find(p => String(p.id) === String(c.pagoClienteId)) : null;
-                    const cambio = Math.round(vivo.total) !== Math.round(Number(c.total) || 0);
-                    const gas = resumenGastosTramo(gastos, c.fechaInicio, c.fechaFin, contarOp);
+            {hayAlgo && (
+                <>
+                    <div className="ct-sum">
+                        <div className="ct-sum-t ok"><span>Cobrado</span><b>{fmt(cobrado)}</b><small>{Math.round(pct(cobrado))}% del periodo</small></div>
+                        <div className="ct-sum-t warn"><span>Por cobrar</span><b>{fmt(porCobrar)}</b><small>cortes sin pagar</small></div>
+                        <div className="ct-sum-t"><span>Sin cortar</span><b>{fmt(sinCortar)}</b><small>{faena.estado === 'activa' ? 'corte en curso' : 'sin cortar'}</small></div>
+                    </div>
+                    <div className="ct-sbar" role="img" aria-label="Cobrado, por cobrar y sin cortar">
+                        <i className="ok" style={{ width: `${pct(cobrado)}%` }} />
+                        <i className="warn" style={{ width: `${pct(porCobrar)}%` }} />
+                        <i className="gold" style={{ width: `${pct(sinCortar)}%` }} />
+                    </div>
+                </>
+            )}
+
+            {!hayAlgo && <div className="ct-vacio">Todavía no hay cortes ni trabajos en este periodo.</div>}
+
+            <div className="ct-cards">
+                {filas.map(({ c, i, vivo, pago, gas, pagado }) => {
                     const util = vivo.total - gas.total;
+                    const cambio = Math.round(vivo.total) !== Math.round(Number(c.total) || 0);
+                    const saldo = Math.max(0, vivo.total - pagado);
                     return (
-                        <div key={c.id}>
-                            <div className="ct-row cli abrible" onClick={() => setAbierta(abierta === c.id ? null : c.id)} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') setAbierta(abierta === c.id ? null : c.id); }}>
-                                <span data-l="Corte"><b>Corte {i + 1}</b></span>
-                                <span data-l="Fechas">{fmtFecha(c.fechaInicio)} a {fmtFecha(c.fechaFin)}</span>
-                                <span data-l="Horas" className="r ct-num">{fmtHoras(vivo.horas)} h</span>
-                                <span data-l="A cobrar" className="r ct-num">
-                                    {fmt(vivo.total)}
-                                    {cambio && <small className="ct-cambio" title="Se registraron o corrigieron trabajos de estas fechas después de hacer el corte.">cambió, antes {fmt(c.total)}</small>}
-                                </span>
-                                <span data-l="Gastos" className="r ct-num neg">{fmt(gas.total)}</span>
-                                <span data-l="Utilidad" className={`r ct-num ${util < 0 ? 'neg' : 'pos'}`}>{fmt(util)}</span>
-                                <span data-l="Estado">{pago ? <Estado valor={ESTADO_PAGO[pago.estado] || pago.estado} /> : <Estado valor="Sin cobro" tono="neutral" />}</span>
-                                <span className="ct-fin">
-                                    {i === cortes.length - 1 && (
-                                        <button className="ct-link" onClick={e => { e.stopPropagation(); deshacer(c, pago); }}><RotateCcw size={12} /> Deshacer</button>
-                                    )}
-                                </span>
+                        <div key={c.id} className={`ct-card ${tonoPago(pago)}`}>
+                            <div className="ct-card-top">
+                                <b>Corte {i + 1}</b>
+                                {pago ? <Estado valor={ESTADO_PAGO[pago.estado] || pago.estado} /> : <Estado valor="Sin cobro" tono="neutral" />}
+                            </div>
+                            <div className="ct-card-f">{fmtFecha(c.fechaInicio)} a {fmtFecha(c.fechaFin)}</div>
+                            <div className="ct-card-big">{fmt(vivo.total)}</div>
+                            {cambio && <small className="ct-cambio" title="Se registraron o corrigieron trabajos de estas fechas después de hacer el corte.">cambió, antes {fmt(c.total)}</small>}
+                            <div className="ct-card-r"><span>Horas</span><b>{fmtHoras(vivo.horas)} h</b></div>
+                            <div className="ct-card-r"><span>Gastos</span><b className="neg">{fmt(gas.total)}</b></div>
+                            <div className="ct-card-r"><span>Utilidad</span><b className={util < 0 ? 'neg' : 'pos'}>{fmt(util)}</b></div>
+                            {pago && saldo > 0 && <div className="ct-card-r"><span>Falta por cobrar</span><b className="ct-pend">{fmt(saldo)}</b></div>}
+                            <div className="ct-card-a">
+                                <button type="button" className="ct-link" onClick={() => setAbierta(abierta === c.id ? null : c.id)} aria-expanded={abierta === c.id}>{abierta === c.id ? 'Ocultar gastos' : `Ver gastos (${gas.n})`}</button>
+                                {onCompartir && <button type="button" className="ct-link" onClick={() => onCompartir('c:' + c.id)}><Share2 size={12} /> Compartir</button>}
+                                {i === cortes.length - 1 && (
+                                    <button type="button" className="ct-link" onClick={() => deshacer(c, pago)}><RotateCcw size={12} /> Deshacer</button>
+                                )}
                             </div>
                             {abierta === c.id && <DetalleGastos gas={gas} />}
                         </div>
                     );
                 })}
                 {(enCurso.registros > 0 || gasEnCurso.n > 0) && (
-                    <div>
-                        <div className="ct-row cli curso abrible" onClick={() => setAbierta(abierta === 'curso' ? null : 'curso')} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') setAbierta(abierta === 'curso' ? null : 'curso'); }}>
-                            <span data-l="Corte"><b>{faena.estado === 'activa' ? 'En curso' : 'Sin cortar'}</b></span>
-                            <span data-l="Fechas">{fmtFecha(sigue)} a {faena.estado === 'activa' ? 'hoy' : fmtFecha(finPeriodo)}</span>
-                            <span data-l="Horas" className="r ct-num">{fmtHoras(enCurso.horas)} h</span>
-                            <span data-l="A cobrar" className="r ct-num">{fmt(enCurso.total)}</span>
-                            <span data-l="Gastos" className="r ct-num neg">{fmt(gasEnCurso.total)}</span>
-                            <span data-l="Utilidad" className={`r ct-num ${enCurso.total - gasEnCurso.total < 0 ? 'neg' : 'pos'}`}>{fmt(enCurso.total - gasEnCurso.total)}</span>
-                            <span data-l="Estado"><Estado valor="Sin cortar" tono="neutral" /></span>
-                            <span />
+                    <div className="ct-card curso">
+                        <div className="ct-card-top">
+                            <b>{faena.estado === 'activa' ? 'En curso' : 'Sin cortar'}</b>
+                            <Estado valor="Sin cortar" tono="neutral" />
+                        </div>
+                        <div className="ct-card-f">{fmtFecha(sigue)} a {faena.estado === 'activa' ? 'hoy' : fmtFecha(finPeriodo)}</div>
+                        <div className="ct-card-big">{fmt(enCurso.total)}</div>
+                        <div className="ct-card-r"><span>Horas</span><b>{fmtHoras(enCurso.horas)} h</b></div>
+                        <div className="ct-card-r"><span>Gastos</span><b className="neg">{fmt(gasEnCurso.total)}</b></div>
+                        <div className="ct-card-r"><span>Utilidad</span><b className={enCurso.total - gasEnCurso.total < 0 ? 'neg' : 'pos'}>{fmt(enCurso.total - gasEnCurso.total)}</b></div>
+                        <div className="ct-card-a">
+                            {!abierto && <button type="button" className="bp ct-btn" onClick={abrir}><Scissors size={13} /> Hacer corte</button>}
+                            <button type="button" className="ct-link" onClick={() => setAbierta(abierta === 'curso' ? null : 'curso')} aria-expanded={abierta === 'curso'}>{abierta === 'curso' ? 'Ocultar gastos' : `Ver gastos (${gasEnCurso.n})`}</button>
+                            {onCompartir && faena.estado === 'activa' && <button type="button" className="ct-link" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={12} /> Compartir</button>}
                         </div>
                         {abierta === 'curso' && <DetalleGastos gas={gasEnCurso} />}
                     </div>
