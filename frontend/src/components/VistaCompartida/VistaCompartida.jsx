@@ -140,7 +140,7 @@ export default function VistaCompartida({ token }) {
                             <span className={`vc-pill ${estadoTono}`}><i></i>{maquina.estado}</span>
                         </div>
                         {corte ? (
-                            <div className="vc-periodo-tag"><Briefcase size={11} /> {corte.enCurso ? `Mostrando solo el corte en curso: desde ${fmtFecha(corte.fechaInicio)} hasta hoy` : `Mostrando solo el corte ${corte.numero}: ${fmtFecha(corte.fechaInicio)} a ${fmtFecha(corte.fechaFin)}`}{periodoNombre ? ` · ${periodoNombre}` : ''}</div>
+                            <div className="vc-periodo-tag"><Briefcase size={11} /> {corte.enCurso ? `Mostrando solo el corte en curso: desde ${fmtFecha(corte.fechaInicio)} hasta hoy` : `Mostrando solo ${corte.nombre || `el corte ${corte.numero}`}: ${fmtFecha(corte.fechaInicio)} a ${fmtFecha(corte.fechaFin)}`}{periodoNombre ? ` · ${periodoNombre}` : ''}</div>
                         ) : periodoNombre && (
                             <div className="vc-periodo-tag"><Briefcase size={11} /> Mostrando solo el periodo: {periodoNombre}</div>
                         )}

@@ -69,6 +69,9 @@ export const repartirPagos = (tramos, totalPagado) => {
     return { filas, aFavor: resto };
 };
 
+// Nombre del corte: el que le puso el admin o, si no tiene, "Corte N" según su orden
+export const nombreCorte = (c, n) => (c && c.nombre && String(c.nombre).trim()) || `Corte ${n}`;
+
 export const fmtHoras = (n) => String(Math.round((Number(n) || 0) * 10) / 10).replace('.', ',');
 
 // ── Gastos por corte ───────────────────────────────────────────────

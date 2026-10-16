@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, Check, RotateCcw, AlertTriangle, Share2 } from 'lucide-react';
-import { getCortes, createCorte, deleteCorte, getPagos, getHoras } from '../../api';
+import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X } from 'lucide-react';
+import { getCortes, createCorte, deleteCorte, getPagos, getHoras, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { fmtFecha } from '../../utils/fmtFecha';
 import Estado from '../../utils/Estado';
 import CalendarioCorte from './CalendarioCorte';
 import {
-    hoyISO, diaSiguiente, ordenarCortes, resumenTramo, resumenOperador, sinCortarAntesDe, fmtHoras,
+    hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, resumenOperador, sinCortarAntesDe, fmtHoras,
     resumenGastosTramo, gastosSinCortarAntesDe, leerContarOperador, guardarContarOperador,
 } from '../../utils/cortes';
 
@@ -32,6 +32,17 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     const [contarOp, setContarOp] = useState(leerContarOperador);
     const [abierta, setAbierta] = useState(null); // corte (id) o 'curso' con el detalle de gastos a la vista
     const cambiarOp = (v) => { setContarOp(v); guardarContarOperador(v); };
+    const [renombrando, setRenombrando] = useState(null); // id del corte que se está renombrando
+    const [nombreNuevo, setNombreNuevo] = useState('');
+    const guardarNombre = async (c) => {
+        try {
+            await renombrarCorte(c.id, nombreNuevo.trim());
+            setRenombrando(null);
+            toast(nombreNuevo.trim() ? 'Nombre del corte guardado' : 'Se quitó el nombre del corte');
+            await cargar();
+            onCambio?.();
+        } catch { toast('No se pudo cambiar el nombre. Intenta de nuevo.', 'e'); }
+    };
 
     const cargar = useCallback(async () => {
         try {
@@ -183,8 +194,20 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                     return (
                         <div key={c.id} className={`ct-card ${tonoPago(pago)}`}>
                             <div className="ct-card-top">
-                                <b>Corte {i + 1}</b>
-                                {pago ? <Estado valor={ESTADO_PAGO[pago.estado] || pago.estado} /> : <Estado valor="Sin cobro" tono="neutral" />}
+                                {renombrando === c.id ? (
+                                    <span className="ct-ren">
+                                        <input className="fi" autoFocus maxLength={60} value={nombreNuevo} aria-label="Nombre del corte" placeholder="Nombre del corte"
+                                            onChange={e => setNombreNuevo(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') guardarNombre(c); if (e.key === 'Escape') setRenombrando(null); }} />
+                                        <button type="button" className="ct-link" aria-label="Guardar nombre" onClick={() => guardarNombre(c)}><Check size={13} /></button>
+                                        <button type="button" className="ct-link" aria-label="Cancelar" onClick={() => setRenombrando(null)}><X size={13} /></button>
+                                    </span>
+                                ) : (
+                                    <b>{nombreCorte(c, i + 1)}
+                                        <button type="button" className="ct-pen" aria-label="Cambiar el nombre del corte" title="Cambiar el nombre" onClick={() => { setNombreNuevo(c.nombre || nombreCorte(c, i + 1)); setRenombrando(c.id); }}><Pencil size={12} /></button>
+                                    </b>
+                                )}
+                                {renombrando === c.id ? null : pago ? <Estado valor={ESTADO_PAGO[pago.estado] || pago.estado} /> : <Estado valor="Sin cobro" tono="neutral" />}
                             </div>
                             <div className="ct-card-f">{fmtFecha(c.fechaInicio)} a {fmtFecha(c.fechaFin)}</div>
                             <div className="ct-card-big">{fmt(vivo.total)}</div>

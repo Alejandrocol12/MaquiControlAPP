@@ -103,6 +103,7 @@ export const pasarPagosOperadorAGastos = () => API.post('/pagos-operador/pasar-a
 
 // Cortes: tramos de un periodo entre dos fechas, para cobrarle al cliente y liquidar al operador
 export const getCortes   = ()     => API.get('/cortes');
+export const renombrarCorte = (id, nombre) => API.put(`/cortes/${id}`, { nombre });
 export const createCorte = (data) => API.post('/cortes', data);
 export const deleteCorte = (id)   => API.delete(`/cortes/${id}`);
 

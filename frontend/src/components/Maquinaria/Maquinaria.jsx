@@ -22,7 +22,8 @@ import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
-import IngresosPorCorte from '../Faenas/IngresosPorCorte';
+import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
+import { nombreCorte } from '../../utils/cortes';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
@@ -407,7 +408,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [fechaHastaMaq, setFechaHastaMaq] = useState('');
 
     // "¿Cuántas horas se han hecho desde tal fecha?" — usa todo el historial de la máquina
-    const [fechaDesdeHoras, setFechaDesdeHoras] = useState('');
 
     useEffect(() => {
         getOperadoresAPI().then(r => setOperadoresAPI(r.data || [])).catch(() => {});
@@ -601,7 +601,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
     const etiquetaCorte = (c) => {
         const f = faenasCompartir.find(x => String(x.id) === String(c.faenaId));
-        return `Corte ${c._n} (${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)})${f ? ' · ' + (f.nombreObra || 'periodo') : ''}`;
+        return `${nombreCorte(c, c._n)} (${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)})${f ? ' · ' + (f.nombreObra || 'periodo') : ''}`;
     };
 
     const crearNuevoEnlace = () => {
@@ -653,11 +653,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
 
-    // Horas trabajadas desde una fecha elegida, sobre todo el historial de la máquina
-    const ingHorasDesde = fechaDesdeHoras
-        ? ingresos.filter(i => i.tipoTrabajo === 'Horas' && i.fecha && i.fecha >= fechaDesdeHoras)
-        : [];
-    const horasDesdeFecha = ingHorasDesde.reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
 
     const ingFiltrados  = ingFaena.filter(i =>
         !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
@@ -705,9 +700,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         !buscarComb || String(c.galones).includes(buscarComb) || c.fecha?.includes(buscarComb)
     );
     const { sorted: ingOrdenadosF } = useSortable(ingFiltradosF,  'fecha', 'desc');
-    const { sorted: gasOrdenadosF,  Th: ThGasF  } = useSortable(gasFiltradosF,  'fecha', 'desc');
+    const { sorted: gasOrdenadosF } = useSortable(gasFiltradosF,  'fecha', 'desc');
     const { sorted: combOrdenadosF, Th: ThCombF } = useSortable(combFiltradosF, 'fecha', 'desc');
-    const pagGasF   = usePaginacion(gasOrdenadosF, 20);
     const pagCombF  = usePaginacion(combOrdenadosF, 20);
     const totalIngF  = ingOrdenadosF.reduce((a, i) => a + (Number(i.total) || 0), 0);
     const totalGasF  = gasOrdenadosF.reduce((a, g) => a + (Number(g.monto) || 0), 0);
@@ -1123,17 +1117,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
                     <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#eef4ff', border: '1px solid #2980b9', borderRadius: '10px', padding: '10px 16px', marginBottom: '14px', flexWrap: 'wrap' }}>
-                            <Clock size={16} color="#2980b9" />
-                            <span style={{ fontSize: '12px', color: '#1a2d42', fontWeight: 600 }}>Horas trabajadas desde</span>
-                            <input type="date" className="fi" style={{ margin: 0, width: 'auto', padding: '4px 10px', fontSize: '12px' }}
-                                value={fechaDesdeHoras} onChange={e => setFechaDesdeHoras(e.target.value)} />
-                            {fechaDesdeHoras && (
-                                <span style={{ marginLeft: 'auto', fontSize: '15px', fontWeight: 800, color: '#2980b9', fontFamily: "'Barlow Condensed', sans-serif" }}>
-                                    {horasDesdeFecha.toLocaleString('es-CO')} hrs <span style={{ fontSize: '11px', fontWeight: 400, color: '#6b7a8d' }}>({ingHorasDesde.length} registros)</span>
-                                </span>
-                            )}
-                        </div>
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
                             fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
@@ -1143,7 +1126,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
                             </div>
                         </div>
-                        <IngresosPorCorte ingresos={ingOrdenadosF} faenas={faenasMaq} onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />
+                        <AgrupadoPorCorte modo="ingresos" items={ingOrdenadosF} faenas={faenasMaq} onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />
                         {ingOrdenadosF.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos en este rango" texto="Prueba con otro filtro de fechas o registra un trabajo nuevo." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
                     </>
                 )}
@@ -1260,16 +1243,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : rangoFiltro === 'externo' ? `${extAbierto?.nombreObra || 'gastos externos'} · total ${fmt(totalGasF)}` : `total ${fmt(totalGasF)}`}</strong>
                                 <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
                             </div>
-                            <div className="tr hdr">
-                                <ThGasF campo="fecha">Fecha</ThGasF>
-                                <ThGasF campo="descripcion" className="w2">Descripción</ThGasF>
-                                <ThGasF campo="pagadoPor">Pagó</ThGasF>
-                                <ThGasF campo="categoria">Categoría</ThGasF>
-                                <ThGasF campo="monto" className="amt">Total</ThGasF>
-                                <span>Acc.</span>
-                            </div>
-                            {pagGasF.paginados.map(g => (
-                                <div className="tr" key={g.id}>
+                        </div>
+                        <AgrupadoPorCorte modo="gastos" items={gasOrdenadosF} faenas={faenasMaq}
+                            envoltura="tbl tbl-r" claseFila="tr" claseCab="tr hdr"
+                            cabecera={['Fecha', { t: 'Descripción', c: 'w2' }, 'Pagó', 'Categoría', { t: 'Total', c: 'amt' }, 'Acc.']}
+                            renderFila={g => (
+                                <>
                                     <span>{fmtFecha(g.fecha)}</span><span className="w2">{g.descripcion}{g.pagadoPor ? <small className="mq-pago">Pagó: {g.pagadoPor}</small> : null}</span>
                                     <span className="mq-pagocol">{g.pagadoPor || '—'}</span>
                                     <span><span className={`mq-catpill mq-cat-${claseCategoria(g.categoria)}`}><i></i>{g.categoria}</span></span>
@@ -1300,11 +1279,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                         {g.categoria !== 'Pago operador' && <button className="icon-btn" onClick={() => editarGasto(g)}><Pencil size={14} /></button>}
                                         {g.categoria !== 'Pago operador' ? <button className="icon-btn" onClick={() => eliminarGasto(g.id)}><Trash2 size={14} /></button> : <small title="Se edita desde Operadores, pestaña Pago Operador" style={{ color: '#93a2b3', fontSize: '10.5px' }}>Operadores</small>}
                                     </span>
-                                </div>
-                            ))}
-                            {gasOrdenadosF.length === 0 && <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos en este rango" texto="Prueba con otro filtro de fechas o registra un gasto con el formulario de arriba." accion={{ label: 'Registrar gasto', onClick: () => document.querySelector('[data-campo="gsDesc"]')?.focus() }} />}
-                            <Paginacion pagina={pagGasF.pagina} total={pagGasF.total} ir={pagGasF.ir} totalItems={gasOrdenadosF.length} porPagina={20} />
-                        </div>
+                                                                </>
+                            )} />
+                        {gasOrdenadosF.length === 0 && <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos en este rango" texto="Prueba con otro filtro de fechas o registra un gasto con el formulario de arriba." accion={{ label: 'Registrar gasto', onClick: () => document.querySelector('[data-campo="gsDesc"]')?.focus() }} />}
                     </>
                 )}
 

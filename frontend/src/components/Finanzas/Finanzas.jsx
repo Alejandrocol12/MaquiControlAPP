@@ -12,7 +12,7 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle, ChevronDown, ChevronUp, Tractor } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardHat, CreditCard, FileText, Paperclip, X, Search, Fuel, Wrench, Info, AlertTriangle, Tractor } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
@@ -22,7 +22,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import ReporteGastosPersona from '../Gastos/ReporteGastosPersona';
-import IngresosPorCorte from '../Faenas/IngresosPorCorte';
+import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto } from '../Gastos/DestinoGasto';
 import { quienPago, SIN_ASIGNAR } from '../../utils/gastosPersona';
 import './Finanzas.css';
@@ -73,42 +73,6 @@ const normalizarPago = (p) => {
     };
 };
 
-// Agrupa Ingresos/Gastos de una máquina por periodo — el nombre y el total colapsados,
-// el detalle solo aparece al hacer clic (mismo patrón de acordeón usado en Faenas.jsx).
-function GruposPeriodo({ grupos, periodoAbierto, setPeriodoAbierto, cols, tono, renderFila }) {
-    if (grupos.length === 0) return <p className="fin-vacio">Sin registros para esta máquina</p>;
-    return (
-        <div style={{ padding: '12px 18px' }}>
-            {grupos.map(g => {
-                const abierto = periodoAbierto === g.id;
-                return (
-                    <div className={`fin-percard ${abierto ? 'open' : ''}`} key={g.id}>
-                        <div className="fin-perhead" onClick={() => setPeriodoAbierto(abierto ? null : g.id)}>
-                            <span className={`dot ${g.activa ? '' : 'cerrado'}`}></span>
-                            <div className="fin-perinfo">
-                                <div className="t">{g.nombre}</div>
-                                {g.rango && <div className="s">{g.rango}</div>}
-                            </div>
-                            <div className={`fin-pertotal ${tono === 'neg' ? 'neg' : ''} fin-num`}>{fmt(g.total)}</div>
-                            {abierto ? <ChevronUp size={16} className="fin-perchev" /> : <ChevronDown size={16} className="fin-perchev" />}
-                        </div>
-                        {abierto && (
-                            <div className="fin-perbody">
-                                {g.items.length === 0 && <p className="fin-vacio">Sin registros en este periodo</p>}
-                                {g.items.map(item => (
-                                    <div className="fin-lrow" key={item.id} style={{ gridTemplateColumns: cols }}>
-                                        {renderFila(item)}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
 function Finanzas({ tabInicial = 'ingresos' }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
@@ -128,7 +92,6 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [limpiando, setLimpiando]            = useState(false);
     const [verRepPersona, setVerRepPersona]     = useState(false);
     const [pagFiltro, setPagFiltro]             = useState('');
-    const [periodoAbierto, setPeriodoAbierto] = useState(null);
 
     const [cargando, setCargando] = useState(true);
     const [mostrarForm, setMostrarForm] = useState(false);
@@ -279,33 +242,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const salFiltrados = salPeriodo.filter(s => !q || s.operadorNombre?.toLowerCase().includes(q) || s.maquinaNombre?.toLowerCase().includes(q)).filter(s => !maqFiltro || s.maquinaNombre === maqFiltro);
     const pagFiltrados = pagPeriodo.filter(p => !q || p.cliente?.toLowerCase().includes(q) || p.maquinaNombre?.toLowerCase().includes(q) || p.descripcion?.toLowerCase().includes(q)).filter(p => !maqFiltro || p.maquinaNombre === maqFiltro);
 
-    // Periodos (faenas) de la máquina seleccionada, para agrupar Ingresos/Gastos por periodo
-    // en vez de mostrar todo el historial plano — más recientes primero.
-    const periodosDeMaqFiltro = maqFiltro
-        ? faenas.filter(f => f.maquinaNombre === maqFiltro).sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
-        : [];
-    const agruparPorPeriodo = (items, campoTotal) => {
-        const grupos = periodosDeMaqFiltro.map(f => {
-            const propios = items.filter(x => String(x.faenaId) === String(f.id));
-            return {
-                id: String(f.id),
-                nombre: f.nombreObra || 'Periodo',
-                activa: f.estado === 'activa' || f.estado === 'abierta',
-                rango: (f.estado === 'activa' || f.estado === 'abierta') ? `${f.tipo === 'gastos' ? 'Gastos externos · abierto' : 'Activo'} desde ${fmtFecha(f.fechaInicio)}` : `${fmtFecha(f.fechaInicio)} → ${fmtFecha(f.fechaFin)}`,
-                items: propios,
-                total: propios.reduce((a, x) => a + (Number(x[campoTotal]) || 0), 0),
-            };
-        });
-        const idsConocidos = new Set(periodosDeMaqFiltro.map(f => String(f.id)));
-        const sinPeriodo = items.filter(x => !x.faenaId || !idsConocidos.has(String(x.faenaId)));
-        if (sinPeriodo.length) {
-            grupos.push({
-                id: 'sin-periodo', nombre: 'Sin periodo asignado', activa: false, rango: '',
-                items: sinPeriodo, total: sinPeriodo.reduce((a, x) => a + (Number(x[campoTotal]) || 0), 0),
-            });
-        }
-        return grupos;
-    };
+    // Periodos (faenas) con los que se agrupan Ingresos y Gastos: el periodo es el padre y sus cortes
+    // son los hijos. Si hay una máquina elegida solo van los suyos.
+    const faenasVisibles = faenas.filter(f => !maqFiltro || f.maquinaNombre === maqFiltro);
 
     // totales respetan el filtro de período activo
     const totalIngresos  = ingFiltrados.reduce((a, i) => a + (Number(i.total) || 0), 0);
@@ -326,13 +265,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const totalContratado  = pagosCobranza.reduce((a, p) => a + (Number(p.valorTotal) || 0), 0);
     const pctCobrado       = totalContratado > 0 ? Math.round((totalCobrado / totalContratado) * 100) : 0;
 
-    const { sorted: ingSorted, Th: ThIng } = useSortable(ingFiltrados, 'fecha');
-    const { sorted: gasSorted, Th: ThGas } = useSortable(gasFiltrados, 'fecha');
     const { sorted: salSorted, Th: ThSal } = useSortable(salFiltrados, 'fecha');
     const { sorted: pagSorted, Th: ThPag } = useSortable(pagFiltrados, 'fecha');
 
-    const pagIng  = usePaginacion(ingSorted, 20);
-    const pagGas  = usePaginacion(gasSorted, 20);
     const pagSal  = usePaginacion(salSorted, 20);
 
     // Pagos al operador: son gastos categoría "Pago operador"; aquí se ven junto a los salarios
@@ -395,7 +330,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : tab === 'salarios' ? 'Pagado a operadores' : 'Total del periodo';
     const footTono = tab === 'ingresos' ? 'pos' : tab === 'pagos' ? 'pos' : 'neg';
     const listaTab = { ingresos: ingFiltrados, gastos: gasFiltrados, salarios: [...pagosOpFiltrados, ...salFiltrados], pagos: pagFiltrados }[tab];
-    const paginadosTab = { ingresos: pagIng, gastos: pagGas, salarios: { ...pagSal, paginados: [...pagPOp.paginados, ...pagSal.paginados] }, pagos: pagPag }[tab];
+    const paginadosTab = { salarios: { ...pagSal, paginados: [...pagPOp.paginados, ...pagSal.paginados] }, pagos: pagPag }[tab];
 
     return (
         <>{ConfirmUI}
@@ -450,7 +385,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                     <label>Ver finanzas de</label>
                     <select className="fin-select" style={{ width: 'auto', minWidth: '220px', maxWidth: '100%' }}
                         value={maqFiltro}
-                        onChange={e => { setMaqFiltro(e.target.value); setPeriodoAbierto(null); }}>
+                        onChange={e => setMaqFiltro(e.target.value)}>
                         <option value="">Todas las máquinas</option>
                         {nomsMaquinas.map(n => <option key={n}>{n}</option>)}
                     </select>
@@ -531,126 +466,70 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             </div>
 
                             {/* ── INGRESOS ── */}
-                            {tab === 'ingresos' && maqFiltro && (
-                                <div style={{ padding: '12px 18px' }}>
-                                    {ingFiltrados.length === 0
-                                        ? <p className="fin-vacio">Sin registros para esta máquina</p>
-                                        : <IngresosPorCorte ingresos={ingFiltrados} faenas={periodosDeMaqFiltro} resumen={false}
-                                            onEditar={abrirEditar} onEliminar={i => eliminar('ingresos', i.id)} />}
-                                </div>
-                            )}
-                            {tab === 'ingresos' && !maqFiltro && (
-                                <>
-                                    <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.ingresos }}>
-                                        <ThIng campo="fecha">Fecha</ThIng>
-                                        <ThIng campo="descripcion">Descripción</ThIng>
-                                        <ThIng campo="maquinaNombre">Máquina</ThIng>
-                                        <ThIng campo="tipoTrabajo">Tipo</ThIng>
-                                        <ThIng campo="cantidad">Cant.</ThIng>
-                                        <span style={{ textAlign: 'right' }}>Total</span>
-                                        <span style={{ textAlign: 'right' }}>Acc.</span>
+                            {tab === 'ingresos' && (ingFiltrados.length === 0
+                                ? <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo ingreso', onClick: abrirNuevo }} />
+                                : (
+                                    <div style={{ padding: '12px 18px' }}>
+                                        <AgrupadoPorCorte modo="ingresos" items={ingFiltrados} faenas={faenasVisibles} anidado mostrarMaquina={!maqFiltro} resumen={false}
+                                            onEditar={abrirEditar} onEliminar={i => eliminar('ingresos', i.id)} />
                                     </div>
-                                    {ingFiltrados.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo ingreso', onClick: abrirNuevo }} />}
-                                    {pagIng.paginados.map(i => (
-                                        <div className={`fin-lrow ${editandoId === i.id ? 'sel' : ''}`} key={i.id} style={{ gridTemplateColumns: GRID.ingresos }}>
-                                            <span className="date">{fmtFecha(i.fecha)}</span>
-                                            <div className="fin-desc"><div className="t">{i.descripcion}</div></div>
-                                            <span className="fin-cell">{i.maquinaNombre}</span>
-                                            <span className="fin-catpill fin-cat-info"><i />{i.tipoTrabajo}</span>
-                                            <span className="fin-cell">{i.cantidad}{i.tipoTrabajo === 'Horas' ? ' hrs' : ''}</span>
-                                            <span className="fin-money pos">{fmt(i.total)}</span>
-                                            <div className="fin-actions">
-                                                <button className="fin-iconbtn" onClick={() => abrirEditar(i)}><Pencil size={14} /></button>
-                                                <button className="fin-iconbtn" onClick={() => eliminar('ingresos', i.id)}><Trash2 size={14} /></button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
+                                ))}
 
                             {/* ── GASTOS ── */}
-                            {tab === 'gastos' && maqFiltro && (
-                                <GruposPeriodo grupos={agruparPorPeriodo(gasFiltrados, 'monto')}
-                                    periodoAbierto={periodoAbierto} setPeriodoAbierto={setPeriodoAbierto}
-                                    cols={GRID.gastos} tono="neg"
-                                    renderFila={g => {
-                                        const tieneFact = facturasIds.has(String(g.id));
-                                        return (
-                                            <>
-                                                <span className="date">{fmtFecha(g.fecha)}</span>
-                                                <div className="fin-desc"><div className="t">{g.descripcion}</div></div>
-                                                <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
-                                                <span className="fin-cell">{g.maquinaNombre}</span>
-                                                <span className="fin-cell fin-pago"><small>Pagó: </small>{g.pagadoPor || <em>{SIN_ASIGNAR}</em>}</span>
-                                                <span className="fin-money neg">{fmt(g.monto)}</span>
-                                                <div className="fin-actions">
-                                                    {tieneFact && <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>}
-                                                    {!esPagoOperador(g) && <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>}
-                                                    {!esPagoOperador(g) && <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>}
-                                                </div>
-                                            </>
-                                        );
-                                    }} />
-                            )}
-                            {tab === 'gastos' && !maqFiltro && (
-                                <>
-                                    <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.gastos }}>
-                                        <ThGas campo="fecha">Fecha</ThGas>
-                                        <ThGas campo="descripcion">Descripción</ThGas>
-                                        <ThGas campo="categoria">Categoría</ThGas>
-                                        <ThGas campo="maquinaNombre">Máquina</ThGas>
-                                        <ThGas campo="pagadoPor">Pagó</ThGas>
-                                        <span style={{ textAlign: 'right' }}>Monto</span>
-                                        <span style={{ textAlign: 'right' }}>Acc.</span>
+                            {tab === 'gastos' && (gasFiltrados.length === 0
+                                ? <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo gasto', onClick: abrirNuevo }} />
+                                : (
+                                    <div style={{ padding: '12px 18px' }}>
+                                        <AgrupadoPorCorte modo="gastos" items={gasFiltrados} faenas={faenasVisibles} anidado mostrarMaquina={!maqFiltro} resumen={false}
+                                            cols={GRID.gastos} claseFila="fin-lrow" claseCab="fin-lrow-head"
+                                            cabecera={['Fecha', 'Descripción', 'Categoría', 'Máquina', 'Pagó', { t: 'Monto', s: { textAlign: 'right' } }, { t: 'Acc.', s: { textAlign: 'right' } }]}
+                                            renderFila={g => {
+                                                const esCombAuto = g.descripcion?.includes('Combustible —');
+                                                const esSalAuto  = g.categoria === 'Salario' && g.descripcion?.startsWith('Salario —');
+                                                const esMantAuto = g.categoria === 'Mantenimiento' && g.descripcion?.startsWith('Mantenimiento —');
+                                                const esPagoOp   = esPagoOperador(g);
+                                                const autoIcon   = esCombAuto ? <Fuel size={10} /> : (esSalAuto || esPagoOp) ? <HardHat size={10} /> : esMantAuto ? <Wrench size={10} /> : null;
+                                                const autoTexto  = esCombAuto ? 'Automático desde Combustible' : esSalAuto ? 'Automático desde Salarios' : esMantAuto ? 'Automático desde Mantenimientos' : esPagoOp ? 'Se edita desde Operadores, pestaña Pago Operador' : null;
+                                                const tieneFact  = facturasIds.has(String(g.id));
+                                                return (
+                                                    <>
+                                                        <span className="date">{fmtFecha(g.fecha)}</span>
+                                                        <div className="fin-desc">
+                                                            <div className="t">{g.descripcion}</div>
+                                                            {autoTexto && <div className="auto">{autoIcon} {autoTexto}</div>}
+                                                        </div>
+                                                        <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
+                                                        <span className="fin-cell">{g.maquinaNombre}</span>
+                                                        <span className="fin-cell fin-pago"><small>Pagó: </small>{g.pagadoPor || <em>{SIN_ASIGNAR}</em>}</span>
+                                                        <span className="fin-money neg">{fmt(g.monto)}</span>
+                                                        <div className="fin-actions">
+                                                            {tieneFact && (
+                                                                <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>
+                                                            )}
+                                                            <label className="fin-iconbtn" title={tieneFact ? 'Cambiar factura PDF' : 'Adjuntar factura PDF'}>
+                                                                <Paperclip size={14} style={{ color: tieneFact ? '#e67e22' : undefined }} />
+                                                                <input type="file" accept="application/pdf" style={{ display: 'none' }}
+                                                                    onChange={async e => {
+                                                                        if (e.target.files[0]) {
+                                                                            await guardarFactura(g.id, e.target.files[0]).catch(console.error);
+                                                                            setFacturasIds(prev => new Set([...prev, String(g.id)]));
+                                                                        }
+                                                                    }} />
+                                                            </label>
+                                                            {tieneFact && (
+                                                                <button className="fin-iconbtn" title="Quitar factura" onClick={async () => {
+                                                                    await eliminarFactura(g.id).catch(() => {});
+                                                                    setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
+                                                                }}><X size={14} /></button>
+                                                            )}
+                                                            {!esPagoOp && <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>}
+                                                            {!esPagoOp && <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>}
+                                                        </div>
+                                                    </>
+                                                );
+                                            }} />
                                     </div>
-                                    {gasFiltrados.length === 0 && <EmptyState icono={<TrendingDown size={20} />} titulo="No hay gastos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo gasto', onClick: abrirNuevo }} />}
-                                    {pagGas.paginados.map(g => {
-                                        const esCombAuto = g.descripcion?.includes('Combustible —');
-                                        const esSalAuto  = g.categoria === 'Salario' && g.descripcion?.startsWith('Salario —');
-                                        const esMantAuto = g.categoria === 'Mantenimiento' && g.descripcion?.startsWith('Mantenimiento —');
-                                        const esPagoOp   = esPagoOperador(g);
-                                        const autoIcon   = esCombAuto ? <Fuel size={10} /> : (esSalAuto || esPagoOp) ? <HardHat size={10} /> : esMantAuto ? <Wrench size={10} /> : null;
-                                        const autoTexto  = esCombAuto ? 'Automático desde Combustible' : esSalAuto ? 'Automático desde Salarios' : esMantAuto ? 'Automático desde Mantenimientos' : esPagoOp ? 'Se edita desde Operadores, pestaña Pago Operador' : null;
-                                        const tieneFact  = facturasIds.has(String(g.id));
-                                        return (
-                                            <div className={`fin-lrow ${editandoId === g.id ? 'sel' : ''}`} key={g.id} style={{ gridTemplateColumns: GRID.gastos }}>
-                                                <span className="date">{fmtFecha(g.fecha)}</span>
-                                                <div className="fin-desc">
-                                                    <div className="t">{g.descripcion}</div>
-                                                    {autoTexto && <div className="auto">{autoIcon} {autoTexto}</div>}
-                                                </div>
-                                                <span className={`fin-catpill fin-cat-${claseCategoria(g.categoria)}`}><i />{g.categoria}</span>
-                                                <span className="fin-cell">{g.maquinaNombre}</span>
-                                                <span className="fin-cell fin-pago"><small>Pagó: </small>{g.pagadoPor || <em>{SIN_ASIGNAR}</em>}</span>
-                                                <span className="fin-money neg">{fmt(g.monto)}</span>
-                                                <div className="fin-actions">
-                                                    {tieneFact && (
-                                                        <button className="fin-iconbtn has" title="Ver factura" onClick={() => abrirFactura(g.id)}><FileText size={14} /></button>
-                                                    )}
-                                                    <label className="fin-iconbtn" title={tieneFact ? 'Cambiar factura PDF' : 'Adjuntar factura PDF'}>
-                                                        <Paperclip size={14} style={{ color: tieneFact ? '#e67e22' : undefined }} />
-                                                        <input type="file" accept="application/pdf" style={{ display: 'none' }}
-                                                            onChange={async e => {
-                                                                if (e.target.files[0]) {
-                                                                    await guardarFactura(g.id, e.target.files[0]).catch(console.error);
-                                                                    setFacturasIds(prev => new Set([...prev, String(g.id)]));
-                                                                }
-                                                            }} />
-                                                    </label>
-                                                    {tieneFact && (
-                                                        <button className="fin-iconbtn" title="Quitar factura" onClick={async () => {
-                                                            await eliminarFactura(g.id).catch(() => {});
-                                                            setFacturasIds(prev => { const s = new Set(prev); s.delete(String(g.id)); return s; });
-                                                        }}><X size={14} /></button>
-                                                    )}
-                                                    {!esPagoOp && <button className="fin-iconbtn" onClick={() => abrirEditar(g)}><Pencil size={14} /></button>}
-                                                    {!esPagoOp && <button className="fin-iconbtn" onClick={() => eliminar('gastos', g.id)}><Trash2 size={14} /></button>}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </>
-                            )}
+                                ))}
 
                             {/* ── SALARIOS ── */}
                             {tab === 'salarios' && (
@@ -758,10 +637,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             )}
 
                             <div className="fin-ledger-foot">
-                                <span>{listaTab.length} registros · mostrando {paginadosTab.paginados.length}</span>
+                                <span>{listaTab.length} registros{paginadosTab ? ` · mostrando ${paginadosTab.paginados.length}` : ''}</span>
                                 <span>{footLabel} <span className={`fin-ledger-total fin-num ${footTono === 'pos' ? 'fin-money pos' : 'fin-money neg'}`}>{fmt(footTotal)}</span></span>
                             </div>
-                            {!(maqFiltro && (tab === 'ingresos' || tab === 'gastos')) && tab !== 'salarios' && (
+                            {paginadosTab && tab !== 'salarios' && (
                                 <Paginacion pagina={paginadosTab.pagina} total={paginadosTab.total} ir={paginadosTab.ir} totalItems={listaTab.length} porPagina={20} />
                             )}
                         </div>
