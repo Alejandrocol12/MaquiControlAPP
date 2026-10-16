@@ -7,7 +7,8 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 const nivel = (h) => (h <= 0 ? '' : h < 4 ? 'l1' : h < 7 ? 'l2' : h < 9 ? 'l3' : 'l4');
 const num = (n) => String(Math.round(n * 10) / 10).replace('.', ',');
 
-// El mes en una cuadrícula, con cada día coloreado según las horas trabajadas.
+// El mes en una cuadrícula, con cada día coloreado según las horas trabajadas
+// y, al costado de cada semana, el total de horas de esa semana.
 function CalendarioTrabajo({ ingresos }) {
     const hoy = new Date();
     const [mes, setMes] = useState({ y: hoy.getFullYear(), m: hoy.getMonth() });
@@ -52,6 +53,32 @@ function CalendarioTrabajo({ ingresos }) {
         return h > 0 ? <><b>{nombre}</b>: trabajó {num(h)} h.</> : <><b>{nombre}</b>: no trabajó.</>;
     };
 
+    // Casillas del mes; al cerrar cada semana (domingo o último día) va su total de horas
+    const celdas = [];
+    for (let i = 0; i < offset; i++) celdas.push(<span key={`e${i}`} />);
+    let horasSemana = 0, haySemana = false;
+    for (let d = 1; d <= diasMes; d++) {
+        const k = iso(mes.y, mes.m, d);
+        const futuro = k > hoyISO;
+        const h = porDia[k] || 0;
+        if (!futuro && h > 0) { horasSemana += h; haySemana = true; }
+        celdas.push(
+            <button key={k} type="button"
+                className={`mq-cal-day ${futuro ? 'fut' : nivel(h)} ${sel === k ? 'sel' : ''} ${k === hoyISO ? 'hoy' : ''}`}
+                title={futuro ? '' : h > 0 ? `${num(h)} h` : 'No trabajó'}
+                onClick={() => setSel(k)}>
+                <span>{d}</span>
+                {!futuro && h > 0 && <small>{num(h)} h</small>}
+            </button>
+        );
+        const dowIdx = (offset + d - 1) % 7;
+        if (dowIdx === 6 || d === diasMes) {
+            for (let r = dowIdx; r < 6; r++) celdas.push(<span key={`p${d}-${r}`} />);
+            celdas.push(<span key={`w${d}`} className="mq-cal-wk" title="Horas de la semana">{haySemana ? `${num(horasSemana)} h` : '—'}</span>);
+            horasSemana = 0; haySemana = false;
+        }
+    }
+
     return (
         <div className="mq-cal">
             <div className="mq-cal-head">
@@ -61,22 +88,8 @@ function CalendarioTrabajo({ ingresos }) {
             </div>
             <div className="mq-cal-grid">
                 {DOWS.map(d => <span key={d} className="mq-cal-dow">{d}</span>)}
-                {Array.from({ length: offset }, (_, i) => <span key={`e${i}`} />)}
-                {Array.from({ length: diasMes }, (_, i) => {
-                    const d = i + 1;
-                    const k = iso(mes.y, mes.m, d);
-                    const futuro = k > hoyISO;
-                    const h = porDia[k] || 0;
-                    return (
-                        <button key={k} type="button"
-                            className={`mq-cal-day ${futuro ? 'fut' : nivel(h)} ${sel === k ? 'sel' : ''} ${k === hoyISO ? 'hoy' : ''}`}
-                            title={futuro ? '' : h > 0 ? `${num(h)} h` : 'No trabajó'}
-                            onClick={() => setSel(k)}>
-                            <span>{d}</span>
-                            {!futuro && h > 0 && <small>{num(h)} h</small>}
-                        </button>
-                    );
-                })}
+                <span className="mq-cal-dow mq-cal-wk-h">Sem.</span>
+                {celdas}
             </div>
             <div className="mq-cal-legend">
                 Menos <i className="l0" /><i className="l1" /><i className="l2" /><i className="l3" /><i className="l4" /> Más horas
