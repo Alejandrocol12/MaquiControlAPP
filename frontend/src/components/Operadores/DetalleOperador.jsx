@@ -502,30 +502,30 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     {tab === 0 && !modoPortal && (
                         <>
                             {periodoActivo ? (
-                                <div className="op-hero">
-                                    <div className="op-hero-main">
-                                        <div className="op-hero-k">{salarioNeto < 0 ? 'Le pagaste de más a' : 'Le debes a'} {operadorLocal.nombre}</div>
-                                        <div className="op-hero-big">{fmt(salarioNeto < 0 ? -salarioNeto : debeTotal)}</div>
-                                        <div className="op-hero-sub">{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = {fmt(salarioBruto)} ganados · {fmt(anticipos)} pagados</div>
-                                        <div className="op-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
-                                        <div className="op-hero-sub">
+                                <div className="dop-hero">
+                                    <div className="dop-hero-main">
+                                        <div className="dop-hero-k">{salarioNeto < 0 ? 'Le pagaste de más a' : 'Le debes a'} {operadorLocal.nombre}</div>
+                                        <div className="dop-hero-big">{fmt(salarioNeto < 0 ? -salarioNeto : debeTotal)}</div>
+                                        <div className="dop-hero-sub">{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = {fmt(salarioBruto)} ganados · {fmt(anticipos)} pagados</div>
+                                        <div className="dop-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
+                                        <div className="dop-hero-sub">
                                             {salarioBruto > 0 ? `${Math.round(Math.min(100, anticipos / salarioBruto * 100))}% ya pagado · ` : ''}
                                             {editandoFechaPeriodo ? (
-                                                <span className="op-edit">
+                                                <span className="dop-edit">
                                                     <input className="fi" type="date" aria-label="Fecha de inicio del periodo" value={fechaPeriodoInput} onChange={(e) => setFechaPeriodoInput(e.target.value)} />
                                                     <button type="button" className="bp" onClick={guardarFechaPeriodo}><CheckCircle size={12} style={{ verticalAlign: 'middle' }} /> Guardar</button>
                                                     <button type="button" className="bs" onClick={() => setEditandoFechaPeriodo(false)}>Cancelar</button>
                                                 </span>
                                             ) : (
                                                 <>Periodo activo desde <b>{fmtFecha(periodoActivo.fechaInicio)}</b>
-                                                    <button type="button" className="op-pen" title="Cambiar fecha de inicio del periodo" aria-label="Cambiar fecha de inicio del periodo"
+                                                    <button type="button" className="dop-pen" title="Cambiar fecha de inicio del periodo" aria-label="Cambiar fecha de inicio del periodo"
                                                         onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button>
                                                 </>
                                             )}
                                         </div>
                                     </div>
                                     {debeTotal > 0
-                                        ? <button type="button" className="op-pagar" onClick={() => setPagoRapido(p => ({ ...p, abierto: !p.abierto, monto: p.abierto ? '' : String(Math.round(debeTotal)) }))}>{pagoRapido.abierto ? 'Cerrar' : 'Pagar'}</button>
+                                        ? <button type="button" className="dop-pagar" onClick={() => setPagoRapido(p => ({ ...p, abierto: !p.abierto, monto: p.abierto ? '' : String(Math.round(debeTotal)) }))}>{pagoRapido.abierto ? 'Cerrar' : 'Pagar'}</button>
                                         : <span className="do-pill ok">Al día</span>}
                                 </div>
                             ) : (
@@ -533,7 +533,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             )}
 
                             {pagoRapido.abierto && periodoActivo && (
-                                <div className="op-pagar-panel">
+                                <div className="dop-pagar-panel">
                                     <b>Registrar pago o adelanto</b>
                                     <div className="ic-filtros">
                                         {[[debeTotal, 'Todo'], [filaCurso.debe, 'Solo el corte en curso']].filter(([v]) => v > 0).map(([v, l]) => (
@@ -541,7 +541,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                                 onClick={() => setPagoRapido(p => ({ ...p, monto: String(Math.round(v)) }))}>{l} · {fmt(v)}</button>
                                         ))}
                                     </div>
-                                    <div className="op-pagar-campos">
+                                    <div className="dop-pagar-campos">
                                         <MoneyInput className="fi" aria-label="Monto a pagar" placeholder="Otro monto" value={pagoRapido.monto}
                                             onChange={(e) => setPagoRapido(p => ({ ...p, monto: e.target.value }))} />
                                         <input className="fi" aria-label="Descripción del pago" placeholder="Descripción (opcional)" value={pagoRapido.descripcion}
@@ -556,10 +556,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 </div>
                             )}
 
-                            <div className="op-stats">
-                                <div className="op-stat"><span>Horas del periodo</span><b>{fmtHoras(horasPeriodo)}</b><small>desde {fmtFecha(periodoActivo?.fechaInicio)}</small></div>
-                                {maqAsignada && <div className="op-stat"><span>Horómetro de {maqAsignada.nombre}</span><b>{fmtHoro(maqAsignada.horometroActual)}</b><small>horas acumuladas en la máquina</small></div>}
-                                <div className="op-stat">
+                            <div className="dop-stats">
+                                <div className="dop-stat"><span>Horas del periodo</span><b>{fmtHoras(horasPeriodo)}</b><small>desde {fmtFecha(periodoActivo?.fechaInicio)}</small></div>
+                                {maqAsignada && <div className="dop-stat"><span>Horómetro de {maqAsignada.nombre}</span><b>{fmtHoro(maqAsignada.horometroActual)}</b><small>horas acumuladas en la máquina</small></div>}
+                                <div className="dop-stat">
                                     <span>Último pago</span>
                                     <b className={diasUltimoPago > 20 ? 'wr' : ''}>{diasUltimoPago == null ? 'Sin pagos' : diasUltimoPago === 0 ? 'Hoy' : `hace ${diasUltimoPago} día${diasUltimoPago === 1 ? '' : 's'}`}</b>
                                     <small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} · {fmt(totalPagadoOperador)} en total</small>
@@ -568,7 +568,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
 
                             {periodoActivo && (() => {
                                 const controlCorte = (
-                                    <div className="op-corte-desde">
+                                    <div className="dop-corte-desde">
                                         {editandoCorte ? (
                                             <div className="ct-curso-edit">
                                                 <input className="fi" type="date" aria-label="Fecha desde la que cuenta el corte" value={corteInput} onChange={(e) => setCorteInput(e.target.value)} />

@@ -261,3 +261,9 @@ body.dark .mq-cal-wk{border-color:#334155;color:#94a3b8;}
 .mq-pagocol{font-size:12.5px;}
 @media (max-width:760px){.mq-pago{display:block;}}
 body.dark .mq-pago{color:#94a3b8;}
+.mq-fold{margin:0 0 12px;}
+.mq-fold-btn{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:10px;border:1.5px solid #f5a623;background:#fff8e7;color:#7a4a05;font:700 13px 'Barlow',sans-serif;cursor:pointer;}
+.mq-fold-btn:hover{background:#fdecc8;}
+.mq-fold-btn.on{background:#f5a623;color:#1b1405;}
+body.dark .mq-fold-btn{background:#2a2414;color:#f0b552;}
+body.dark .mq-fold-btn.on{background:#f5a623;color:#241705;}

@@ -399,8 +399,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [cargandoVistas, setCargandoVistas] = useState(false);
 
     // Búsqueda en tablas
-    const [buscarIng, setBuscarIng] = useState('');
     const [buscarGas, setBuscarGas] = useState('');
+    const [formGastoAbierto, setFormGastoAbierto] = useState(false);
     const [buscarComb, setBuscarComb] = useState('');
 
     // Rango de fechas para las tablas de Ingresos/Gastos/Combustible (independiente del periodo activo)
@@ -655,15 +655,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
 
 
-    const ingFiltrados  = ingFaena.filter(i =>
-        !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
-    );
-    const gasFiltrados  = gasFaena.filter(g =>
-        !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
-    );
-    const { sorted: ingOrdenados, Th: ThIng } = useSortable(ingFiltrados, 'fecha', 'desc');
-    const { sorted: gasOrdenados }            = useSortable(gasFiltrados, 'fecha', 'desc');
-    const pagIngs = usePaginacion(ingOrdenados, 20);
 
     // Tablas de Ingresos/Gastos/Combustible (tabs 2-4): respetan rangoFiltro además del periodo
     // activo — "periodo" reproduce exactamente lo de arriba, el resto navega todo el historial
@@ -691,9 +682,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         : rangoFiltro === 'externo' ? (extAbierto ? gastos.filter(g => String(g.faenaId) === String(extAbierto.id)) : [])
         : porFechaMaq(gastos);
     const combBaseF = rangoFiltro === 'periodo' ? combFaena : porFechaMaq(combustibles);
-    const ingFiltradosF  = ingBaseF.filter(i =>
-        !buscarIng || i.descripcion?.toLowerCase().includes(buscarIng.toLowerCase()) || i.tipoTrabajo?.toLowerCase().includes(buscarIng.toLowerCase())
-    );
+    const ingFiltradosF  = ingBaseF;
     const gasFiltradosF  = gasBaseF.filter(g =>
         !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
     );
@@ -1005,19 +994,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         )}
 
                         <CalendarioTrabajo ingresos={ingresos} />
-
-                        <div className="mq-g2">
-                            <div className="mq-mini">
-                                <div className="mq-mini-head good"><TrendingUp size={13} /> Últimos ingresos</div>
-                                {ingOrdenados.slice(0, 5).map(i => <div className="mq-mini-row" key={i.id}><span>{fmtFecha(i.fecha)} — {i.descripcion}</span><b className="mq-num" style={{ color: '#1c8a4b' }}>{fmt(i.total)}</b></div>)}
-                                {ingOrdenados.length === 0 && <p className="vacio">Sin ingresos en este periodo</p>}
-                            </div>
-                            <div className="mq-mini">
-                                <div className="mq-mini-head bad"><TrendingDown size={13} /> Últimos gastos</div>
-                                {gasOrdenados.slice(0, 5).map(g => <div className="mq-mini-row" key={g.id}><span>{fmtFecha(g.fecha)} — {g.descripcion}</span><b className="mq-num" style={{ color: '#c0392b' }}>{fmt(g.monto)}</b></div>)}
-                                {gasOrdenados.length === 0 && <p className="vacio">Sin gastos en este periodo</p>}
-                            </div>
-                        </div>
                     </>
                 )}
 
@@ -1088,30 +1064,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 {editandoIngresoId && <button className="bs" onClick={cancelarEditarIngreso}>Cancelar</button>}
                             </div>
                         </div>
-                        <div className="tbl tbl-r">
-                            <div className="th"><strong>Trabajos en este periodo</strong></div>
-                            <div className="tr hdr">
-                                <ThIng campo="fecha">Fecha</ThIng>
-                                <ThIng campo="tipoTrabajo">Tipo</ThIng>
-                                <ThIng campo="cantidad">Cantidad</ThIng>
-                                <ThIng campo="total" className="amt">Total</ThIng>
-                                <span>Acc.</span>
-                            </div>
-                            {pagIngs.paginados.map(i => (
-                                <div className="tr" key={i.id}>
-                                    <span>{fmtFecha(i.fecha)}</span>
-                                    <span><span className="b hrs">{i.tipoTrabajo}</span></span>
-                                    <span>{i.cantidad}</span>
-                                    <span className="pos amt">{fmt(i.total)}</span>
-                                    <span>
-                                        <button className="icon-btn" onClick={() => editarIngreso(i)}><Pencil size={14} /></button>
-                                        <button className="icon-btn" onClick={() => eliminarIngreso(i.id)}><Trash2 size={14} /></button>
-                                    </span>
-                                </div>
-                            ))}
-                            {ingOrdenados.length === 0 && <EmptyState icono={<Settings size={20} />} titulo="Aún no hay trabajos en este periodo" texto="Registra las horas o la cantidad que hizo la máquina usando el formulario de arriba." accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="trHorometro"],[data-campo="trCantidad"]')?.focus() }} />}
-                            <Paginacion pagina={pagIngs.pagina} total={pagIngs.total} ir={pagIngs.ir} totalItems={ingOrdenados.length} porPagina={20} />
-                        </div>
                     </>
                 )}
 
@@ -1124,7 +1076,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         <div className="tbl tbl-r">
                             <div className="th">
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingUp size={14} /> Ingresos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : `total ${fmt(totalIngF)}`}</strong>
-                                <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarIng} onChange={e => setBuscarIng(e.target.value)} /></div>
                             </div>
                         </div>
                         <AgrupadoPorCorte modo="ingresos" items={ingOrdenadosF} faenas={faenasMaq} onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />
@@ -1135,106 +1086,116 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 3 — GASTOS */}
                 {tab === 3 && (
                     <>
-                        <label className="mq-ai-drop" style={{ cursor: cargandoIA ? 'wait' : 'pointer' }}>
-                            <span className="mq-ai-ico">{cargandoIA ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={16} />}</span>
-                            <span className="mq-ai-text">
-                                <b>{cargandoIA ? 'Leyendo con IA...' : 'Leer con IA'}</b>
-                                <p>Sube la foto o el PDF de la factura y el formulario se llena solo — descripción, monto, categoría y fecha.</p>
-                            </span>
-                            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={leerConIA} disabled={cargandoIA} />
-                        </label>
-                        <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
-                            </h3>
-                            <div><label className="fl">Descripción *</label><input className={errGasto.clase('fi', 'gsDesc')} {...errGasto.props('gsDesc')} value={gastoForm.descripcion} onChange={e => { setGastoForm({ ...gastoForm, descripcion: e.target.value }); errGasto.limpiar('gsDesc'); }} placeholder="Ej: Cambio de manguera" /><ErrorCampo msg={errGasto.errores.gsDesc} /></div>
-                            <div>
-                                <label className="fl">Categoría</label>
-                                <div className="mq-catpick">
-                                    {CATEGORIAS_SUGERIDAS_GASTO.map(c => (
-                                        <span key={c}
-                                            className={`mq-catopt mq-cat-${claseCategoria(c)} ${gastoForm.categoria === c ? 'sel' : ''}`}
-                                            onClick={() => setGastoForm({ ...gastoForm, categoria: c })}>{c}</span>
-                                    ))}
+                        <div className="mq-fold">
+                            <button type="button" className={`mq-fold-btn ${formGastoAbierto || editandoGastoId ? 'on' : ''}`} aria-expanded={!!(formGastoAbierto || editandoGastoId)}
+                                onClick={() => { if (editandoGastoId) { cancelarEditar(); setFormGastoAbierto(false); } else setFormGastoAbierto(v => !v); }}>
+                                {formGastoAbierto || editandoGastoId ? <X size={15} /> : <Plus size={15} />} {formGastoAbierto || editandoGastoId ? 'Cerrar formulario' : 'Registrar gasto'}
+                            </button>
+                        </div>
+                        {(formGastoAbierto || editandoGastoId) && (
+                            <>
+                            <label className="mq-ai-drop" style={{ cursor: cargandoIA ? 'wait' : 'pointer' }}>
+                                <span className="mq-ai-ico">{cargandoIA ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={16} />}</span>
+                                <span className="mq-ai-text">
+                                    <b>{cargandoIA ? 'Leyendo con IA...' : 'Leer con IA'}</b>
+                                    <p>Sube la foto o el PDF de la factura y el formulario se llena solo — descripción, monto, categoría y fecha.</p>
+                                </span>
+                                <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={leerConIA} disabled={cargandoIA} />
+                            </label>
+                            <div className="fc">
+                                <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
+                                    <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
+                                </h3>
+                                <div><label className="fl">Descripción *</label><input className={errGasto.clase('fi', 'gsDesc')} {...errGasto.props('gsDesc')} value={gastoForm.descripcion} onChange={e => { setGastoForm({ ...gastoForm, descripcion: e.target.value }); errGasto.limpiar('gsDesc'); }} placeholder="Ej: Cambio de manguera" /><ErrorCampo msg={errGasto.errores.gsDesc} /></div>
+                                <div>
+                                    <label className="fl">Categoría</label>
+                                    <div className="mq-catpick">
+                                        {CATEGORIAS_SUGERIDAS_GASTO.map(c => (
+                                            <span key={c}
+                                                className={`mq-catopt mq-cat-${claseCategoria(c)} ${gastoForm.categoria === c ? 'sel' : ''}`}
+                                                onClick={() => setGastoForm({ ...gastoForm, categoria: c })}>{c}</span>
+                                        ))}
+                                    </div>
+                                    <input className="fi" style={{ marginTop: '8px' }} value={gastoForm.categoria}
+                                        onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
+                                        placeholder="O escribe una categoría distinta" />
                                 </div>
-                                <input className="fi" style={{ marginTop: '8px' }} value={gastoForm.categoria}
-                                    onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
-                                    placeholder="O escribe una categoría distinta" />
-                            </div>
-                            <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
-                            <QuienPago id="mq-quien" value={gastoForm.pagadoPor || ''} onChange={v => setGastoForm({ ...gastoForm, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} />
-                            <DestinoGasto id="mq-destino" faenas={faenasMaq} maquina={maq.nombre} value={gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre)} onChange={setGastoDestino}
-                                onAbrir={async (nombre) => { const r = await createFaena({ maquinaNombre: maq.nombre, nombreObra: nombre, tipo: 'gastos' }); cargarFaena(); setGastoDestino(String(r.data.id)); toast('Periodo de gastos externos abierto'); }} />
-                            <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
-                            <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
-                            <div>
-                                <label className="fl">Factura (PDF)</label>
-                                {editandoGastoId && facturasIds.has(String(editandoGastoId)) && !gastoFactura ? (
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <div className="fi" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                            <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
-                                            <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
-                                            <button type="button" className="icon-btn" title="Ver factura" onClick={() => abrirFactura(editandoGastoId)}>
-                                                <FileText size={13} style={{ color: '#e74c3c' }} />
+                                <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
+                                <QuienPago id="mq-quien" value={gastoForm.pagadoPor || ''} onChange={v => setGastoForm({ ...gastoForm, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} />
+                                <DestinoGasto id="mq-destino" faenas={faenasMaq} maquina={maq.nombre} value={gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre)} onChange={setGastoDestino}
+                                    onAbrir={async (nombre) => { const r = await createFaena({ maquinaNombre: maq.nombre, nombreObra: nombre, tipo: 'gastos' }); cargarFaena(); setGastoDestino(String(r.data.id)); toast('Periodo de gastos externos abierto'); }} />
+                                <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
+                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
+                                <div>
+                                    <label className="fl">Factura (PDF)</label>
+                                    {editandoGastoId && facturasIds.has(String(editandoGastoId)) && !gastoFactura ? (
+                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <div className="fi" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                                                <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
+                                                <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
+                                                <button type="button" className="icon-btn" title="Ver factura" onClick={() => abrirFactura(editandoGastoId)}>
+                                                    <FileText size={13} style={{ color: '#e74c3c' }} />
+                                                </button>
+                                            </div>
+                                            <label className="bs" style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                                <Paperclip size={13} /> Cambiar
+                                                <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => setGastoFactura(e.target.files[0] || null)} />
+                                            </label>
+                                            <button className="bs" style={{ padding: '6px 10px', fontSize: '12px', color: '#e74c3c', whiteSpace: 'nowrap' }}
+                                                onClick={async () => { await eliminarFactura(editandoGastoId).catch(() => {}); setFacturasIds(prev => { const s = new Set(prev); s.delete(String(editandoGastoId)); return s; }); }}>
+                                                × Quitar
                                             </button>
                                         </div>
-                                        <label className="bs" style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                                            <Paperclip size={13} /> Cambiar
+                                    ) : (
+                                        <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
+                                            <span style={{ color: gastoFactura ? 'inherit' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                                {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
+                                            </span>
+                                            {gastoFactura && (
+                                                <span style={{ color: '#e74c3c', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
+                                                    onClick={e => { e.preventDefault(); setGastoFactura(null); }}>×</span>
+                                            )}
                                             <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => setGastoFactura(e.target.files[0] || null)} />
                                         </label>
-                                        <button className="bs" style={{ padding: '6px 10px', fontSize: '12px', color: '#e74c3c', whiteSpace: 'nowrap' }}
-                                            onClick={async () => { await eliminarFactura(editandoGastoId).catch(() => {}); setFacturasIds(prev => { const s = new Set(prev); s.delete(String(editandoGastoId)); return s; }); }}>
-                                            × Quitar
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
-                                        <span style={{ color: gastoFactura ? 'inherit' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                                            {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
-                                        </span>
-                                        {gastoFactura && (
-                                            <span style={{ color: '#e74c3c', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
-                                                onClick={e => { e.preventDefault(); setGastoFactura(null); }}>×</span>
-                                        )}
-                                        <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => setGastoFactura(e.target.files[0] || null)} />
-                                    </label>
-                                )}
+                                    )}
+                                </div>
+                                </Opcional>
+                                <div className="fa">
+                                    <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
+                                        if (!errGasto.validar([
+                                            { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
+                                            { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
+                                        ])) return;
+                                        if (editandoGastoId) {
+                                            const fidU = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                            const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidU !== undefined ? { faenaId: fidU } : {}) };
+                                            const gastoLocal = { ...gastoActualizado, faenaId: fidU === undefined ? (gastos.find(x => x.id === editandoGastoId)?.faenaId ?? null) : (fidU === -1 ? null : fidU) };
+                                            setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoLocal : g));
+                                            cancelarEditar(); toast('Gasto actualizado');
+                                            updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
+                                            if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
+                                        } else {
+                                            const tempId = `tmp_${Date.now()}`;
+                                            const fidC = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                            const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: fidC === undefined ? (faenaActiva?.id ?? null) : (fidC === -1 ? null : fidC) };
+                                            setGastos(prev => [...prev, gastoOptimista]);
+                                            const facturaCapturada = gastoFactura;
+                                            setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
+                                            createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidC !== undefined ? { faenaId: fidC } : {}) }).then(res => {
+                                                if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
+                                                if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
+                                            }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
+                                        }
+                                    }}>
+                                        <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
+                                        {editandoGastoId ? 'Guardar cambios' : 'Registrar gasto'}
+                                    </button>
+                                    {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
+                                </div>
                             </div>
-                            </Opcional>
-                            <div className="fa">
-                                <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
-                                    if (!errGasto.validar([
-                                        { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
-                                        { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
-                                    ])) return;
-                                    if (editandoGastoId) {
-                                        const fidU = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
-                                        const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidU !== undefined ? { faenaId: fidU } : {}) };
-                                        const gastoLocal = { ...gastoActualizado, faenaId: fidU === undefined ? (gastos.find(x => x.id === editandoGastoId)?.faenaId ?? null) : (fidU === -1 ? null : fidU) };
-                                        setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoLocal : g));
-                                        cancelarEditar(); toast('Gasto actualizado');
-                                        updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
-                                        if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
-                                    } else {
-                                        const tempId = `tmp_${Date.now()}`;
-                                        const fidC = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
-                                        const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: fidC === undefined ? (faenaActiva?.id ?? null) : (fidC === -1 ? null : fidC) };
-                                        setGastos(prev => [...prev, gastoOptimista]);
-                                        const facturaCapturada = gastoFactura;
-                                        setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
-                                        createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidC !== undefined ? { faenaId: fidC } : {}) }).then(res => {
-                                            if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
-                                            if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
-                                        }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
-                                    }
-                                }}>
-                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
-                                    {editandoGastoId ? 'Guardar cambios' : 'Registrar gasto'}
-                                </button>
-                                {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
-                            </div>
-                        </div>
+                                </>
+                        )}
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
                             fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq}
