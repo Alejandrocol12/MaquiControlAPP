@@ -105,7 +105,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [pagoRapido, setPagoRapido] = useState({ abierto: false, monto: '', descripcion: '', guardando: false });
     const errPagoOp = useErrores();
     const errEdit = useErrores();
-    const PAGO_OP_VACIO = { descripcion: '', monto: '', fecha: hoy() };
+    const PAGO_OP_VACIO = { descripcion: '', monto: '', total: '', fecha: hoy() };
     const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
     const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
 
@@ -156,7 +156,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         setPasando(false);
     };
     const editarPagoOperador = (p) => {
-        setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), fecha: p.fecha || hoy() });
+        setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), total: '', fecha: p.fecha || hoy() });
         setEditandoPagoOpId(p.id);
     };
     const cancelarPagoOperador = () => { setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
@@ -357,6 +357,11 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const ultimoPagoFecha = pagosOperador.map(p => String(p.fecha || '').slice(0, 10)).filter(Boolean).sort().pop();
     const diasUltimoPago = ultimoPagoFecha ? Math.round((new Date(hoy() + 'T00:00:00') - new Date(ultimoPagoFecha + 'T00:00:00')) / 864e5) : null;
     const debeTotal = Math.max(0, salarioNeto);
+    useEffect(() => {
+        if (tab === 3 && !editandoPagoOpId && pagoOpForm.total === '' && debeTotal > 0) {
+            setPagoOpForm(f => (f.total === '' ? { ...f, total: String(Math.round(debeTotal)) } : f));
+        }
+    }, [tab, editandoPagoOpId, pagoOpForm.total, debeTotal]);
 
     const basePeriodo = (p) => ({
         estado: p.estado, anticipos: p.anticipos || 0, fechaFin: p.fechaFin || null, horasTotal: p.horasTotal,
@@ -602,13 +607,14 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <div className="dop-uh"><b>Últimas horas</b><button type="button" className="ct-link" onClick={() => setTab(1)}>Ver el historial por corte</button></div>
                                 {horasDelPeriodo.length === 0 ? <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p> : (
                                     <div className="ic-tabla">
-                                        <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
+                                        <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
                                         {horasDelPeriodo.slice(0, 5).map((h) => (
                                             <div className="ic-row" key={h.id}>
                                                 <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b></span>
                                                 <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
                                                 <span className="ic-h" data-l="Horas">{fmtHoras(getHrs(h))} h</span>
-                                                <span className="ic-m" data-l="Horómetro">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
+                                                <span className="ic-m" data-l="Inicio">{h.horometroInicio ? fmtHoro(h.horometroInicio) : ''}</span>
+                                                <span className="ic-m" data-l="Fin">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
                                                 <span className="ic-t pos" data-l="Valor">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
                                                 <span className="ic-a" />
                                             </div>
@@ -911,10 +917,22 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago o adelanto'}
                                 </h3>
-                                <label className="fl">Monto ($) *</label>
-                                <MoneyInput className={errPagoOp.clase('fi', 'poMonto')} {...errPagoOp.props('poMonto')} value={pagoOpForm.monto}
-                                    onChange={e => { setPagoOpForm({ ...pagoOpForm, monto: e.target.value }); errPagoOp.limpiar('poMonto'); }} placeholder="Ej: 200.000" />
-                                <ErrorCampo msg={errPagoOp.errores.poMonto} />
+                                <div className="fg2-keep">
+                                    {!editandoPagoOpId && (
+                                        <div><label className="fl">Total ($)</label><MoneyInput className="fi" value={pagoOpForm.total} placeholder="Lo que se le debe"
+                                            onChange={e => setPagoOpForm({ ...pagoOpForm, total: e.target.value })} /></div>
+                                    )}
+                                    <div><label className="fl">Pagado ($) *</label><MoneyInput className={errPagoOp.clase('fi', 'poMonto')} {...errPagoOp.props('poMonto')} value={pagoOpForm.monto}
+                                        onChange={e => { setPagoOpForm({ ...pagoOpForm, monto: e.target.value }); errPagoOp.limpiar('poMonto'); }} placeholder="Ej: 200.000" />
+                                        <ErrorCampo msg={errPagoOp.errores.poMonto} /></div>
+                                </div>
+                                {!editandoPagoOpId && Number(pagoOpForm.total) > 0 && Number(pagoOpForm.monto) > 0 && (
+                                    <p className="po-saldo">
+                                        {Number(pagoOpForm.monto) >= Number(pagoOpForm.total)
+                                            ? <><Estado valor="Pagado" /> Con este pago queda al día.</>
+                                            : <><Estado valor="Parcial" /> Quedaría un saldo de <b>{fmt(Number(pagoOpForm.total) - Number(pagoOpForm.monto))}</b>.</>}
+                                    </p>
+                                )}
                                 <Opcional label="Fecha y descripción (opcional)" abierto={!!editandoPagoOpId && !!pagoOpForm.descripcion}>
                                     <div className="fg2-keep">
                                         <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoOpForm.fecha} onChange={e => setPagoOpForm({ ...pagoOpForm, fecha: e.target.value })} /></div>

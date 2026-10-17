@@ -37,20 +37,21 @@ function HorasPorCorte({ grupos, valorHora, onEliminar }) {
                         </div>
                         {ab && (
                             <div className="ic-tabla">
-                                <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
+                                <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
                                 {g.items.map(h => (
                                     <div className="ic-row" key={h.id}>
                                         <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b><small>{diaSemana(h.fecha)}</small></span>
                                         <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
                                         <span className="ic-h" data-l="Horas">{fmtHoras(horasDe(h))} h</span>
-                                        <span className="ic-m" data-l="Horómetro">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
+                                        <span className="ic-m" data-l="Inicio">{h.horometroInicio ? fmtHoro(h.horometroInicio) : ''}</span>
+                                        <span className="ic-m" data-l="Fin">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
                                         <span className="ic-t pos" data-l="Valor">{fmt(horasDe(h) * (h.valorHora || valorHora))}</span>
                                         <span className="ic-a">
                                             {onEliminar && <button type="button" className="icon-btn" aria-label="Eliminar registro de horas" onClick={() => onEliminar(h)}><Trash2 size={14} /></button>}
                                         </span>
                                     </div>
                                 ))}
-                                <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(horas)} h</b></span><span /><span className="ic-t"><b>{fmt(ganado)}</b></span><span /></div>
+                                <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(horas)} h</b></span><span /><span /><span className="ic-t"><b>{fmt(ganado)}</b></span><span /></div>
                             </div>
                         )}
                     </div>

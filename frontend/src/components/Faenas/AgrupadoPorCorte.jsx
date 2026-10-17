@@ -115,7 +115,8 @@ function AgrupadoPorCorte({
                 <span className="ic-f" data-l="Fecha"><b>{fmtFecha(i.fecha)}</b><small>{diaSemana(i.fecha)}</small></span>
                 <span className="ic-d" data-l="Descripción">{i.descripcion}{!esHoras && <small>{i.tipoTrabajo}</small>}</span>
                 <span className="ic-h" data-l="Horas">{esHoras ? <>{fmtHoras(h)} h</> : <>{i.cantidad} <small>{i.tipoTrabajo}</small></>}</span>
-                <span className="ic-m" data-l="Horómetro">{esHoras && i.horometroInicio != null && i.horometroFin != null ? `${fmtHoro(i.horometroInicio)} → ${fmtHoro(i.horometroFin)}` : ''}</span>
+                <span className="ic-m" data-l="Inicio">{esHoras && i.horometroInicio != null ? fmtHoro(i.horometroInicio) : ''}</span>
+                <span className="ic-m" data-l="Fin">{esHoras && i.horometroFin != null ? fmtHoro(i.horometroFin) : ''}</span>
                 <span className="ic-t pos" data-l="Total">{fmt(i.total)}</span>
                 <span className="ic-a">
                     {onEditar && <button type="button" className="icon-btn" aria-label="Editar ingreso" onClick={() => onEditar(i)}><Pencil size={14} /></button>}
@@ -136,9 +137,9 @@ function AgrupadoPorCorte({
                 </>
             ) : (
                 <>
-                    <div className="ic-row ic-hd"><span>Fecha</span><span>Descripción</span><span>Horas / cant.</span><span>Horómetro</span><span className="r">Total</span><span /></div>
+                    <div className="ic-row ic-hd"><span>Fecha</span><span>Descripción</span><span>Horas / cant.</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Total</span><span /></div>
                     {g.items.map(filaIngreso)}
-                    <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(g.horas)} h</b></span><span /><span className="ic-t"><b>{fmt(g.total)}</b></span><span /></div>
+                    <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(g.horas)} h</b></span><span /><span /><span className="ic-t"><b>{fmt(g.total)}</b></span><span /></div>
                 </>
             )}
         </div>
