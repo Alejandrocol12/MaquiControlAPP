@@ -1,15 +1,16 @@
 // Modal de confirmación reutilizable — reemplaza window.confirm()
 // Uso: const { confirm, ConfirmUI } = useConfirm();
 //      await confirm('¿Eliminar?') → true/false
+//      await confirm('¿Cerrar?', { ok: 'Cerrar periodo' })  → cambia el texto del botón (por defecto «Eliminar»)
 
 import { useState, useCallback } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 export function useConfirm() {
-    const [state, setState] = useState(null); // { msg, resolve }
+    const [state, setState] = useState(null); // { msg, ok, resolve }
 
-    const confirm = useCallback((msg) => new Promise(resolve => {
-        setState({ msg, resolve });
+    const confirm = useCallback((msg, opciones = {}) => new Promise(resolve => {
+        setState({ msg, ok: opciones.ok || 'Eliminar', resolve });
     }), []);
 
     const responder = (val) => {
@@ -24,11 +25,12 @@ export function useConfirm() {
         }}>
             <div style={{
                 background: '#fff', borderRadius: '14px', padding: '28px 28px 22px',
-                maxWidth: '360px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,.25)',
+                maxWidth: String(state.msg).length > 220 ? '460px' : '360px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,.25)',
+                maxHeight: '86vh', overflowY: 'auto',
                 animation: 'toastIn .2s ease',
             }}>
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}><AlertTriangle size={28} color="#e8941a" /></div>
-                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a2d42', textAlign: 'center', marginBottom: '22px', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '14px', fontWeight: '600', color: '#1a2d42', textAlign: String(state.msg).includes('\n•') ? 'left' : 'center', marginBottom: '22px', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
                     {state.msg}
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -42,7 +44,7 @@ export function useConfirm() {
                         onClick={() => responder(true)}
                         style={{ flex: 1, padding: '9px', background: '#e74c3c', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', color: '#fff', fontFamily: 'Barlow, sans-serif' }}
                     >
-                        Eliminar
+                        {state.ok}
                     </button>
                 </div>
             </div>

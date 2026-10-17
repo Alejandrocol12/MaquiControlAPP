@@ -23,7 +23,8 @@ import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
-import { nombreCorte } from '../../utils/cortes';
+import { nombreCorte, fmtHoras } from '../../utils/cortes';
+import { pendientesDeCierre } from '../../utils/pendientesCierre';
 import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
@@ -399,7 +400,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [cargandoVistas, setCargandoVistas] = useState(false);
 
     // Búsqueda en tablas
-    const [buscarGas, setBuscarGas] = useState('');
     const [formGastoAbierto, setFormGastoAbierto] = useState(false);
     const [buscarComb, setBuscarComb] = useState('');
 
@@ -683,9 +683,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         : porFechaMaq(gastos);
     const combBaseF = rangoFiltro === 'periodo' ? combFaena : porFechaMaq(combustibles);
     const ingFiltradosF  = ingBaseF;
-    const gasFiltradosF  = gasBaseF.filter(g =>
-        !buscarGas || g.descripcion?.toLowerCase().includes(buscarGas.toLowerCase()) || g.categoria?.toLowerCase().includes(buscarGas.toLowerCase())
-    );
+    const gasFiltradosF  = gasBaseF;
     const combFiltradosF = combBaseF.filter(c =>
         !buscarComb || String(c.galones).includes(buscarComb) || c.fecha?.includes(buscarComb)
     );
@@ -882,8 +880,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const handleCerrarFaena = async () => {
         if (!faenaActiva) return;
+        const pendientes = await pendientesDeCierre(faenaActiva);
+        const aviso = pendientes.length ? `\n\nAntes de cerrar, ten en cuenta:\n${pendientes.map(x => '• ' + x).join('\n')}\n\n¿Cerrar de todas formas?` : '';
         const ok = await confirm(
-            `¿Rendir cuentas y cerrar el periodo "${faenaActiva.nombreObra}"?\n\nSe archivará el resumen financiero y los registros de esta máquina volverán a cero.`
+            `¿Rendir cuentas y cerrar el periodo "${faenaActiva.nombreObra}"?\n\nSe archivará el resumen financiero y los registros de esta máquina volverán a cero.${aviso}`,
+            { ok: pendientes.length ? 'Cerrar de todas formas' : 'Cerrar periodo' }
         );
         if (!ok) return;
         await cerrarFaena(faenaActiva.id).catch(console.error);
@@ -976,7 +977,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                             <div className="mq-kpi info">
                                 <div className="mq-kpi-top"><span className="mq-kpi-label">Horas periodo</span><span className="mq-kpi-ico"><Clock size={14} /></span></div>
-                                <div className="mq-kpi-val mq-num">{horasFaena.toLocaleString('es-CO')}</div>
+                                <div className="mq-kpi-val mq-num">{fmtHoras(horasFaena)}</div>
                                 <div className="mq-kpi-sub">trabajadas en este periodo</div>
                             </div>
                         </div>
@@ -1203,7 +1204,6 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         <div className="tbl tbl-r">
                             <div className="th">
                                 <strong style={{display:'flex',alignItems:'center',gap:'5px'}}><TrendingDown size={14} /> Gastos — {rangoFiltro === 'periodo' ? (faenaActiva ? faenaActiva.nombreObra : 'sin periodo') : rangoFiltro === 'externo' ? `${extAbierto?.nombreObra || 'gastos externos'} · total ${fmt(totalGasF)}` : `total ${fmt(totalGasF)}`}</strong>
-                                <div className="th-s"><Search size={14} /><input type="text" placeholder="Buscar..." value={buscarGas} onChange={e => setBuscarGas(e.target.value)} /></div>
                             </div>
                         </div>
                         <AgrupadoPorCorte modo="gastos" items={gasOrdenadosF} faenas={faenasMaq}
@@ -1330,7 +1330,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                     <div className="mq-job-grid">
                                         <div className="mq-job-tile good"><div className="mq-job-tile-l">Ingresos</div><div className="mq-job-tile-v mq-num" style={{ color: '#1c8a4b' }}>{fmt(totalIngresos)}</div></div>
                                         <div className="mq-job-tile bad"><div className="mq-job-tile-l">Gastos</div><div className="mq-job-tile-v mq-num" style={{ color: '#c0392b' }}>{fmt(totalGastos)}</div></div>
-                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{horasFaena}</div></div>
+                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{fmtHoras(horasFaena)}</div></div>
                                         <div className="mq-job-tile gold"><div className="mq-job-tile-l">Utilidad</div><div className="mq-job-tile-v mq-num" style={{ color: totalIngresos - totalGastos >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(totalIngresos - totalGastos)}</div></div>
                                     </div>
 

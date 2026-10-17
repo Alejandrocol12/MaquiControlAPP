@@ -18,6 +18,8 @@ import EmptyState from '../../utils/EmptyState';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import CortesFaena from './CortesFaena';
+import { pendientesDeCierre } from '../../utils/pendientesCierre';
+import { fmtHoras } from '../../utils/cortes';
 import FiltroChips from '../../utils/FiltroChips';
 import './Faenas.css';
 
@@ -116,7 +118,9 @@ function Faenas() {
     };
 
     const handleCerrar = async (f) => {
-        if (!await confirm(f.tipo === 'gastos' ? `¿Cerrar el periodo de gastos externos "${f.nombreObra}"?\nYa no se podrán anotar más gastos ahí hasta reabrirlo.` : `¿Cerrar el periodo "${f.nombreObra}"?\nSe calculará el resumen financiero y quedará archivado.`)) return;
+        const pendientes = f.tipo === 'gastos' ? [] : await pendientesDeCierre(f);
+        const aviso = pendientes.length ? `\n\nAntes de cerrar, ten en cuenta:\n${pendientes.map(x => '• ' + x).join('\n')}\n\n¿Cerrar de todas formas?` : '';
+        if (!await confirm(f.tipo === 'gastos' ? `¿Cerrar el periodo de gastos externos "${f.nombreObra}"?\nYa no se podrán anotar más gastos ahí hasta reabrirlo.` : `¿Cerrar el periodo "${f.nombreObra}"?\nSe calculará el resumen financiero y quedará archivado.${aviso}`, { ok: pendientes.length ? 'Cerrar de todas formas' : 'Cerrar periodo' })) return;
         await cerrarFaena(f.id).catch(console.error);
         toast('Periodo cerrado — resumen guardado');
         cargar();
@@ -550,7 +554,7 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                                 </div>
                                 <div className="pe-bcard info">
                                     <div className="pe-bcard-l"><Clock size={13} /> Horas</div>
-                                    <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{totalHorasDet.toLocaleString('es-CO')} hrs</div>
+                                    <div className="pe-bcard-v" style={{ color: '#1f6491' }}>{fmtHoras(totalHorasDet)} hrs</div>
                                 </div>
                                 <div className="pe-bcard bad">
                                     <div className="pe-bcard-l"><TrendingDown size={13} /> Gastos</div>

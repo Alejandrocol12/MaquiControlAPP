@@ -10,14 +10,14 @@
 .fin-kpi-ico{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .fin-kpi.good .fin-kpi-ico{background:rgba(39,174,96,.1);color:#27ae60;}
 .fin-kpi.bad .fin-kpi-ico{background:rgba(231,76,60,.1);color:#e74c3c;}
-.fin-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:800;overflow-wrap:break-word;}
+.fin-kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:clamp(17px,4.8vw,25px);font-weight:800;overflow-wrap:break-word;}
 .fin-kpi.good .fin-kpi-val{color:#27ae60;}
 .fin-kpi.bad .fin-kpi-val{color:#e74c3c;}
 .fin-kpi-sub{font-size:11.5px;color:#93a2b3;margin-top:3px;}
 .fin-kpi.profit{background:linear-gradient(135deg,#f5a623,#c9790f);border:none;color:#241705;}
 .fin-kpi.profit .fin-kpi-label{color:rgba(36,23,5,.72);}
 .fin-kpi.profit .fin-kpi-ico{background:rgba(255,255,255,.28);color:#241705;}
-.fin-kpi.profit .fin-kpi-val{color:#1a1004;font-size:27px;}
+.fin-kpi.profit .fin-kpi-val{color:#1a1004;font-size:clamp(18px,5vw,27px);}
 .fin-kpi.profit .fin-kpi-sub{color:rgba(36,23,5,.75);}
 
 .fin-kpi.cobranza{display:flex;flex-direction:column;justify-content:space-between;}

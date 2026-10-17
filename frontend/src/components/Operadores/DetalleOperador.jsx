@@ -598,19 +598,23 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 <div className="ct-aviso"><AlertTriangle size={14} /> Hay {cortesAntesDelPeriodo} corte{cortesAntesDelPeriodo === 1 ? '' : 's'} anterior{cortesAntesDelPeriodo === 1 ? '' : 'es'} al inicio de este periodo ({fmtFecha(periodoActivo.fechaInicio)}) que no se están contando. Si el operador viene trabajando desde antes, cambia la fecha en "Periodo activo desde".</div>
                             )}
 
-                            <div className="tbl">
-                                <div className="th"><strong>Últimas horas</strong><button type="button" className="ct-link" onClick={() => setTab(1)}>Ver el historial por corte</button></div>
-                                <div className="tr hdr"><span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>Horometro fin</span><span className="amt">Valor ganado</span></div>
-                                {horasDelPeriodo.length === 0 && <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p>}
-                                {horasDelPeriodo.slice(0, 5).map((h) => (
-                                    <div className="tr" key={h.id}>
-                                        <span>{fmtFecha(h.fecha)}</span>
-                                        <span className="w2">{h.maquinaNombre}</span>
-                                        <span><strong>{fmtHoras(getHrs(h))}</strong> hrs</span>
-                                        <span>{h.horometroFin ? fmtHoro(h.horometroFin) : '-'}</span>
-                                        <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
+                            <div className="ic-grupo open">
+                                <div className="dop-uh"><b>Últimas horas</b><button type="button" className="ct-link" onClick={() => setTab(1)}>Ver el historial por corte</button></div>
+                                {horasDelPeriodo.length === 0 ? <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p> : (
+                                    <div className="ic-tabla">
+                                        <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
+                                        {horasDelPeriodo.slice(0, 5).map((h) => (
+                                            <div className="ic-row" key={h.id}>
+                                                <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b></span>
+                                                <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
+                                                <span className="ic-h" data-l="Horas">{fmtHoras(getHrs(h))} h</span>
+                                                <span className="ic-m" data-l="Horómetro">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
+                                                <span className="ic-t pos" data-l="Valor">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
+                                                <span className="ic-a" />
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                )}
                             </div>
                         </>
                     )}
