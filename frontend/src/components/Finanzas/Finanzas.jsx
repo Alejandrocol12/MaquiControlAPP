@@ -405,7 +405,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                     )}
                 </div>
 
-                {tab === 'gastos' && verRepPersona && <ReporteGastosPersona />}
+                {tab === 'gastos' && verRepPersona && <ReporteGastosPersona gastos={gastos} maquinas={maquinas} />}
                 {adminPag && <AdministrarPagadores pagadores={pagadores} gastos={gastos} onCambio={async () => { await recargarPagadores(); await cargarTodo(); }} onCerrar={() => setAdminPag(false)} />}
 
                 {/* FILTRO PERÍODO */}

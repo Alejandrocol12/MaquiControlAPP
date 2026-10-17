@@ -24,7 +24,9 @@ function rangoDe(clave) {
 
 // Reporte de gastos por persona: todas las personas, algunas, o un reporte por cada una.
 // Sirve igual dentro de Reportes y dentro de Gastos.
-function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
+// gastos / maquinas (opcionales): si el padre ya los tiene cargados y al día (Finanzas), el reporte los usa
+// en vivo, así un gasto recién registrado o corregido entra al reporte sin recargar la página.
+function ReporteGastosPersona({ titulo = 'Gastos por persona', gastos: gastosVivos, maquinas: maquinasVivas }) {
     const toast = useToast();
     const { pagadores, recargar } = usePagadores();
     const [gastos, setGastos] = useState([]);
@@ -46,6 +48,8 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
         setCargando(false);
     }, []);
     useEffect(() => { cargar(); }, [cargar]);
+    useEffect(() => { if (gastosVivos) { setGastos(gastosVivos); setCargando(false); } }, [gastosVivos]);
+    useEffect(() => { if (maquinasVivas) setMaquinas(maquinasVivas); }, [maquinasVivas]);
 
     const elegirRango = (k) => { setRango(k); if (k !== 'rango') setFechas(rangoDe(k)); };
 
@@ -61,17 +65,31 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
     const lista = useMemo(() => filtrarGastos(gastos, opciones), [gastos, desde, hasta, maquina, categoria, persona]); // eslint-disable-line react-hooks/exhaustive-deps
     const grupos = useMemo(() => agruparPor(lista, quienPago), [lista]);
     const total = totalDe(lista);
+    // Lo que no cuenta solo por estar fuera de las fechas elegidas, para que no parezca que faltan gastos
+    const conTodasLasFechas = useMemo(() => filtrarGastos(gastos, { ...opciones, desde: '', hasta: '' }), [gastos, maquina, categoria, persona]); // eslint-disable-line react-hooks/exhaustive-deps
+    const fuera = conTodasLasFechas.length - lista.length;
+    const totalFuera = totalDe(conTodasLasFechas) - total;
     const fechasMal = desde && hasta && desde > hasta;
 
     const ejecutar = async (tipo) => {
         if (!lista.length || fechasMal) return;
         setGenerando(tipo);
         try {
+            // Antes de armar el archivo se vuelve a pedir la lista, para no dejar fuera gastos recién registrados
+            let datos = lista;
+            try {
+                const g = await getGastos();
+                const fresco = filtrarGastos(g.data || [], opciones);
+                if (fresco.length !== lista.length) toast(`La lista cambió: ahora son ${fresco.length} gasto${fresco.length === 1 ? '' : 's'}`);
+                datos = fresco;
+                setGastos(g.data || []);
+            } catch { /* si no hay red, se usa la lista que ya está en pantalla */ }
+            if (!datos.length) { toast('No hay gastos con esas opciones', 'e'); setGenerando(''); return; }
             if (tipo === 'pdf') {
-                await pdfGastosPersona(lista, opciones);
+                await pdfGastosPersona(datos, opciones);
                 toast('PDF generado');
             } else {
-                await xlsGastosPorPersona(grupos, opciones);
+                await xlsGastosPorPersona(agruparPor(datos, quienPago), opciones);
                 toast('Excel generado');
             }
         } catch (e) { console.error(e); toast('No se pudo generar el reporte', 'e'); }
@@ -140,6 +158,11 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona' }) {
                         ))}
                         {grupos.length > 8 && <span className="gp-hint">y {grupos.length - 8} personas más</span>}
                     </>}
+                {!cargando && fuera > 0 && (
+                    <p className="gp-hint gp-fuera">
+                        No cuentan {fuera} gasto{fuera === 1 ? '' : 's'}{persona ? ` de ${persona}` : ''} ({fmt(totalFuera)}) por estar fuera de estas fechas. <button type="button" className="qp-link" onClick={() => elegirRango('todo')}>Ver todas las fechas</button>
+                    </p>
+                )}
             </div>
 
             <div className="gp-acts">
