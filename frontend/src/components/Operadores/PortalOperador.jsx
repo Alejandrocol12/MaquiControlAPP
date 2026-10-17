@@ -12,6 +12,7 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { fmtHoro } from '../../utils/horometro';
 
 const SECCIONES = [
     { id: 'jornada',   icon: ClipboardList, label: 'Mi jornada' },
@@ -361,7 +362,7 @@ function PortalOperador({ user, onLogout }) {
                                         <div className="card blue">
                                             <span className="ci"><Gauge size={22} /></span>
                                             <div className="cl">Horómetro</div>
-                                            <div className="cv">{(maqPrincipal.horometroActual || 0).toLocaleString('es-CO')}</div>
+                                            <div className="cv">{fmtHoro(maqPrincipal.horometroActual)}</div>
                                             <div className="cs">horas acumuladas</div>
                                         </div>
                                         <div className="card">
@@ -400,7 +401,7 @@ function PortalOperador({ user, onLogout }) {
                                                         <span>{fmtFecha(m.fecha)}</span>
                                                         <span>{m.tipo}</span>
                                                         <span style={{ color: '#6b7a8d' }}>{m.descripcion || '—'}</span>
-                                                        <span>{m.horometro ? `${m.horometro} hrs` : '—'}</span>
+                                                        <span>{m.horometro ? `${fmtHoro(m.horometro)} hrs` : '—'}</span>
                                                         <span><span style={{ background: c.bg, color: c.color, borderRadius: '99px', padding: '2px 8px', fontSize: '11px', fontWeight: '600' }}>{m.estado || '—'}</span></span>
                                                     </div>
                                                 );

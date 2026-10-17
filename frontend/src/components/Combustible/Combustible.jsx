@@ -9,6 +9,7 @@ import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import MoneyInput from '../../utils/MoneyInput';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { fmtHoro } from '../../utils/horometro';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 
 const IcoMaquina = ({ tipo, size = 22 }) => {
@@ -175,7 +176,7 @@ function Combustible() {
                             <span className="w2">{r.maquinaNombre}</span>
                             <span>{r.galones} gal</span>
                             <span className="amt">{fmt(r.precioPorGalon)}</span>
-                            <span>{r.horometro || '—'}</span>
+                            <span>{r.horometro ? fmtHoro(r.horometro) : '—'}</span>
                             <span className="neg amt">{fmt(total(r))}</span>
                             <span><button className="icon-btn" onClick={() => eliminar(r.id)}><Trash2 size={14} /></button></span>
                         </div>

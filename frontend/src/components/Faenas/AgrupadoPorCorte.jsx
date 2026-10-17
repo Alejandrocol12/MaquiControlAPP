@@ -4,6 +4,7 @@ import { getCortes, getPagos, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
 import Estado from '../../utils/Estado';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { fmtHoro } from '../../utils/horometro';
 import { enRango, ordenarCortes, fmtHoras, diaSiguiente, hoyISO, nombreCorte } from '../../utils/cortes';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -114,7 +115,7 @@ function AgrupadoPorCorte({
                 <span className="ic-f" data-l="Fecha"><b>{fmtFecha(i.fecha)}</b><small>{diaSemana(i.fecha)}</small></span>
                 <span className="ic-d" data-l="Descripción">{i.descripcion}{!esHoras && <small>{i.tipoTrabajo}</small>}</span>
                 <span className="ic-h" data-l="Horas">{esHoras ? <>{fmtHoras(h)} h</> : <>{i.cantidad} <small>{i.tipoTrabajo}</small></>}</span>
-                <span className="ic-m" data-l="Horómetro">{esHoras && i.horometroInicio != null && i.horometroFin != null ? `${Number(i.horometroInicio).toLocaleString('es-CO')} → ${Number(i.horometroFin).toLocaleString('es-CO')}` : ''}</span>
+                <span className="ic-m" data-l="Horómetro">{esHoras && i.horometroInicio != null && i.horometroFin != null ? `${fmtHoro(i.horometroInicio)} → ${fmtHoro(i.horometroFin)}` : ''}</span>
                 <span className="ic-t pos" data-l="Total">{fmt(i.total)}</span>
                 <span className="ic-a">
                     {onEditar && <button type="button" className="icon-btn" aria-label="Editar ingreso" onClick={() => onEditar(i)}><Pencil size={14} /></button>}

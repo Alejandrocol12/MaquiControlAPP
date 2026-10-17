@@ -24,6 +24,7 @@ import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
 import { nombreCorte } from '../../utils/cortes';
+import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
@@ -296,7 +297,7 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                             </div>
                             <div className="mq-fc-rows">
                                 <div className="mq-fc-row"><span>Operador</span><b>{m.operadorNombre || '—'}</b></div>
-                                <div className="mq-fc-row"><span>Horómetro</span><b className="mq-num">{(m.horometroActual || 0).toLocaleString('es-CO')} hrs</b></div>
+                                <div className="mq-fc-row"><span>Horómetro</span><b className="mq-num">{fmtHoro(m.horometroActual)} hrs</b></div>
                                 <div className="mq-fc-row"><span>Valor/hora máquina</span><b className="mq-num">{fmt(m.valorHoraMaquina)}</b></div>
                             </div>
                             {info && (
@@ -421,13 +422,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         if (editandoIngresoId) return;
         if (tipoTrabajo === 'Horas') {
             setValorUnitario(String(maq.valorHoraMaquina || ''));
-            setHorometroFin(String(maq.horometroActual || ''));
+            setHorometroFin(String(redondearHoro(maq.horometroActual) || ''));
         } else {
             setValorUnitario('');
         }
     }, [tipoTrabajo]);
     const [cantidad, setCantidad] = useState('');
-    const [horometroFin, setHorometroFin] = useState(String(maq.horometroActual || ''));
+    const [horometroFin, setHorometroFin] = useState(String(redondearHoro(maq.horometroActual) || ''));
     const [valorUnitario, setValorUnitario] = useState(String(maq.valorHoraMaquina || ''));
     const [fechaTrabajo, setFechaTrabajo] = useState(hoy());
     const [descTrabajo, setDescTrabajo] = useState('');
@@ -447,7 +448,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         setTipoTrabajo('Horas');
         setCantidad('');
         setValorUnitario(String(maq.valorHoraMaquina || ''));
-        setHorometroFin(String(maq.horometroActual || ''));
+        setHorometroFin(String(redondearHoro(maq.horometroActual) || ''));
         setFechaTrabajo(hoy());
         setDescTrabajo('');
     };
@@ -724,7 +725,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         const okTrabajo = tipoTrabajo === 'Horas'
             ? errTrabajo.validar([
                 { campo: 'trHorometro', ok: !!horometroFin, msg: 'Escribe el horómetro al terminar' },
-                { campo: 'trHorometro', ok: horasCalculadas > 0, msg: `Debe ser mayor al horómetro inicial (${maq.horometroActual || 0})` },
+                { campo: 'trHorometro', ok: horasCalculadas > 0, msg: `Debe ser mayor al horómetro inicial (${fmtHoro(maq.horometroActual)})` },
                 { campo: 'trValor', ok: !!valorUnitario, msg: 'Escribe el valor por hora' },
             ])
             : errTrabajo.validar([
@@ -935,7 +936,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <p>Placa {maq.placa} · Operador {maq.operadorNombre || '—'} · {fmt(maq.valorHoraOperador)}/hr operador · {fmt(maq.valorHoraMaquina || 0)}/hr máquina</p>
                             <div className="mq-dh-badges">
                                 <span className={`mq-pill ${maq.estado === 'Activa' ? 'ok' : maq.estado === 'En mantenimiento' ? 'warn' : 'off'}`}><i></i>{maq.estado}</span>
-                                <span className="mq-pill off">{(maq.horometroActual || 0).toLocaleString('es-CO')} hrs horómetro</span>
+                                <span className="mq-pill off">{fmtHoro(maq.horometroActual)} hrs horómetro</span>
                                 {faenaActiva
                                     ? <span className="mq-pill job">Periodo: {faenaActiva.nombreObra}</span>
                                     : <span className="mq-pill nojob">Sin periodo activo</span>}
@@ -1071,7 +1072,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div className="rr"><span>Tipo</span><span>{tipoTrabajo}</span></div>
                                 <div className="rr"><span>{tipoTrabajo === 'Horas' ? 'Horas trabajadas' : 'Cantidad'}</span><span>{cantidadEfectiva || 0} {tipoTrabajo === 'Horas' ? 'hrs' : 'unidades'}</span></div>
                                 <div className="rr"><span>Valor unitario</span><span>{fmt(parseFloat(valorUnitario || 0))}</span></div>
-                                {tipoTrabajo === 'Horas' && !editandoIngresoId && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{maq.horometroActual || 0} → {horometroFin || 0} hrs</span></div>}
+                                {tipoTrabajo === 'Horas' && !editandoIngresoId && <div className="rr"><span>Horómetro: antes → después</span><span style={{ color: '#2980b9' }}>{fmtHoro(maq.horometroActual)} → {fmtHoro(horometroFin)} hrs</span></div>}
                                 <div className="rr"><span>Total ingreso</span><span className="pos">{fmt(totalTrabajo)}</span></div>
                             </div>
                             {!editandoIngresoId && (
@@ -1329,7 +1330,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div className="tr" key={c.id}>
                                     <span>{fmtFecha(c.fecha)}</span><span>{c.galones} gal</span>
                                     <span className="amt">{fmt(c.precioPorGalon)}</span>
-                                    <span>{c.horometro || '—'}</span>
+                                    <span>{c.horometro ? fmtHoro(c.horometro) : '—'}</span>
                                     <span className="neg amt">{fmt(c.total)}</span>
                                     <span><button className="icon-btn" onClick={() => eliminarComb(c.id)}><Trash2 size={14} /></button></span>
                                 </div>

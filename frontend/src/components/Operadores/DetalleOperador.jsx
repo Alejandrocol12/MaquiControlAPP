@@ -21,7 +21,6 @@ import {
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
-import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import {
     ClipboardList,
     Clock,
@@ -49,8 +48,10 @@ import EmptyState from '../../utils/EmptyState';
 import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { fmtFecha } from '../../utils/fmtFecha';
-import { diaSiguiente, enRango, ordenarCortes, repartirPagos, fmtHoras } from '../../utils/cortes';
-import { useSortable } from '../../utils/useSortable';
+import { diaSiguiente, enRango, ordenarCortes, repartirPagos, fmtHoras, nombreCorte } from '../../utils/cortes';
+import { fmtHoro } from '../../utils/horometro';
+import CortesOperador from './CortesOperador';
+import HorasPorCorte from './HorasPorCorte';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -101,6 +102,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     // Pago Operador -- la plata que se le entrega al operador (pagos de corte y adelantos).
     // Cada pago crea su gasto "Pago operador" en el backend; solo admin (no visible en el portal).
     const [pagosOperador, setPagosOperador] = useState([]);
+    const [pagoRapido, setPagoRapido] = useState({ abierto: false, monto: '', descripcion: '', guardando: false });
     const errPagoOp = useErrores();
     const errEdit = useErrores();
     const PAGO_OP_VACIO = { descripcion: '', monto: '', fecha: hoy() };
@@ -163,6 +165,21 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         const prev = pagosOperador;
         setPagosOperador(p => p.filter(x => x.id !== id));
         deletePagoOperador(id).catch(() => { setPagosOperador(prev); toast('Error al eliminar', 'e'); });
+    };
+
+    const registrarPagoRapido = async () => {
+        const monto = parseFloat(pagoRapido.monto);
+        if (!(monto > 0)) return toast('Escribe cuánto le vas a pagar', 'e');
+        setPagoRapido(p => ({ ...p, guardando: true }));
+        try {
+            await createPagoOperador({ operadorNombre: operadorLocal.nombre, descripcion: pagoRapido.descripcion, monto, fecha: hoy() });
+            toast('Pago registrado');
+            setPagoRapido({ abierto: false, monto: '', descripcion: '', guardando: false });
+            refrescarPagosOperador();
+        } catch {
+            toast('No se pudo registrar el pago', 'e');
+            setPagoRapido(p => ({ ...p, guardando: false }));
+        }
     };
 
     const [editForm, setEditForm] = useState({
@@ -294,7 +311,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const horasCorteEnCurso = !ultimoCorte && !corteManual ? horasPeriodo : horasEntre(corteDesde, null);
     const tramosCorte = cortesOp.map((c, i) => {
         const hrs = horasEntre(c.fechaInicio, c.fechaFin);
-        return { id: c.id, nombre: `Corte ${i + 1}`, fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`, horas: hrs, ganado: hrs * valorHora };
+        return { id: c.id, nombre: nombreCorte(c, i + 1), fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`, horas: hrs, ganado: hrs * valorHora };
     });
     // Horas del periodo que no están en ningún corte ni en el corte en curso (por ejemplo, lo
     // trabajado antes de la fecha que se ajustó a mano). Son trabajo ya hecho: los pagos se
@@ -311,8 +328,35 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const pagosOperadorOrdenados = pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
-    const { sorted: horasOrdenadas, Th: ThHora } = useSortable(horasRango, 'fecha', 'desc');
-    const pagHoras = usePaginacion(horasOrdenadas, 20);
+    // Historial: las horas agrupadas por corte del periodo (el corte en curso primero)
+    const enElPeriodo = (h) => periodoActivo
+        ? (periodoActivo.desdeHoraId != null ? Number(h.id) > Number(periodoActivo.desdeHoraId) : String(h.fecha || '') >= (periodoActivo.fechaInicio || hoy()))
+        : false;
+    const idGrupoDe = (h) => {
+        if (!enElPeriodo(h)) return 'anterior';
+        const f = String(h.fecha || '').slice(0, 10);
+        if (f >= corteDesde) return 'curso';
+        const corte = cortesOp.find(c => enRango(f, c.fechaInicio, c.fechaFin));
+        return corte ? String(corte.id) : 'antes';
+    };
+    const gruposHoras = (() => {
+        const ordenadas = [...horasRango].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || Number(b.id) - Number(a.id));
+        const porId = {};
+        ordenadas.forEach(h => { const k = idGrupoDe(h); (porId[k] = porId[k] || []).push(h); });
+        const out = [...filasCorte].reverse().map(f => ({
+            key: String(f.id), nombre: f.nombre, fechas: f.fechas, pagado: f.pagado, debe: f.debe,
+            estado: f.id === 'curso' ? 'curso' : f.debe <= 0 ? 'pagado' : f.pagado > 0 ? 'parcial' : 'pendiente',
+            items: porId[String(f.id)] || [],
+        }));
+        if (porId.antes && !filasCorte.some(f => f.id === 'antes')) out.push({ key: 'antes', nombre: 'Sin cortar', fechas: '', estado: null, items: porId.antes });
+        if (porId.anterior) out.push({ key: 'anterior', nombre: 'Periodos anteriores', fechas: '', estado: null, items: porId.anterior });
+        return out.filter(g => g.items.length > 0);
+    })();
+
+    // Último pago y lo que se le debe, para el resumen
+    const ultimoPagoFecha = pagosOperador.map(p => String(p.fecha || '').slice(0, 10)).filter(Boolean).sort().pop();
+    const diasUltimoPago = ultimoPagoFecha ? Math.round((new Date(hoy() + 'T00:00:00') - new Date(ultimoPagoFecha + 'T00:00:00')) / 864e5) : null;
+    const debeTotal = Math.max(0, salarioNeto);
 
     const basePeriodo = (p) => ({
         estado: p.estado, anticipos: p.anticipos || 0, fechaFin: p.fechaFin || null, horasTotal: p.horasTotal,
@@ -455,7 +499,123 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                         {TABS.map((t, i) => <button key={i} className={`do-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
                     </ScrollTabs>
 
-                    {tab === 0 && (
+                    {tab === 0 && !modoPortal && (
+                        <>
+                            {periodoActivo ? (
+                                <div className="op-hero">
+                                    <div className="op-hero-main">
+                                        <div className="op-hero-k">{salarioNeto < 0 ? 'Le pagaste de más a' : 'Le debes a'} {operadorLocal.nombre}</div>
+                                        <div className="op-hero-big">{fmt(salarioNeto < 0 ? -salarioNeto : debeTotal)}</div>
+                                        <div className="op-hero-sub">{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = {fmt(salarioBruto)} ganados · {fmt(anticipos)} pagados</div>
+                                        <div className="op-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
+                                        <div className="op-hero-sub">
+                                            {salarioBruto > 0 ? `${Math.round(Math.min(100, anticipos / salarioBruto * 100))}% ya pagado · ` : ''}
+                                            {editandoFechaPeriodo ? (
+                                                <span className="op-edit">
+                                                    <input className="fi" type="date" aria-label="Fecha de inicio del periodo" value={fechaPeriodoInput} onChange={(e) => setFechaPeriodoInput(e.target.value)} />
+                                                    <button type="button" className="bp" onClick={guardarFechaPeriodo}><CheckCircle size={12} style={{ verticalAlign: 'middle' }} /> Guardar</button>
+                                                    <button type="button" className="bs" onClick={() => setEditandoFechaPeriodo(false)}>Cancelar</button>
+                                                </span>
+                                            ) : (
+                                                <>Periodo activo desde <b>{fmtFecha(periodoActivo.fechaInicio)}</b>
+                                                    <button type="button" className="op-pen" title="Cambiar fecha de inicio del periodo" aria-label="Cambiar fecha de inicio del periodo"
+                                                        onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {debeTotal > 0
+                                        ? <button type="button" className="op-pagar" onClick={() => setPagoRapido(p => ({ ...p, abierto: !p.abierto, monto: p.abierto ? '' : String(Math.round(debeTotal)) }))}>{pagoRapido.abierto ? 'Cerrar' : 'Pagar'}</button>
+                                        : <span className="do-pill ok">Al día</span>}
+                                </div>
+                            ) : (
+                                <div className="ct-aviso"><AlertTriangle size={14} /> No hay un periodo activo para este operador.</div>
+                            )}
+
+                            {pagoRapido.abierto && periodoActivo && (
+                                <div className="op-pagar-panel">
+                                    <b>Registrar pago o adelanto</b>
+                                    <div className="ic-filtros">
+                                        {[[debeTotal, 'Todo'], [filaCurso.debe, 'Solo el corte en curso']].filter(([v]) => v > 0).map(([v, l]) => (
+                                            <button key={l} type="button" className={Number(pagoRapido.monto) === Math.round(v) ? 'on' : ''}
+                                                onClick={() => setPagoRapido(p => ({ ...p, monto: String(Math.round(v)) }))}>{l} · {fmt(v)}</button>
+                                        ))}
+                                    </div>
+                                    <div className="op-pagar-campos">
+                                        <MoneyInput className="fi" aria-label="Monto a pagar" placeholder="Otro monto" value={pagoRapido.monto}
+                                            onChange={(e) => setPagoRapido(p => ({ ...p, monto: e.target.value }))} />
+                                        <input className="fi" aria-label="Descripción del pago" placeholder="Descripción (opcional)" value={pagoRapido.descripcion}
+                                            onChange={(e) => setPagoRapido(p => ({ ...p, descripcion: e.target.value }))} />
+                                    </div>
+                                    <div className="ct-acts">
+                                        <button type="button" className="bs" onClick={() => setPagoRapido({ abierto: false, monto: '', descripcion: '', guardando: false })}>Cancelar</button>
+                                        <button type="button" className="bp" disabled={pagoRapido.guardando} onClick={registrarPagoRapido}>
+                                            <CheckCircle size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{pagoRapido.guardando ? 'Guardando…' : 'Registrar pago'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="op-stats">
+                                <div className="op-stat"><span>Horas del periodo</span><b>{fmtHoras(horasPeriodo)}</b><small>desde {fmtFecha(periodoActivo?.fechaInicio)}</small></div>
+                                {maqAsignada && <div className="op-stat"><span>Horómetro de {maqAsignada.nombre}</span><b>{fmtHoro(maqAsignada.horometroActual)}</b><small>horas acumuladas en la máquina</small></div>}
+                                <div className="op-stat">
+                                    <span>Último pago</span>
+                                    <b className={diasUltimoPago > 20 ? 'wr' : ''}>{diasUltimoPago == null ? 'Sin pagos' : diasUltimoPago === 0 ? 'Hoy' : `hace ${diasUltimoPago} día${diasUltimoPago === 1 ? '' : 's'}`}</b>
+                                    <small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} · {fmt(totalPagadoOperador)} en total</small>
+                                </div>
+                            </div>
+
+                            {periodoActivo && (() => {
+                                const controlCorte = (
+                                    <div className="op-corte-desde">
+                                        {editandoCorte ? (
+                                            <div className="ct-curso-edit">
+                                                <input className="fi" type="date" aria-label="Fecha desde la que cuenta el corte" value={corteInput} onChange={(e) => setCorteInput(e.target.value)} />
+                                                <button type="button" className="bp" onClick={() => corteInput ? guardarCorteDesde(corteInput) : toast('Selecciona una fecha', 'e')}>Guardar</button>
+                                                {corteManual && <button type="button" className="bs" onClick={() => guardarCorteDesde('')}>Usar fecha automática</button>}
+                                                <button type="button" className="bs" onClick={() => setEditandoCorte(false)}>Cancelar</button>
+                                            </div>
+                                        ) : (
+                                            <div className="ct-card-f">
+                                                Cuenta desde el{' '}
+                                                <button type="button" className="ct-link" title="Cambiar la fecha desde la que cuenta el corte"
+                                                    onClick={() => { setCorteInput(corteDesde || hoy()); setEditandoCorte(true); }}>{fmtFecha(corteDesde)} <Pencil size={11} /></button>
+                                                {corteManual ? ' · ajustada a mano' : ultimoCorte ? ' · día siguiente al último corte' : ' · inicio del periodo'}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                                return (
+                                    <div className="ct-box">
+                                        <div className="ct-head"><b><Scissors size={14} /> Cortes con saldo</b><button type="button" className="ct-link" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
+                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} onVerHoras={() => setTab(1)} extraEnCurso={controlCorte} />
+                                    </div>
+                                );
+                            })()}
+
+                            {cortesAntesDelPeriodo > 0 && periodoActivo && (
+                                <div className="ct-aviso"><AlertTriangle size={14} /> Hay {cortesAntesDelPeriodo} corte{cortesAntesDelPeriodo === 1 ? '' : 's'} anterior{cortesAntesDelPeriodo === 1 ? '' : 'es'} al inicio de este periodo ({fmtFecha(periodoActivo.fechaInicio)}) que no se están contando. Si el operador viene trabajando desde antes, cambia la fecha en "Periodo activo desde".</div>
+                            )}
+
+                            <div className="tbl">
+                                <div className="th"><strong>Últimas horas</strong><button type="button" className="ct-link" onClick={() => setTab(1)}>Ver el historial por corte</button></div>
+                                <div className="tr hdr"><span>Fecha</span><span className="w2">Maquina</span><span>Horas</span><span>Horometro fin</span><span className="amt">Valor ganado</span></div>
+                                {horasDelPeriodo.length === 0 && <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p>}
+                                {horasDelPeriodo.slice(0, 5).map((h) => (
+                                    <div className="tr" key={h.id}>
+                                        <span>{fmtFecha(h.fecha)}</span>
+                                        <span className="w2">{h.maquinaNombre}</span>
+                                        <span><strong>{fmtHoras(getHrs(h))}</strong> hrs</span>
+                                        <span>{h.horometroFin ? fmtHoro(h.horometroFin) : '-'}</span>
+                                        <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    {tab === 0 && modoPortal && (
                         <>
                             {!modoPortal && periodoActivo && (
                                 <div className="ct-curso">
@@ -567,7 +727,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <div>
                                         <p>Horometro actual de {maqAsignada.nombre}</p>
                                         <span className="ale-desc">
-                                            <strong>{(maqAsignada.horometroActual || 0).toLocaleString('es-CO')} hrs</strong> acumuladas en la maquina
+                                            <strong>{fmtHoro(maqAsignada.horometroActual)} hrs</strong> acumuladas en la maquina
                                         </span>
                                     </div>
                                 </div>
@@ -619,7 +779,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                         <span>{fmtFecha(h.fecha)}</span>
                                         <span className="w2">{h.maquinaNombre}</span>
                                         <span><strong>{getHrs(h)}</strong> hrs</span>
-                                        <span>{h.horometroFin || '-'}</span>
+                                        <span>{h.horometroFin ? fmtHoro(h.horometroFin) : '-'}</span>
                                         <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
                                     </div>
                                 ))}
@@ -628,41 +788,23 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     )}
 
                     {tab === 1 && (
-                        <div className="tbl">
-                            <div className="th">
-                                <strong>Historial completo de horas - {operador.nombre}</strong>
-                                <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Total: {totalHorasAcumuladas} hrs · {fmt(totalHorasAcumuladas * valorHora)}</span>
-                                <DateRangePicker desde={hrDesde} setDesde={setHrDesde} hasta={hrHasta} setHasta={setHrHasta} />
-                            </div>
-                            <div className="tr hdr">
-                                <ThHora campo="fecha">Fecha</ThHora>
-                                <ThHora campo="maquinaNombre" className="w2">Máquina</ThHora>
-                                <ThHora campo="horas">Horas</ThHora>
-                                <ThHora campo="valorHora" className="amt">$/Hora</ThHora>
-                                <span className="amt">Valor</span>
-                                <span>Acc.</span>
-                            </div>
-                            {horasOrdenadas.length === 0 && <p className="vacio">Sin horas registradas</p>}
-                            {pagHoras.paginados.map((h) => (
-                                <div className="tr" key={h.id}>
-                                    <span>{fmtFecha(h.fecha)}</span>
-                                    <span className="w2">{h.maquinaNombre}</span>
-                                    <span><strong>{getHrs(h)}</strong> hrs</span>
-                                    <span className="amt">{fmt(h.valorHora || valorHora)}</span>
-                                    <span className="pos amt">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
-                                    <span>
-                                        <button className="icon-btn" onClick={async () => {
-                                            if (await confirm('Eliminar este registro de horas?')) {
-                                                deleteHora(h.id).then(cargar).catch(console.error);
-                                            }
-                                        }}>
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </span>
+                        <>
+                            <div className="tbl" style={{ marginBottom: '12px' }}>
+                                <div className="th">
+                                    <strong>Historial de horas - {operador.nombre}</strong>
+                                    <span style={{ fontSize: '11px', color: '#6b7a8d' }}>Total: {fmtHoras(totalHorasAcumuladas)} hrs · {fmt(totalHorasAcumuladas * valorHora)}</span>
+                                    <DateRangePicker desde={hrDesde} setDesde={setHrDesde} hasta={hrHasta} setHasta={setHrHasta} />
                                 </div>
-                            ))}
-                            <Paginacion pagina={pagHoras.pagina} total={pagHoras.total} ir={pagHoras.ir} totalItems={horasOrdenadas.length} porPagina={20} />
-                        </div>
+                            </div>
+                            {horasRango.length === 0
+                                ? <p className="vacio">Sin horas registradas</p>
+                                : <HorasPorCorte grupos={gruposHoras} valorHora={valorHora}
+                                    onEliminar={async (h) => {
+                                        if (await confirm('Eliminar este registro de horas?')) {
+                                            deleteHora(h.id).then(cargar).catch(console.error);
+                                        }
+                                    }} />}
+                        </>
                     )}
 
                     {tab === 2 && (
@@ -674,6 +816,14 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                     <span className="ale-desc">El sistema guarda el resumen (horas, bruto, neto) en el historial y abre uno nuevo en cero. También se cierra automáticamente al cerrar la faena.</span>
                                 </div>
                             </div>
+
+                            {!modoPortal && periodoActivo && (
+                                <div className="ct-box">
+                                    <div className="ct-head"><b><Scissors size={14} /> Cortes del periodo activo</b><span className="ct-sub">Mismas fechas del corte con el cliente</span></div>
+                                    <CortesOperador filas={filasCorte} onVerHoras={() => setTab(1)} />
+                                    <p className="ct-nota">Cada pago se aplica primero al corte más viejo que tenga deuda; lo que sobra pasa al siguiente.</p>
+                                </div>
+                            )}
 
                             {periodos.slice().reverse().map((p, i) => (
                                 <div key={p.id} style={{

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import FiltroChips from '../../utils/FiltroChips';
 import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
+import { fmtHoro } from '../../utils/horometro';
 import { History } from 'lucide-react';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -31,7 +32,7 @@ function HistoriaMaquina({ ingresos, gastos, combustibles, mantenimientos, faena
         combustibles.forEach(c => ev.push({
             k: 'com', id: `c${c.id}`, fecha: c.fecha,
             t: `Carga de combustible, ${num(c.galones)} gal`,
-            s: c.horometro ? `Horómetro ${Number(c.horometro).toLocaleString('es-CO')}` : 'Combustible',
+            s: c.horometro ? `Horómetro ${fmtHoro(c.horometro)}` : 'Combustible',
             monto: Number(c.total) || 0, signo: '−',
         }));
         mantenimientos.forEach(m => ev.push({
