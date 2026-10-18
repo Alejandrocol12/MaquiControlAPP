@@ -1,18 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Scissors, Clock, FileSpreadsheet, Check } from 'lucide-react';
+import { Scissors, Clock, FileSpreadsheet } from 'lucide-react';
 import { getCortes } from '../../api';
 import { useToast } from '../../utils/toast';
 import { fmtHoras } from '../../utils/cortes';
-import { gruposDeCortes, pdfReporteCorte, filaIngreso, filaGasto, COLS_INGRESO, COLS_GASTO } from '../../utils/reporteCorte';
+import { gruposDeCortes, pdfReporteCorte } from '../../utils/reporteCorte';
 import { xlsReporteCorte } from '../../utils/excelReportes';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
-const MAX_FILAS = 6;
 const INCLUIR = [['ing', 'Ingresos'], ['gas', 'Gastos'], ['amb', 'Ambos']];
 
 // Reporte por corte: se elige la máquina, el periodo y uno o varios cortes. Las columnas de ingresos
 // son siempre las mismas (fecha, horas, descripción, horómetro inicio y fin, total) y el PDF lleva
-// resumen arriba y subtotal en cada corte.
+// resumen arriba y subtotal en cada corte. Es una tarjeta como las demás de Reportes.
 function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
     const toast = useToast();
     const [cortes, setCortes] = useState([]);
@@ -40,11 +39,12 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
     }, [faenaId, grupos.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const lista = grupos.filter(g => elegidos[g.id]);
-    const todos = grupos.length > 0 && lista.length === grupos.length;
     const verIng = incluir !== 'gas', verGas = incluir !== 'ing';
     const totHoras = lista.reduce((a, g) => a + g.horas, 0);
     const totIng = lista.reduce((a, g) => a + g.totalIng, 0);
     const totGas = lista.reduce((a, g) => a + g.totalGas, 0);
+    const valor = verIng && verGas ? totIng - totGas : verGas ? totGas : totIng;
+    const tono = verIng && verGas ? (valor >= 0 ? 'pos' : 'neg') : verGas ? 'neg' : 'pos';
 
     const ejecutar = async (tipo) => {
         if (!lista.length || !faena) return;
@@ -58,11 +58,10 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
     };
 
     return (
-        <div className="rc">
-        <div className="rp-card rc-card">
+        <div className="rp-card">
             <div className="rp-top">
                 <span className="rp-ico" style={{ background: '#c9790f' }}><Scissors size={19} /></span>
-                <div className="rp-title"><h3>Reporte por corte</h3><p>Ingresos, gastos o ambos de uno o varios cortes de un periodo, con horas, horómetros, fechas y montos</p></div>
+                <div className="rp-title"><h3>Reporte por corte</h3><p>Ingresos, gastos o ambos de uno o varios cortes de un periodo</p></div>
             </div>
 
             <div className="rp-controls">
@@ -71,7 +70,7 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
                 </select>
                 <select className="rp-select" aria-label="Periodo" value={faenaId} onChange={e => setFaenaId(e.target.value)}>
                     {periodos.length === 0 && <option value="">Sin periodos</option>}
-                    {periodos.map(f => <option key={f.id} value={f.id}>{`${f.nombreObra || 'Sin nombre'} (${f.estado === 'activa' ? 'activo' : 'cerrado'})`}</option>)}
+                    {periodos.map(f => <option key={f.id} value={f.id}>{f.nombreObra || 'Sin nombre'}</option>)}
                 </select>
             </div>
 
@@ -82,34 +81,18 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
             {grupos.length === 0 ? (
                 <p className="rc-vacio">{faena ? 'Este periodo todavía no tiene ingresos ni gastos.' : 'Esta máquina no tiene periodos.'}</p>
             ) : (
-                <>
-                    <div className="rc-cab">
-                        <span>Cortes del periodo</span>
-                        <button type="button" className="rc-link" onClick={() => setElegidos(Object.fromEntries(grupos.map(g => [g.id, !todos])))}>{todos ? 'Quitar todos' : 'Elegir todos'}</button>
-                    </div>
-                    <div className="rc-lista">
-                        {grupos.map(g => {
-                            const on = !!elegidos[g.id];
-                            return (
-                                <button type="button" key={g.id} className={`rc-corte ${on ? 'on' : ''}`} aria-pressed={on} onClick={() => setElegidos(e => ({ ...e, [g.id]: !on }))}>
-                                    <span className="rc-box">{on && <Check size={12} />}</span>
-                                    <span className="rc-n"><b>{g.nombre}</b><small>{g.fechas} · {fmtHoras(g.horas)} h</small></span>
-                                    <span className="rc-m">
-                                        {verIng && <i className="pos">{fmt(g.totalIng)}</i>}
-                                        {verGas && <i className="neg">{fmt(g.totalGas)}</i>}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </>
+                <div className="rc-chips" role="group" aria-label="Cortes">
+                    {grupos.map(g => {
+                        const on = !!elegidos[g.id];
+                        return <button type="button" key={g.id} className={on ? 'on' : ''} aria-pressed={on} title={`${g.fechas} · ${fmtHoras(g.horas)} h`}
+                            onClick={() => setElegidos(e => ({ ...e, [g.id]: !on }))}>{g.nombre}</button>;
+                    })}
+                </div>
             )}
 
             <div className="rp-metric">
                 <span className="m1">{lista.length} corte{lista.length === 1 ? '' : 's'} · {fmtHoras(totHoras)} h</span>
-                <span className={`m2 rp-num ${verIng && verGas ? (totIng - totGas >= 0 ? 'pos' : 'neg') : verGas ? 'neg' : 'pos'}`}>
-                    {fmt(verIng && verGas ? totIng - totGas : verGas ? totGas : totIng)}
-                </span>
+                <span className={`m2 rp-num ${tono}`}>{fmt(valor)}</span>
             </div>
             <div className="rp-actions">
                 <button className="rp-btn pri" disabled={!lista.length || !!generando} onClick={() => ejecutar('pdf')}>
@@ -119,58 +102,6 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
                     {generando === 'xls' ? <><Clock size={13} /> XLS...</> : <><FileSpreadsheet size={13} /> Excel</>}
                 </button>
             </div>
-        </div>
-
-        <div className="rc-vista">
-            <div className="rc-vtop"><b>Así se vería el PDF</b><span>{lista.length ? `${lista.length} corte${lista.length === 1 ? '' : 's'} · ${fmtHoras(totHoras)} h` : 'Elige al menos un corte'}</span></div>
-            <div className="rc-hoja">
-                <div className="rc-hcab">
-                    <span className="rc-logo">MAQUI<em>CONTROL</em></span>
-                    <span className="rc-gen">Generado: {new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
-                </div>
-                <h4 className="rc-htit">Reporte por corte</h4>
-                <p className="rc-hsub">{maq} · {faena?.nombreObra || 'Periodo'} · {incluir === 'ing' ? 'Ingresos' : incluir === 'gas' ? 'Gastos' : 'Ingresos y gastos'}</p>
-                {lista.length === 0 ? <p className="rc-vacio">Marca los cortes que quieres ver en el reporte.</p> : (
-                    <>
-                        <div className="rc-res">
-                            <div><small>{lista.length === 1 ? 'Corte' : 'Cortes'}</small><b>{lista.length === 1 ? lista[0].nombre : lista.length}</b></div>
-                            {verIng && <div><small>Horas</small><b>{fmtHoras(totHoras)} h</b></div>}
-                            {verIng && <div><small>Ingresos</small><b className="pos">{fmt(totIng)}</b></div>}
-                            {verGas && <div><small>Gastos</small><b className="neg">{fmt(totGas)}</b></div>}
-                            {verIng && verGas && <div className="ut"><small>Utilidad</small><b>{fmt(totIng - totGas)}</b></div>}
-                        </div>
-                        {lista.map(g => (
-                            <div className="rc-sec" key={g.id}>
-                                <h5>{g.nombre} <span>{g.fechas}</span></h5>
-                                {verIng && (
-                                    <div className="rc-tw"><table>
-                                        <thead><tr>{COLS_INGRESO.map((c, k) => <th key={c} className={[1, 3, 4, 5].includes(k) ? 'r' : ''}>{c}</th>)}</tr></thead>
-                                        <tbody>
-                                            {g.ingresos.slice(0, MAX_FILAS).map(i => <tr key={i.id}>{filaIngreso(i).map((v, k) => <td key={k} className={[1, 3, 4, 5].includes(k) ? 'r' : ''}>{v}</td>)}</tr>)}
-                                            {g.ingresos.length > MAX_FILAS && <tr className="mas"><td colSpan={6}>… y {g.ingresos.length - MAX_FILAS} fila{g.ingresos.length - MAX_FILAS === 1 ? '' : 's'} más en el PDF</td></tr>}
-                                            {g.ingresos.length === 0 && <tr className="mas"><td colSpan={6}>Sin ingresos en este corte</td></tr>}
-                                            {g.ingresos.length > 0 && <tr className="sum"><td /><td className="r">{fmtHoras(g.horas)} h</td><td>Subtotal ingresos</td><td /><td /><td className="r">{fmt(g.totalIng)}</td></tr>}
-                                        </tbody>
-                                    </table></div>
-                                )}
-                                {verGas && (
-                                    <div className="rc-tw"><table>
-                                        <thead><tr>{COLS_GASTO.map((c, k) => <th key={c} className={k === 3 ? 'r' : ''}>{c}</th>)}</tr></thead>
-                                        <tbody>
-                                            {g.gastos.slice(0, MAX_FILAS).map(x => <tr key={x.id}>{filaGasto(x).map((v, k) => <td key={k} className={k === 3 ? 'r' : ''}>{v}</td>)}</tr>)}
-                                            {g.gastos.length > MAX_FILAS && <tr className="mas"><td colSpan={4}>… y {g.gastos.length - MAX_FILAS} gasto{g.gastos.length - MAX_FILAS === 1 ? '' : 's'} más en el PDF</td></tr>}
-                                            {g.gastos.length === 0 && <tr className="mas"><td colSpan={4}>Sin gastos en este corte</td></tr>}
-                                            {g.gastos.length > 0 && <tr className="sum"><td /><td /><td>Subtotal gastos</td><td className="r">{fmt(g.totalGas)}</td></tr>}
-                                        </tbody>
-                                    </table></div>
-                                )}
-                            </div>
-                        ))}
-                        {lista.length > 1 && <div className="rc-tot"><span>Total de {lista.length} cortes</span><span>{verIng ? `${fmtHoras(totHoras)} h · ${fmt(totIng)}` : ''}{verIng && verGas ? ' · ' : ''}{verGas ? `−${fmt(totGas)}` : ''}</span></div>}
-                    </>
-                )}
-            </div>
-        </div>
         </div>
     );
 }
