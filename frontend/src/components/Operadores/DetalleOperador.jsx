@@ -294,9 +294,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const anticipos = anticiposViejos + pagosDelPeriodo.reduce((a, p) => a + (Number(p.monto) || 0), 0);
     const salarioNeto = salarioBruto - anticipos;
 
-    // Cortes del operador: los mismos tramos que se cortaron con el cliente en sus máquinas
+    // Cortes del operador: todos los tramos que se cortaron con el cliente en sus máquinas
     const maquinasDelOperador = new Set([maqAsignada?.nombre, ...horas.map(h => h.maquinaNombre)].filter(Boolean));
-    const cortesDeSusMaquinas = cortes.filter(c => c.conOperador && maquinasDelOperador.has(c.maquinaNombre));
+    const cortesDeSusMaquinas = cortes.filter(c => maquinasDelOperador.has(c.maquinaNombre));
     const cortesOp = ordenarCortes(cortesDeSusMaquinas.filter(c => true
         && String(c.fechaFin || '').slice(0, 10) >= inicioPeriodo));
     // Cortes hechos antes de la fecha de inicio del periodo del operador: no entran en la cuenta
@@ -318,7 +318,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     // aplican primero ahí, o parecería que al operador se le pagó de más.
     const horasSinCortar = Math.max(0, Math.round((horasPeriodo - tramosCorte.reduce((a, t) => a + t.horas, 0) - horasCorteEnCurso) * 100) / 100);
     const { filas: filasCorte, aFavor } = repartirPagos([
-        ...(horasSinCortar > 0 ? [{ id: 'antes', nombre: 'Sin cortar', fechas: `antes del ${fmtFecha(cortesOp[0]?.fechaInicio || corteDesde)}`, horas: horasSinCortar, ganado: horasSinCortar * valorHora }] : []),
+        ...(horasSinCortar > 0 ? [{ id: 'antes', nombre: cortesOp.length ? 'Antes del primer corte' : 'Antes del corte en curso', fechas: `antes del ${fmtFecha(cortesOp[0]?.fechaInicio || corteDesde)}`, horas: horasSinCortar, ganado: horasSinCortar * valorHora }] : []),
         ...tramosCorte,
         { id: 'curso', nombre: 'En curso', fechas: `${fmtFecha(corteDesde)} a hoy`, horas: horasCorteEnCurso, ganado: horasCorteEnCurso * valorHora },
     ], anticipos);
@@ -348,7 +348,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
             estado: f.id === 'curso' ? 'curso' : f.debe <= 0 ? 'pagado' : f.pagado > 0 ? 'parcial' : 'pendiente',
             items: porId[String(f.id)] || [],
         }));
-        if (porId.antes && !filasCorte.some(f => f.id === 'antes')) out.push({ key: 'antes', nombre: 'Sin cortar', fechas: '', estado: null, items: porId.antes });
+        if (porId.antes && !filasCorte.some(f => f.id === 'antes')) out.push({ key: 'antes', nombre: 'Antes del primer corte', fechas: '', estado: null, items: porId.antes });
         if (porId.anterior) out.push({ key: 'anterior', nombre: 'Periodos anteriores', fechas: '', estado: null, items: porId.anterior });
         return out.filter(g => g.items.length > 0);
     })();
