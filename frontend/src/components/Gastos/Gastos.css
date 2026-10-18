@@ -20,7 +20,7 @@
 .qp-del:disabled{opacity:.35;cursor:default}
 .qp-vacio{font-size:13px;color:#93a2b3;margin:4px 0}
 
-.gp{background:#fff;border:1px solid #dbe1e9;border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0}
+.gp{background:#fff;border:1px solid #dbe1e9;border-radius:12px;padding:16px;display:grid;gap:14px;min-width:0;margin:14px 0}
 .gp-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .gp-head b{font:700 19px 'Barlow Condensed','Barlow',sans-serif;color:#16283b;display:inline-flex;align-items:center;gap:8px}
 .gp-sub{font-size:13px;color:#5c7086;margin:-8px 0 0}

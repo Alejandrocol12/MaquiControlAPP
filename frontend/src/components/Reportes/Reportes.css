@@ -50,14 +50,46 @@ body.dark .rp-btn.pri{background:#f5a623;color:#0d1b2a;border-color:#f5a623;}
 body.dark .rp-opt{color:#e2e8f0;}
 
 /* ── Reporte por corte ── */
-.rc-card{grid-column:1/-1;}
+.rc{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:18px;align-items:start;}
+.rc-card{min-width:0;}
+.rc-lista{display:flex;flex-direction:column;gap:6px;}
+.rc-vista{display:flex;flex-direction:column;gap:10px;min-width:0;}
+.rc-vtop{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+.rc-vtop b{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#5c7086;}
+.rc-vtop span{font-size:12px;color:#5c7086;}
+.rc-hoja{background:#fff;color:#111;border:1px solid #cfd8e3;box-shadow:0 6px 24px rgba(22,40,59,.12);border-radius:4px;padding:0 0 18px;overflow:hidden;font-size:11px;}
+.rc-hcab{background:#111;display:flex;justify-content:space-between;align-items:center;padding:10px 18px;border-top:4px solid #ffc400;}
+.rc-logo{font:700 16px 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:#fff;}
+.rc-logo em{font-style:normal;color:#ffc400;}
+.rc-gen{font:500 9px 'IBM Plex Mono',monospace;color:#bcbcbc;}
+.rc-htit{margin:14px 18px 0;font:700 22px 'Barlow Condensed',sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#111;}
+.rc-hsub{margin:2px 18px 12px;font:500 10px 'IBM Plex Mono',monospace;color:#555;padding-bottom:8px;border-bottom:2px solid #111;}
+.rc-hoja .rc-vacio{margin:0 18px;}
+.rc-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px;margin:0 18px 12px;}
+.rc-res div{border:1.5px solid #111;background:#fff;}
+.rc-res small{display:block;background:#111;color:#ffc400;font:700 8px 'Barlow',sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;}
+.rc-res b{display:block;font:700 13px 'IBM Plex Mono',monospace;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rc-res .ut{background:#ffc400;}
+.rc-res b.pos{color:#1c8a4b;} .rc-res b.neg{color:#c0392b;}
+.rc-sec{margin:0 18px 12px;}
+.rc-sec h5{margin:0 0 5px;display:flex;align-items:center;gap:8px;font:700 12px 'Barlow',sans-serif;text-transform:uppercase;letter-spacing:.03em;border-bottom:1.5px solid #111;padding-bottom:3px;}
+.rc-sec h5::before{content:'';width:4px;height:12px;background:#ffc400;}
+.rc-sec h5 span{margin-left:auto;font:500 10px 'IBM Plex Mono',monospace;text-transform:none;color:#555;}
+.rc-tw{overflow-x:auto;margin-bottom:8px;}
+.rc-tw table{width:100%;border-collapse:collapse;min-width:520px;}
+.rc-tw th{background:#111;color:#ffc400;text-align:left;font:700 8px 'Barlow',sans-serif;letter-spacing:.05em;text-transform:uppercase;padding:4px 6px;}
+.rc-tw td{padding:3px 6px;border-bottom:1px solid #ddd;font-size:10.5px;}
+.rc-tw th.r,.rc-tw td.r{text-align:right;font-family:'IBM Plex Mono',monospace;}
+.rc-tw tr.mas td{color:#777;font-style:italic;}
+.rc-tw tr.sum td{background:#ffc400;font-weight:700;border-bottom:0;}
+.rc-tot{margin:0 18px;background:#111;color:#ffc400;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 10px;font:700 12px 'Barlow Condensed',sans-serif;letter-spacing:.05em;text-transform:uppercase;}
+@media(max-width:900px){.rc{grid-template-columns:1fr;}}
 .rc-seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #dbe1e9;border-radius:9px;overflow:hidden;}
 .rc-seg button{border:0;border-right:1px solid #dbe1e9;background:#fff;padding:9px 6px;font:600 12.5px 'Barlow',sans-serif;color:#5c7086;cursor:pointer;}
 .rc-seg button:last-child{border-right:0;}
 .rc-seg button.on{background:#16283b;color:#fff;}
 .rc-cab{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#5c7086;}
 .rc-link{border:0;background:none;color:#1d4ed8;font:600 12px 'Barlow',sans-serif;cursor:pointer;padding:0;}
-.rc-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;}
 .rc-corte{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:10px;align-items:center;text-align:left;border:1px solid #dbe1e9;border-radius:10px;background:#fff;padding:9px 11px;cursor:pointer;font-family:'Barlow',sans-serif;color:#16283b;}
 .rc-corte.on{border-color:#f5a623;background:#fffaf0;}
 .rc-corte:focus-visible{outline:2px solid #f5a623;outline-offset:2px;}
