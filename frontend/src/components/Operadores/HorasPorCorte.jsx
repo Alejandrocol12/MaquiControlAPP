@@ -11,49 +11,75 @@ const diaSemana = (f) => { const [y, m, d] = String(f || '').slice(0, 10).split(
 const horasDe = (h) => Number(h.horas ?? 0) || 0;
 const ESTADO = { curso: <Estado valor="En curso" />, pagado: <Estado valor="Pagado" />, parcial: <Estado valor="Parcial" />, pendiente: <Estado valor="Pendiente" /> };
 
-// Las horas del operador agrupadas por corte del periodo. Cada grupo muestra sus horas, lo ganado y
-// cómo va su pago; el corte en curso viene abierto y los demás se abren con un toque.
-function HorasPorCorte({ grupos, valorHora, onEliminar }) {
+// Las horas del operador agrupadas por periodo (la faena) y, dentro de cada periodo, por corte.
+// Cada corte muestra sus horas, lo ganado y cómo va su pago; el primero viene abierto y los demás
+// se abren con un toque. Sin `periodos` se muestran los cortes sueltos.
+function HorasPorCorte({ grupos = [], periodos = null, valorHora, onEliminar }) {
     const [abiertos, setAbiertos] = useState({});
     const abierto = (k, porDefecto) => (abiertos[k] !== undefined ? abiertos[k] : porDefecto);
+    const alternar = (k, porDefecto) => setAbiertos(a => ({ ...a, [k]: !abierto(k, porDefecto) }));
+    const teclas = (e, k, porDefecto) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); alternar(k, porDefecto); }
+    };
+
+    const grupo = (g, porDefecto) => {
+        const ab = abierto(g.key, porDefecto);
+        const horas = g.items.reduce((a, h) => a + horasDe(h), 0);
+        const ganado = g.items.reduce((a, h) => a + horasDe(h) * (h.valorHora || valorHora), 0);
+        const dias = new Set(g.items.map(h => String(h.fecha || '').slice(0, 10))).size;
+        return (
+            <div key={g.key} className={`ic-grupo ${ab ? 'open' : ''}`}>
+                <div className="ic-gh" role="button" tabIndex={0} aria-expanded={ab}
+                    onClick={() => alternar(g.key, porDefecto)} onKeyDown={e => teclas(e, g.key, porDefecto)}>
+                    <ChevronRight size={16} className="ic-chev" />
+                    <span className="ic-gt"><b>{g.nombre}</b>{g.fechas && <small>{g.fechas}</small>}</span>
+                    <span className="ic-gs">{g.estado ? ESTADO[g.estado] : null}</span>
+                    <span className="ic-gh2"><b>{fmtHoras(horas)} h</b><small>{dias} día{dias === 1 ? '' : 's'}{g.debe > 0 ? ` · le debes ${fmt(g.debe)}` : ''}</small></span>
+                    <span className="ic-gm">{fmt(ganado)}</span>
+                </div>
+                {ab && (
+                    <div className="ic-tabla">
+                        <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
+                        {g.items.map(h => (
+                            <div className="ic-row" key={h.id}>
+                                <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b><small>{diaSemana(h.fecha)}</small></span>
+                                <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
+                                <span className="ic-h" data-l="Horas">{fmtHoras(horasDe(h))} h</span>
+                                <span className="ic-m" data-l="Inicio">{h.horometroInicio ? fmtHoro(h.horometroInicio) : ''}</span>
+                                <span className="ic-m" data-l="Fin">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
+                                <span className="ic-t pos" data-l="Valor">{fmt(horasDe(h) * (h.valorHora || valorHora))}</span>
+                                <span className="ic-a">
+                                    {onEliminar && <button type="button" className="icon-btn" aria-label="Eliminar registro de horas" onClick={() => onEliminar(h)}><Trash2 size={14} /></button>}
+                                </span>
+                            </div>
+                        ))}
+                        <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(horas)} h</b></span><span /><span /><span className="ic-t"><b>{fmt(ganado)}</b></span><span /></div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    if (!periodos) return <div className="ic-wrap">{grupos.map((g, idx) => grupo(g, idx === 0))}</div>;
 
     return (
         <div className="ic-wrap">
-            {grupos.map((g, idx) => {
-                const ab = abierto(g.key, idx === 0);
-                const horas = g.items.reduce((a, h) => a + horasDe(h), 0);
-                const ganado = g.items.reduce((a, h) => a + horasDe(h) * (h.valorHora || valorHora), 0);
-                const dias = new Set(g.items.map(h => String(h.fecha || '').slice(0, 10))).size;
+            {periodos.map((p, idx) => {
+                const ab = abierto(p.key, idx === 0);
+                const cortes = p.hijos.filter(h => h.esCorte).length;
+                const horas = p.hijos.reduce((a, g) => a + g.items.reduce((x, h) => x + horasDe(h), 0), 0);
+                const ganado = p.hijos.reduce((a, g) => a + g.items.reduce((x, h) => x + horasDe(h) * (h.valorHora || valorHora), 0), 0);
                 return (
-                    <div key={g.key} className={`ic-grupo ${ab ? 'open' : ''}`}>
-                        <div className="ic-gh" role="button" tabIndex={0} aria-expanded={ab}
-                            onClick={() => setAbiertos(a => ({ ...a, [g.key]: !ab }))}
-                            onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setAbiertos(a => ({ ...a, [g.key]: !ab })); } }}>
-                            <ChevronRight size={16} className="ic-chev" />
-                            <span className="ic-gt"><b>{g.nombre}</b>{g.fechas && <small>{g.fechas}</small>}</span>
-                            <span className="ic-gs">{g.estado ? ESTADO[g.estado] : null}</span>
-                            <span className="ic-gh2"><b>{fmtHoras(horas)} h</b><small>{dias} día{dias === 1 ? '' : 's'}{g.debe > 0 ? ` · le debes ${fmt(g.debe)}` : ''}</small></span>
+                    <div key={p.key} className={`ic-per ${ab ? 'open' : ''}`}>
+                        <div className="ic-ph" role="button" tabIndex={0} aria-expanded={ab}
+                            onClick={() => alternar(p.key, idx === 0)} onKeyDown={e => teclas(e, p.key, idx === 0)}>
+                            <ChevronRight size={18} className="ic-chev" />
+                            <span className="ic-gt"><b><i className={`ic-punto ${p.activa ? '' : 'cerrado'}`} />{p.nombre}{p.maquina ? <em> · {p.maquina}</em> : null}</b>{p.rango && <small>{p.rango}</small>}</span>
+                            <span className="ic-gs">{p.sinPeriodo ? null : p.activa ? <Estado valor="En curso" /> : <Estado valor="Cerrado" />}</span>
+                            <span className="ic-gh2"><b>{cortes ? `${cortes} corte${cortes === 1 ? '' : 's'}` : 'sin cortes'}</b><small>{fmtHoras(horas)} h</small></span>
                             <span className="ic-gm">{fmt(ganado)}</span>
                         </div>
-                        {ab && (
-                            <div className="ic-tabla">
-                                <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
-                                {g.items.map(h => (
-                                    <div className="ic-row" key={h.id}>
-                                        <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b><small>{diaSemana(h.fecha)}</small></span>
-                                        <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
-                                        <span className="ic-h" data-l="Horas">{fmtHoras(horasDe(h))} h</span>
-                                        <span className="ic-m" data-l="Inicio">{h.horometroInicio ? fmtHoro(h.horometroInicio) : ''}</span>
-                                        <span className="ic-m" data-l="Fin">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
-                                        <span className="ic-t pos" data-l="Valor">{fmt(horasDe(h) * (h.valorHora || valorHora))}</span>
-                                        <span className="ic-a">
-                                            {onEliminar && <button type="button" className="icon-btn" aria-label="Eliminar registro de horas" onClick={() => onEliminar(h)}><Trash2 size={14} /></button>}
-                                        </span>
-                                    </div>
-                                ))}
-                                <div className="ic-row ic-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(horas)} h</b></span><span /><span /><span className="ic-t"><b>{fmt(ganado)}</b></span><span /></div>
-                            </div>
-                        )}
+                        {ab && <div className="ic-hijos">{p.hijos.map((g, i) => grupo(g, p.activa && i === 0))}</div>}
                     </div>
                 );
             })}

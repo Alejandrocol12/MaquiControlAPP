@@ -18,6 +18,7 @@ import {
     getPagosOperadorSinGasto,
     pasarPagosOperadorAGastos,
     getCortes,
+    getFaenas,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -92,6 +93,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const [editandoCorte, setEditandoCorte] = useState(false);
     const [corteInput, setCorteInput] = useState('');
     const [cortes, setCortes] = useState([]);
+    const [faenas, setFaenas] = useState([]);
     // Pagos anotados cuando Pago Operador era solo informativo (todavía sin gasto)
     const [pagosSinGasto, setPagosSinGasto] = useState([]);
     const [pasando, setPasando] = useState(false);
@@ -120,6 +122,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
         refrescarPagosOperador();
         refrescarPagosSinGasto();
         getCortes().then(r => setCortes(r.data || [])).catch(() => {});
+        getFaenas().then(r => setFaenas(r.data || [])).catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [operador.id, modoPortal]);
 
@@ -328,29 +331,61 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
     const pagosOperadorOrdenados = pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
 
     const { filtrado: horasRango, desde: hrDesde, setDesde: setHrDesde, hasta: hrHasta, setHasta: setHrHasta } = useDateRange(horas, 'fecha');
-    // Historial: las horas agrupadas por corte del periodo (el corte en curso primero)
-    const enElPeriodo = (h) => periodoActivo
-        ? (periodoActivo.desdeHoraId != null ? Number(h.id) > Number(periodoActivo.desdeHoraId) : String(h.fecha || '') >= (periodoActivo.fechaInicio || hoy()))
-        : false;
-    const idGrupoDe = (h) => {
-        if (!enElPeriodo(h)) return 'anterior';
-        const f = String(h.fecha || '').slice(0, 10);
-        if (f >= corteDesde) return 'curso';
-        const corte = cortesOp.find(c => enRango(f, c.fechaInicio, c.fechaFin));
-        return corte ? String(corte.id) : 'antes';
-    };
-    const gruposHoras = (() => {
-        const ordenadas = [...horasRango].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')) || Number(b.id) - Number(a.id));
-        const porId = {};
-        ordenadas.forEach(h => { const k = idGrupoDe(h); (porId[k] = porId[k] || []).push(h); });
-        const out = [...filasCorte].reverse().map(f => ({
-            key: String(f.id), nombre: f.nombre, fechas: f.fechas, pagado: f.pagado, debe: f.debe,
-            estado: f.id === 'curso' ? 'curso' : f.debe <= 0 ? 'pagado' : f.pagado > 0 ? 'parcial' : 'pendiente',
-            items: porId[String(f.id)] || [],
-        }));
-        if (porId.antes && !filasCorte.some(f => f.id === 'antes')) out.push({ key: 'antes', nombre: 'Antes del primer corte', fechas: '', estado: null, items: porId.antes });
-        if (porId.anterior) out.push({ key: 'anterior', nombre: 'Periodos anteriores', fechas: '', estado: null, items: porId.anterior });
-        return out.filter(g => g.items.length > 0);
+    // Historial: las horas agrupadas por periodo (la faena, el padre) y, dentro de cada uno, por corte
+    // (el hijo). Así, al cerrar un periodo y abrir otro, se ve a cuál pertenece cada hora.
+    const dia10 = (f) => String(f || '').slice(0, 10);
+    const periodosHoras = (() => {
+        const ordenadas = [...horasRango].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha)) || Number(b.id) - Number(a.id));
+        const conFaena = new Set(faenas.map(f => String(f.id)));
+        const propias = (f) => ordenadas.filter(h => String(h.faenaId) === String(f.id));
+        const sueltas = ordenadas.filter(h => !conFaena.has(String(h.faenaId)));
+        const filaDe = (id) => filasCorte.find(f => String(f.id) === String(id));
+        const estadoDe = (fila) => !fila ? null : fila.id === 'curso' ? 'curso' : fila.debe <= 0 ? 'pagado' : fila.pagado > 0 ? 'parcial' : 'pendiente';
+        const lista = [...faenas].filter(f => f.tipo !== 'gastos')
+            .sort((a, b) => dia10(b.fechaInicio).localeCompare(dia10(a.fechaInicio)) || Number(b.id) - Number(a.id));
+        const out = lista.map(f => {
+            const items = propias(f);
+            const activa = f.estado === 'activa';
+            // el periodo activo de la máquina del operador usa los mismos cortes que la pestaña Periodos
+            const esElActual = activa && !!periodoActivo && maquinasDelOperador.has(f.maquinaNombre);
+            const cs = ordenarCortes(cortes.filter(c => String(c.faenaId) === String(f.id)));
+            const desdeCurso = esElActual ? corteDesde : (cs.length ? diaSiguiente(dia10(cs[cs.length - 1].fechaFin)) : dia10(f.fechaInicio));
+            const grupos = { curso: [], antes: [], sin: [] };
+            const porCorte = {};
+            items.forEach(h => {
+                const dh = dia10(h.fecha);
+                const c = cs.find(x => enRango(dh, x.fechaInicio, x.fechaFin));
+                if (c) { (porCorte[c.id] = porCorte[c.id] || []).push(h); return; }
+                if (activa && dh >= desdeCurso) grupos.curso.push(h);
+                else if (cs.length && dh < dia10(cs[0].fechaInicio)) grupos.antes.push(h);
+                else if (activa) grupos.antes.push(h);
+                else grupos.sin.push(h);
+            });
+            const hijos = [];
+            if (grupos.curso.length) {
+                const fila = esElActual ? filaDe('curso') : null;
+                hijos.push({ key: `f${f.id}-curso`, nombre: 'En curso', fechas: `${fmtFecha(desdeCurso)} a hoy`, estado: 'curso', debe: fila ? fila.debe : 0, items: grupos.curso });
+            }
+            [...cs].reverse().forEach(c => {
+                if (!porCorte[c.id]) return;
+                const fila = esElActual ? filaDe(c.id) : null;
+                hijos.push({ key: `c${c.id}`, esCorte: true, nombre: nombreCorte(c, cs.indexOf(c) + 1), fechas: `${fmtFecha(c.fechaInicio)} a ${fmtFecha(c.fechaFin)}`,
+                    estado: estadoDe(fila), debe: fila ? fila.debe : 0, items: porCorte[c.id] });
+            });
+            if (grupos.antes.length) {
+                const fila = esElActual ? filaDe('antes') : null;
+                hijos.push({ key: `f${f.id}-antes`, nombre: cs.length ? 'Antes del primer corte' : 'Antes del corte en curso', fechas: '', estado: estadoDe(fila), debe: fila ? fila.debe : 0, items: grupos.antes });
+            }
+            if (grupos.sin.length) hijos.push({ key: `f${f.id}-sin`, nombre: 'Sin cortar', fechas: '', estado: null, debe: 0, items: grupos.sin });
+            return {
+                key: `p${f.id}`, nombre: f.nombreObra || 'Periodo', maquina: f.maquinaNombre, activa,
+                rango: activa ? `Activo desde ${fmtFecha(f.fechaInicio)}` : `${fmtFecha(f.fechaInicio)} → ${fmtFecha(f.fechaFin)}`,
+                hijos,
+            };
+        }).filter(p => p.hijos.length > 0);
+        if (sueltas.length) out.push({ key: 'sin-periodo', sinPeriodo: true, nombre: 'Sin periodo asignado', maquina: '', activa: false, rango: '',
+            hijos: [{ key: 'sin-periodo-g', nombre: 'Horas sin periodo', fechas: '', estado: null, debe: 0, items: sueltas }] });
+        return out;
     })();
 
     // Último pago y lo que se le debe, para el resumen
@@ -808,7 +843,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             </div>
                             {horasRango.length === 0
                                 ? <p className="vacio">Sin horas registradas</p>
-                                : <HorasPorCorte grupos={gruposHoras} valorHora={valorHora}
+                                : <HorasPorCorte periodos={periodosHoras} valorHora={valorHora}
                                     onEliminar={async (h) => {
                                         if (await confirm('Eliminar este registro de horas?')) {
                                             deleteHora(h.id).then(cargar).catch(console.error);
