@@ -1,16 +1,14 @@
 // Gastos por persona: quién pagó cada gasto. Filtros, agrupación y PDF (diseño Obra).
 import jsPDF from 'jspdf';
 import {
-    fmt, VERDE, ROJO, AZULC,
-    cabecera, cajaResumen, barChart, seccion, tabla, pie,
+    fmt,
+    cabecera, cajaResumen, seccion, tabla, pie,
 } from './pdfObra';
 
 export const SIN_ASIGNAR = 'Sin asignar';
 export const quienPago = (g) => (g.pagadoPor && String(g.pagadoPor).trim()) || SIN_ASIGNAR;
 
 const dia = (f) => (f ? String(f).slice(0, 10) : '');
-const PALETA = [[36, 113, 163], [142, 68, 173], VERDE, [217, 115, 26], [92, 112, 134], ROJO];
-export const colorDe = (i) => PALETA[i % PALETA.length];
 
 // personas: lista de nombres elegidos; vacía = todas
 export function filtrarGastos(gastos, { desde, hasta, maquina, categoria, personas = [] }) {
@@ -45,33 +43,37 @@ const rangoTxt = ({ desde, hasta }) => {
 };
 const subtitulo = (o) => [rangoTxt(o), o.maquina || 'Todas las máquinas', o.categoria || null].filter(Boolean).join('  ·  ');
 
-const colsDetalle = ['Fecha', 'Descripción', 'Máquina', 'Categoría', 'Monto'];
-const filasDetalle = (L) => L.map(g => [dia(g.fecha) || '—', g.descripcion || '—', g.maquinaNombre || '—', g.categoria || '—', fmt(g.monto)]);
+const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const SIN_MAQUINA = 'Sin máquina';
+const colsMaquina = ['Fecha', 'Descripción', 'Categoría', 'Monto'];
+const filasMaquina = (L) => L.map(g => [dia(g.fecha) || '—', g.descripcion || '—', g.categoria || '—', fmt(g.monto)]);
 
-// Barras por categoría de una persona (las seis mayores y el resto junto)
-const barrasCategoria = (L) => {
-    const cats = agruparPor(L, g => g.categoria || 'Sin categoría');
-    const top = cats.slice(0, 6).map((c, i) => ({ label: c.clave, valor: c.total, color: colorDe(i) }));
-    const resto = cats.slice(6).reduce((a, c) => a + c.total, 0);
-    if (resto > 0) top.push({ label: 'Otras', valor: resto, color: AZULC });
-    return top;
-};
+// Los gastos de una persona separados por máquina (en orden alfabético; «Sin máquina» al final)
+export const porMaquina = (L) => agruparPor(L, g => g.maquinaNombre || SIN_MAQUINA)
+    .sort((a, b) => (a.clave === SIN_MAQUINA) - (b.clave === SIN_MAQUINA) || a.clave.localeCompare(b.clave));
 
-function paginaPersona(doc, grupo, totalGeneral, o) {
-    let y = cabecera(doc, grupo.clave === SIN_ASIGNAR ? 'Gastos sin asignar' : `Gastos de ${grupo.clave}`, subtitulo(o));
-    y = cajaResumen(doc, y, [
-        { label: 'Total gastos', valor: fmt(grupo.total), tipo: 'gas', _raw: grupo.total },
-        { label: 'Registros', valor: String(grupo.n), tipo: 'neu' },
-        // Si el reporte es de una sola persona, "del total" siempre sería 100%: se muestra el gasto mayor
-        totalGeneral && totalGeneral > grupo.total + 0.5
-            ? { label: 'Del total de las personas', valor: `${Math.round(grupo.total / totalGeneral * 100)}%`, tipo: 'util', _raw: 1 }
-            : { label: 'Gasto mayor', valor: fmt(Math.max(...grupo.gastos.map(g => Number(g.monto) || 0))), tipo: 'util', _raw: 1 },
-        { label: 'Promedio', valor: fmt(Math.round(grupo.total / Math.max(grupo.n, 1))), tipo: 'neu' },
-    ]);
-    y = barChart(doc, y, barrasCategoria(grupo.gastos), 'Gastos por categoría');
-    y = seccion(doc, y, `Detalle (${grupo.n} gasto${grupo.n === 1 ? '' : 's'})`);
-    tabla(doc, y, colsDetalle, filasDetalle(grupo.gastos), { 4: { halign: 'right' } },
-        { redCols: [4], totalRow: ['', '', '', 'TOTAL', fmt(grupo.total)] });
+// Cada máquina va en su propia hoja, con su resumen y su subtotal. Devuelve la y donde terminó.
+function paginasPersona(doc, grupo, o, primera) {
+    const maqs = porMaquina(grupo.gastos);
+    const titulo = grupo.clave === SIN_ASIGNAR ? 'Gastos sin asignar' : `Gastos de ${grupo.clave}`;
+    let y = 0;
+    maqs.forEach((m, i) => {
+        if (!primera || i > 0) doc.addPage();
+        y = cabecera(doc, titulo, subtitulo(o));
+        y = cajaResumen(doc, y, [
+            { label: 'Máquina', valor: m.clave, tipo: 'neu' },
+            { label: 'Subtotal máquina', valor: fmt(m.total), tipo: 'gas', _raw: m.total },
+            { label: 'Registros', valor: String(m.n), tipo: 'neu' },
+            { label: 'Promedio', valor: fmt(Math.round(m.total / Math.max(m.n, 1))), tipo: 'neu' },
+        ]);
+        y = seccion(doc, y, `Máquina ${LETRAS[i % 26]} · ${m.clave} · ${m.n} gasto${m.n === 1 ? '' : 's'}`);
+        y = tabla(doc, y, colsMaquina, filasMaquina(m.gastos), { 3: { halign: 'right' } },
+            { redCols: [3], totalRow: ['', '', `SUBTOTAL ${m.clave}`, fmt(m.total)] });
+        if (i === maqs.length - 1 && maqs.length > 1) {
+            y = tabla(doc, y, ['Concepto', 'Monto'], [[`TOTAL DE ${grupo.clave} (${maqs.length} máquinas)`, fmt(grupo.total)]], { 1: { halign: 'right' } }, { orangeCols: [1] });
+        }
+    });
+    return y;
 }
 
 // opciones: { desde, hasta, maquina, categoria, persona }  (persona vacía = todas)
@@ -80,28 +82,17 @@ export async function pdfGastosPersona(L, o) {
     const total = totalDe(L);
     const doc = new jsPDF();
 
-    // Una sola persona: su hoja con lo que gastó y en qué
-    if (o.persona && grupos.length === 1) {
-        paginaPersona(doc, grupos[0], total, o);
-        pie(doc, `Gastos de ${grupos[0].clave}`);
-        doc.save(`gastos-${slug(grupos[0].clave)}-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
-        return;
+    let y = 0;
+    grupos.forEach((gr, idx) => { y = paginasPersona(doc, gr, o, idx === 0); });
+    if (grupos.length > 1) {
+        tabla(doc, y, ['Concepto', 'Monto'], [['TOTAL DE TODAS LAS PERSONAS', fmt(total)]], { 1: { halign: 'right' } }, { orangeCols: [1] });
     }
 
-    // Todas las personas: el detalle de cada una con su subtotal
-    let y = cabecera(doc, 'Gastos por persona', subtitulo(o));
-    y = cajaResumen(doc, y, [
-        { label: 'Total gastos', valor: fmt(total), tipo: 'gas', _raw: total },
-        { label: 'Registros', valor: String(L.length), tipo: 'neu' },
-        { label: 'Personas', valor: String(grupos.length), tipo: 'util', _raw: 1 },
-        { label: 'Promedio', valor: fmt(Math.round(total / Math.max(L.length, 1))), tipo: 'neu' },
-    ]);
-    grupos.forEach(gr => {
-        y = seccion(doc, y, `${gr.clave} · ${gr.n} gasto${gr.n === 1 ? '' : 's'}`);
-        y = tabla(doc, y, colsDetalle, filasDetalle(gr.gastos), { 4: { halign: 'right' } },
-            { redCols: [4], totalRow: ['', '', '', 'SUBTOTAL', fmt(gr.total)] });
-    });
-    tabla(doc, y, ['Concepto', 'Monto'], [['TOTAL DE TODAS LAS PERSONAS', fmt(total)]], { 1: { halign: 'right' } }, { orangeCols: [1] });
-    pie(doc, 'Gastos por persona');
-    doc.save(`gastos-por-persona-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
+    if (grupos.length === 1) {
+        pie(doc, `Gastos de ${grupos[0].clave}`);
+        doc.save(`gastos-${slug(grupos[0].clave)}-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
+    } else {
+        pie(doc, 'Gastos por persona');
+        doc.save(`gastos-por-persona-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.pdf`);
+    }
 }

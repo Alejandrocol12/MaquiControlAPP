@@ -11,6 +11,7 @@ import {
     xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo, xlsPeriodoMaquina,
 } from '../../utils/excelReportes';
 import { esSueldoOperador } from '../../utils/nomina';
+import ReporteCorte from './ReporteCorte';
 import './Reportes.css';
 import {
     fmt, fmtNum, AZUL, DORADO, GRIS, VERDE, ROJO, AZULC,
@@ -910,6 +911,7 @@ function Reportes() {
 
                 {!cargando && (
                     <div className="rp-grid">
+                        <ReporteCorte maquinas={maquinas} ingresos={ingresos} gastos={gastos} faenas={faenas} />
                         {REPORTES.map(r => (
                             <div className="rp-card" key={r.id}>
                                 <div className="rp-top">

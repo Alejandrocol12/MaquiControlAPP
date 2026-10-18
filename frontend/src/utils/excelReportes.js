@@ -1,4 +1,5 @@
 import { esSueldoOperador } from './nomina';
+import { filaIngreso, filaGasto } from './reporteCorte';
 
 // ExcelJS y file-saver se cargan dinámicamente para no romper el bundle principal
 let _XLS = null;
@@ -959,55 +960,148 @@ export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaId
 // ══════════════════════════════════════════════════════════════
 // GASTOS POR PERSONA (quién pagó)
 // ══════════════════════════════════════════════════════════════
-// grupos: [{ clave: persona, n, total, gastos }]. Una sola hoja: el detalle de gastos.
+// grupos: [{ clave: persona, n, total, gastos }]. Una hoja por máquina de cada persona, con su subtotal.
 // o: { desde, hasta, maquina, categoria, persona }  (persona vacía = todas)
 export async function xlsGastosPorPersona(grupos, o) {
     const { ExcelJS } = await getLibs();
     const dia = (f) => (f ? String(f).slice(0, 10) : '—');
-    const total = grupos.reduce((a, g) => a + g.total, 0);
-    const nGastos = grupos.reduce((a, g) => a + g.n, 0);
     const unaPersona = !!o.persona && grupos.length === 1;
     const rango = `${o.desde && o.desde > '2001-01-01' ? o.desde : 'Inicio'} a ${o.hasta || 'hoy'}`;
     const sub = `${rango}  ·  ${o.maquina || 'Todas las máquinas'}${o.categoria ? '  ·  ' + o.categoria : ''}`;
+    const slugN = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
     const wb = new ExcelJS.Workbook();
     wb.creator = 'MaquiControl';
-    const cols = unaPersona
-        ? [
-            { header: 'Fecha', width: 13 },
-            { header: 'Descripción', width: 34 },
-            { header: 'Máquina', width: 20 },
-            { header: 'Categoría', width: 18 },
-            { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
-        ]
-        : [
-            { header: 'Fecha', width: 13 },
-            { header: 'Descripción', width: 32 },
-            { header: 'Máquina', width: 18 },
-            { header: 'Categoría', width: 16 },
-            { header: 'Pagó', width: 20, bold: true },
-            { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
-        ];
-    const N = cols.length;
-    const ws = wb.addWorksheet('Gastos');
-    let r = addCabecera(ws, unaPersona ? `Gastos de ${grupos[0].clave}` : 'Gastos por persona', sub, N);
-    r = addKPIs(ws, r, N, [
-        { label: 'Total gastos', valor: fmt(total), tipo: 'gas' },
-        { label: 'Registros', valor: String(nGastos), tipo: 'neu' },
-        { label: unaPersona ? 'Promedio' : 'Personas', valor: unaPersona ? fmt(Math.round(total / Math.max(nGastos, 1))) : String(grupos.length), tipo: 'util', _raw: 1 },
-    ]);
-    r = addSep(ws, r, N);
-    const filas = [];
-    grupos.forEach(g => g.gastos.forEach(x => {
-        const base = [dia(x.fecha), x.descripcion || '—', x.maquinaNombre || '—', x.categoria || '—'];
-        filas.push(unaPersona ? [...base, fmt(x.monto)] : [...base, g.clave, fmt(x.monto)]);
-    }));
-    addTabla(ws, r, cols, filas, unaPersona ? ['', '', '', 'TOTAL', fmt(total)] : ['', '', '', '', 'TOTAL', fmt(total)]);
-    setColWidths(ws, cols);
-    ws.views = [{ state: 'frozen', ySplit: 3 }];
+    const cols = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Descripción', width: 36 },
+        { header: 'Categoría', width: 18 },
+        { header: 'Monto', width: 16, color: C.ROJO, bold: true, halign: 'right' },
+    ];
+    const usados = new Set();
+    const nombreHoja = (t) => {
+        const limpio = String(t).replace(/[\[\]:*?/\\]/g, '-').slice(0, 31) || 'Hoja';
+        let n = limpio, k = 2;
+        while (usados.has(n.toLowerCase())) { const suf = ` (${k++})`; n = limpio.slice(0, 31 - suf.length) + suf; }
+        usados.add(n.toLowerCase());
+        return n;
+    };
 
-    const quien = unaPersona
-        ? grupos[0].clave.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase()
-        : 'por-persona';
+    grupos.forEach(g => {
+        const mp = {};
+        g.gastos.forEach(x => { const k = x.maquinaNombre || 'Sin máquina'; (mp[k] = mp[k] || []).push(x); });
+        Object.keys(mp).sort((a, b) => (a === 'Sin máquina') - (b === 'Sin máquina') || a.localeCompare(b)).forEach(maq => {
+            const L = mp[maq];
+            const subtotal = L.reduce((a, x) => a + (Number(x.monto) || 0), 0);
+            const ws = wb.addWorksheet(nombreHoja(unaPersona ? maq : `${g.clave} · ${maq}`));
+            let r = addCabecera(ws, g.clave === 'Sin asignar' ? 'Gastos sin asignar' : `Gastos de ${g.clave}`, sub, cols.length);
+            r = addKPIs(ws, r, cols.length, [
+                { label: 'Máquina', valor: maq, tipo: 'neu' },
+                { label: 'Subtotal máquina', valor: fmt(subtotal), tipo: 'gas' },
+                { label: 'Registros', valor: String(L.length), tipo: 'neu' },
+            ]);
+            r = addSep(ws, r, cols.length);
+            addTabla(ws, r, cols, L.map(x => [dia(x.fecha), x.descripcion || '—', x.categoria || '—', fmt(x.monto)]), ['', '', `SUBTOTAL ${maq}`, fmt(subtotal)]);
+            setColWidths(ws, cols);
+            ws.views = [{ state: 'frozen', ySplit: 3 }];
+        });
+    });
+
+    const quien = unaPersona ? slugN(grupos[0].clave) : 'por-persona';
     await guardar(wb, `gastos-${quien}-${o.desde || 'inicio'}-${o.hasta || 'hoy'}.xlsx`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// REPORTE POR CORTE
+// ══════════════════════════════════════════════════════════════
+// datos: { maquina, faena, grupos (los cortes elegidos), incluir: 'ing' | 'gas' | 'amb' }
+// Una hoja de resumen y una hoja por corte, con sus ingresos y gastos y el subtotal de cada uno.
+export async function xlsReporteCorte({ maquina, faena, grupos, incluir }) {
+    const { ExcelJS } = await getLibs();
+    const verIng = incluir !== 'gas';
+    const verGas = incluir !== 'ing';
+    const sum = (l, k) => l.reduce((a, x) => a + (Number(x[k]) || 0), 0);
+    const totIng = sum(grupos, 'totalIng'), totGas = sum(grupos, 'totalGas'), totH = sum(grupos, 'horas');
+    const h = (n) => `${String(Math.round((Number(n) || 0) * 10) / 10).replace('.', ',')} h`;
+    const etiqueta = incluir === 'ing' ? 'Ingresos' : incluir === 'gas' ? 'Gastos' : 'Ingresos y gastos';
+    const sub = `${maquina}  ·  ${faena.nombreObra || 'Periodo'}  ·  ${etiqueta}`;
+
+    const colsIng = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Horas', width: 14, halign: 'right' },
+        { header: 'Descripción', width: 36 },
+        { header: 'Horómetro inicio', width: 17, halign: 'right' },
+        { header: 'Horómetro fin', width: 17, halign: 'right' },
+        { header: 'Total', width: 17, color: C.VERDE, bold: true, halign: 'right' },
+    ];
+    const colsGas = [
+        { header: 'Fecha', width: 13 },
+        { header: 'Categoría', width: 14 },
+        { header: 'Descripción', width: 36 },
+        { header: 'Monto', width: 17, color: C.ROJO, bold: true, halign: 'right' },
+    ];
+    const N = colsIng.length;
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'MaquiControl';
+    const usados = new Set();
+    const nombreHoja = (t) => {
+        const limpio = String(t).replace(/[\[\]:*?/\\]/g, '-').slice(0, 31) || 'Corte';
+        let n = limpio, k = 2;
+        while (usados.has(n.toLowerCase())) { const suf = ` (${k++})`; n = limpio.slice(0, 31 - suf.length) + suf; }
+        usados.add(n.toLowerCase());
+        return n;
+    };
+
+    // Resumen
+    {
+        const ws = wb.addWorksheet(nombreHoja('Resumen'));
+        let r = addCabecera(ws, 'Reporte por corte', sub, N);
+        r = addKPIs(ws, r, N, [
+            { label: 'Cortes', valor: String(grupos.length), tipo: 'neu' },
+            ...(verIng ? [{ label: 'Horas', valor: h(totH), tipo: 'neu' }, { label: 'Ingresos', valor: fmt(totIng), tipo: 'ing' }] : []),
+            ...(verGas ? [{ label: 'Gastos', valor: fmt(totGas), tipo: 'gas' }] : []),
+            ...(verIng && verGas ? [{ label: 'Utilidad', valor: fmt(totIng - totGas), tipo: 'util' }] : []),
+        ]);
+        r = addSep(ws, r, N);
+        const cols = [
+            { header: 'Corte', width: 26 },
+            { header: 'Fechas', width: 28 },
+            { header: 'Horas', width: 12, halign: 'right' },
+            { header: 'Ingresos', width: 17, halign: 'right', color: C.VERDE, bold: true },
+            { header: 'Gastos', width: 17, halign: 'right', color: C.ROJO, bold: true },
+            { header: 'Utilidad', width: 17, halign: 'right', bold: true },
+        ];
+        const fila = (g) => [g.nombre, g.fechas, h(g.horas), verIng ? fmt(g.totalIng) : '—', verGas ? fmt(g.totalGas) : '—', verIng && verGas ? fmt(g.totalIng - g.totalGas) : '—'];
+        addTabla(ws, r, cols, grupos.map(fila), ['TOTAL', '', h(totH), verIng ? fmt(totIng) : '—', verGas ? fmt(totGas) : '—', verIng && verGas ? fmt(totIng - totGas) : '—']);
+        setColWidths(ws, cols);
+        ws.views = [{ state: 'frozen', ySplit: 3 }];
+    }
+
+    // Una hoja por corte
+    grupos.forEach(g => {
+        const ws = wb.addWorksheet(nombreHoja(g.nombre));
+        let r = addCabecera(ws, g.nombre, `${sub}  ·  ${g.fechas}`, N);
+        r = addKPIs(ws, r, N, [
+            ...(verIng ? [{ label: 'Horas', valor: h(g.horas), tipo: 'neu' }, { label: 'Ingresos', valor: fmt(g.totalIng), tipo: 'ing' }] : []),
+            ...(verGas ? [{ label: 'Gastos', valor: fmt(g.totalGas), tipo: 'gas' }] : []),
+            ...(verIng && verGas ? [{ label: 'Utilidad', valor: fmt(g.totalIng - g.totalGas), tipo: 'util' }] : []),
+        ]);
+        r = addSep(ws, r, N);
+        if (verIng) {
+            r = addSeccion(ws, r, N, `INGRESOS (${g.ingresos.length})`);
+            r = addTabla(ws, r, colsIng, g.ingresos.map(filaIngreso),
+                g.ingresos.length ? ['', h(g.horas), 'SUBTOTAL INGRESOS', '', '', fmt(g.totalIng)] : null);
+        }
+        if (verGas) {
+            r = addSeccion(ws, r, N, `GASTOS (${g.gastos.length})`);
+            r = addTabla(ws, r, colsGas, g.gastos.map(filaGasto),
+                g.gastos.length ? ['', '', 'SUBTOTAL GASTOS', fmt(g.totalGas)] : null);
+        }
+        setColWidths(ws, colsIng);
+        ws.views = [{ state: 'frozen', ySplit: 3 }];
+    });
+
+    const slugN = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'reporte';
+    await guardar(wb, `reporte-corte-${slugN(maquina)}-${slugN(faena.nombreObra)}.xlsx`);
 }
