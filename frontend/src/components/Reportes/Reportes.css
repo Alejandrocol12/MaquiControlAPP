@@ -48,6 +48,10 @@
 @keyframes rv-giro{to{transform:rotate(360deg);}}
 @media (prefers-reduced-motion:reduce){.rv-spin{animation:none;}}
 
+.rv-acordeon{display:flex;flex-direction:column;gap:4px;}
+.rv-acordeon .rv-panel{border-radius:16px;margin:2px 0 6px;background:#FBFAF7;}
+body.dark .rv-acordeon .rv-panel{background:#0f172a;}
+
 @media (max-width:900px){
     .rv-layout{grid-template-columns:minmax(0,1fr);}
     .rv-panel{padding:20px;}

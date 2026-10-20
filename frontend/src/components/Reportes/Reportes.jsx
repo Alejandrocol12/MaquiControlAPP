@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import jsPDF from 'jspdf';
 import { useToast } from '../../utils/toast';
 import {
@@ -693,7 +693,20 @@ function Reportes() {
     const [generando,      setGenerando]      = useState('');
     const [errorExport,    setErrorExport]    = useState('');
 
-    const [reporte,        setReporte]        = useState('mensual');
+    const [movil,          setMovil]          = useState(() => window.matchMedia('(max-width: 900px)').matches);
+    const [reporte,        setReporte]        = useState(() => window.matchMedia('(max-width: 900px)').matches ? '' : 'mensual');
+    const panelRef = useRef(null);
+
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 900px)');
+        const alCambiar = (e) => setMovil(e.matches);
+        mq.addEventListener('change', alCambiar);
+        return () => mq.removeEventListener('change', alCambiar);
+    }, []);
+    // En móvil, al abrir un reporte se lleva el panel a la vista
+    useEffect(() => {
+        if (movil && reporte && panelRef.current) panelRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, [reporte, movil]);
     const [mesSel,         setMesSel]         = useState('');
     const [otroMes,        setOtroMes]        = useState(false);
     const [maqSel,         setMaqSel]         = useState('');
@@ -870,7 +883,40 @@ function Reportes() {
         },
     ];
 
-    const actual = REPORTES.find(r => r.id === reporte) || REPORTES[0];
+    // En escritorio siempre hay un reporte abierto; en móvil se abre bajo el que se toca y se puede cerrar
+    const actual = REPORTES.find(r => r.id === reporte) || (movil ? null : REPORTES[0]);
+
+    const panel = actual && (
+        <article className="rv-panel" ref={panelRef}>
+            <header className="rv-cab">
+                <h2>{actual.titulo}</h2>
+                <p>{actual.desc}</p>
+            </header>
+
+            {actual.id === 'corte' ? (
+                <ReporteCorte maquinas={maquinas} ingresos={ingresos} gastos={gastos} faenas={faenas}
+                    maq={maqSel} onMaq={cambiarMaquina} periodoId={periodo} onPeriodo={setPeriodoSel}
+                    generando={generando} ejecutar={ejecutar} error={errorExport} />
+            ) : (
+                <>
+                    <div className="rv-params">{actual.params}</div>
+                    <VistaPrevia total={actual.total} tono={actual.tono} detalle={actual.detalle}
+                        sinDatos={actual.n === 0} mensajeVacio={actual.vacio}
+                        generando={generando} error={errorExport}
+                        onPdf={() => ejecutar('pdf', actual.pdf)} onXls={() => ejecutar('xls', actual.xls)} />
+                </>
+            )}
+        </article>
+    );
+
+    const botonReporte = (r) => (
+        <button type="button" key={r.id} className={`rv-item ${r.id === actual?.id ? 'on' : ''}`}
+            aria-pressed={r.id === actual?.id} aria-expanded={movil ? r.id === actual?.id : undefined}
+            onClick={() => cambiarReporte(movil && r.id === actual?.id ? '' : r.id)}>
+            <strong>{r.titulo}</strong>
+            <span>{r.desc}</span>
+        </button>
+    );
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -894,35 +940,11 @@ function Reportes() {
                 {!cargando && !errorCarga && (
                     <div className="rv-layout">
                         <nav className="rv-lista" aria-label="Tipos de reporte">
-                            {REPORTES.map(r => (
-                                <button type="button" key={r.id} className={`rv-item ${r.id === actual.id ? 'on' : ''}`}
-                                    aria-pressed={r.id === actual.id} onClick={() => cambiarReporte(r.id)}>
-                                    <strong>{r.titulo}</strong>
-                                    <span>{r.desc}</span>
-                                </button>
-                            ))}
+                            {REPORTES.map(r => movil
+                                ? <div key={r.id} className="rv-acordeon">{botonReporte(r)}{r.id === actual?.id && panel}</div>
+                                : botonReporte(r))}
                         </nav>
-
-                        <article className="rv-panel">
-                            <header className="rv-cab">
-                                <h2>{actual.titulo}</h2>
-                                <p>{actual.desc}</p>
-                            </header>
-
-                            {actual.id === 'corte' ? (
-                                <ReporteCorte maquinas={maquinas} ingresos={ingresos} gastos={gastos} faenas={faenas}
-                                    maq={maqSel} onMaq={cambiarMaquina} periodoId={periodo} onPeriodo={setPeriodoSel}
-                                    generando={generando} ejecutar={ejecutar} error={errorExport} />
-                            ) : (
-                                <>
-                                    <div className="rv-params">{actual.params}</div>
-                                    <VistaPrevia total={actual.total} tono={actual.tono} detalle={actual.detalle}
-                                        sinDatos={actual.n === 0} mensajeVacio={actual.vacio}
-                                        generando={generando} error={errorExport}
-                                        onPdf={() => ejecutar('pdf', actual.pdf)} onXls={() => ejecutar('xls', actual.xls)} />
-                                </>
-                            )}
-                        </article>
+                        {!movil && panel}
                     </div>
                 )}
 
