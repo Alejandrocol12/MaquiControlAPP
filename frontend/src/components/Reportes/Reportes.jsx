@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import { useToast } from '../../utils/toast';
 import {
     getMaquinas, getIngresos, getGastos, getSalarios,
-    getHoras, getMantenimientos, getCombustible, getPagos, getFaenas
+    getHoras, getMantenimientos, getCombustible, getFaenas
 } from '../../api';
-import { BarChart2, Loader, Clock, TrendingDown, TrendingUp, FileSpreadsheet, Calendar } from 'lucide-react';
-import { GiBulldozer } from 'react-icons/gi';
+import { Loader } from 'lucide-react';
 import {
     xlsMensual, xlsMaquina, xlsGastosPorPeriodo, xlsIngresosPorPeriodo, xlsPeriodoMaquina,
 } from '../../utils/excelReportes';
 import { esSueldoOperador } from '../../utils/nomina';
 import ReporteCorte from './ReporteCorte';
+import { Campo, MaquinaPeriodo, VistaPrevia } from './ReporteUI';
 import './Reportes.css';
 import {
     fmt, fmtNum, AZUL, DORADO, GRIS, VERDE, ROJO, AZULC,
@@ -673,6 +673,11 @@ function pdfPeriodoMaquina(maqNombre, ingresos, gastos, faenas, faenaIdFiltro) {
 // ══════════════════════════════════════════════════════════════
 // COMPONENTE
 // ══════════════════════════════════════════════════════════════
+const sumar = (arr, campo) => arr.reduce((a, x) => a + (x[campo] || 0), 0);
+const porPeriodo = (arr, maq, periodo) =>
+    arr.filter(x => x.maquinaNombre === maq && (!periodo || String(x.faenaId) === String(periodo)));
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+
 function Reportes() {
     const toast = useToast();
     const [maquinas,       setMaquinas]       = useState([]);
@@ -682,29 +687,24 @@ function Reportes() {
     const [horas,          setHoras]          = useState([]);
     const [mantenimientos, setMantenimientos] = useState([]);
     const [combustibles,   setCombustibles]   = useState([]);
-    const [pagos,          setPagos]          = useState([]);
     const [faenas,         setFaenas]         = useState([]);
     const [cargando,       setCargando]       = useState(true);
-    const [generando,      setGenerando]      = useState(null);
+    const [errorCarga,     setErrorCarga]     = useState(false);
+    const [generando,      setGenerando]      = useState('');
+    const [errorExport,    setErrorExport]    = useState('');
 
-    const [mesSel,             setMesSel]             = useState('');
-    const [maqSel,             setMaqSel]             = useState('');
-    const [maqSelGastos,       setMaqSelGastos]       = useState('');
-    const [maqSelIngresos,     setMaqSelIngresos]     = useState('');
-    const [periodoSelGastos,   setPeriodoSelGastos]   = useState('');
-    const [incluirSueldoGas,   setIncluirSueldoGas]   = useState(false);
-    const [periodoSelIngresos, setPeriodoSelIngresos] = useState('');
-    const [maqSelPeriodo,      setMaqSelPeriodo]      = useState('');
-    const [periodoSelPeriodo,  setPeriodoSelPeriodo]  = useState('');
+    const [reporte,        setReporte]        = useState('mensual');
+    const [mesSel,         setMesSel]         = useState('');
+    const [otroMes,        setOtroMes]        = useState(false);
+    const [maqSel,         setMaqSel]         = useState('');
+    const [periodoSel,     setPeriodoSel]     = useState('');
+    const [incluirSueldo,  setIncluirSueldo]  = useState(false);
 
     useEffect(() => {
-        const now = new Date();
-        setMesSel(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
-
         Promise.all([
             getMaquinas(), getIngresos(), getGastos(), getSalarios(),
-            getHoras(), getMantenimientos(), getCombustible(), getPagos(), getFaenas()
-        ]).then(([maq, ing, gas, sal, hrs, mant, comb, pag, fae]) => {
+            getHoras(), getMantenimientos(), getCombustible(), getFaenas()
+        ]).then(([maq, ing, gas, sal, hrs, mant, comb, fae]) => {
             setMaquinas(maq.data);
             setIngresos(ing.data);
             setGastos(gas.data);
@@ -712,235 +712,217 @@ function Reportes() {
             setHoras(hrs.data);
             setMantenimientos(mant.data);
             setCombustibles(comb.data);
-            setPagos(pag.data);
             setFaenas(fae.data || []);
-            if (maq.data.length) {
-                setMaqSel(maq.data[0].nombre);
-                setMaqSelGastos(maq.data[0].nombre);
-                setMaqSelIngresos(maq.data[0].nombre);
-                setMaqSelPeriodo(maq.data[0].nombre);
-            }
-        }).catch(console.error).finally(() => setCargando(false));
+            if (maq.data.length) setMaqSel(maq.data[0].nombre);
+        }).catch(e => { console.error(e); setErrorCarga(true); }).finally(() => setCargando(false));
     }, []);
 
-    const meses = Array.from({ length: 6 }, (_, i) => {
-        const d = new Date(); d.setMonth(d.getMonth() - i);
-        return {
-            value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-            label: d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
-        };
-    });
+    // Meses con movimiento, del más reciente al más antiguo (siempre incluye el mes actual)
+    const meses = useMemo(() => {
+        const hoy = new Date();
+        const set = new Set([`${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`]);
+        [...ingresos, ...gastos, ...salarios].forEach(x => { if (x.fecha && x.fecha.length >= 7) set.add(x.fecha.slice(0, 7)); });
+        return [...set].sort().reverse().map(value => {
+            const [a, m] = value.split('-');
+            return { value, label: new Date(a, m - 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }) };
+        });
+    }, [ingresos, gastos, salarios]);
+    const mes = mesSel || meses[0]?.value || '';
+    const mesesRecientes = meses.slice(0, 3);
+    const mesEnOtros = !!mes && !mesesRecientes.some(m => m.value === mes);
 
-    const ejecutar = async (id, fn) => {
-        setGenerando(id);
-        try { await fn(); }
-        catch(e) { console.error(e); toast('Error generando el reporte', 'e'); }
-        finally { setGenerando(null); }
+    // Periodos de la máquina elegida; si solo hay uno queda elegido
+    const periodos = useMemo(() => faenas.filter(f => f.maquinaNombre === maqSel)
+        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || '')), [faenas, maqSel]);
+    const periodo = periodos.some(f => String(f.id) === String(periodoSel)) ? String(periodoSel)
+        : periodos.length === 1 ? String(periodos[0].id) : '';
+    const periodoLabel = periodo ? (periodos.find(f => String(f.id) === periodo)?.nombreObra || 'Periodo') : 'Todos los periodos';
+
+    const cambiarReporte = (id) => { setReporte(id); setErrorExport(''); };
+    const cambiarMaquina = (v) => { setMaqSel(v); setPeriodoSel(''); setErrorExport(''); };
+
+    const ejecutar = async (tipo, fn) => {
+        setGenerando(tipo);
+        setErrorExport('');
+        try {
+            await fn();
+            toast(tipo === 'pdf' ? 'PDF generado' : 'Excel generado');
+        } catch (e) {
+            console.error(e);
+            setErrorExport('No se pudo generar el reporte. Intenta de nuevo.');
+            toast('Error generando el reporte', 'e');
+        } finally { setGenerando(''); }
     };
 
-    // ── métricas reales para la vista previa de cada tarjeta (nada inventado) ──
-    const ingMesSel  = ingresos.filter(x => x.fecha?.startsWith(mesSel));
-    const gasMesSel  = gastos.filter(x => x.fecha?.startsWith(mesSel));
-    const utilMesSel = ingMesSel.reduce((a, x) => a + (x.total || 0), 0) - gasMesSel.reduce((a, x) => a + (x.monto || 0), 0);
+    // ── métricas reales para la vista previa de cada reporte (nada inventado) ──
+    const ingMes = ingresos.filter(x => x.fecha?.startsWith(mes));
+    const gasMes = gastos.filter(x => x.fecha?.startsWith(mes));
+    const utilMes = sumar(ingMes, 'total') - sumar(gasMes, 'monto');
 
-    const totIngMaqSel = ingresos.filter(x => x.maquinaNombre === maqSel).reduce((a, x) => a + (x.total || 0), 0);
-    const gasMaqSelCount = gastos.filter(x => x.maquinaNombre === maqSel).length;
-    const ingMaqSelCount = ingresos.filter(x => x.maquinaNombre === maqSel).length;
+    const ingMaq = ingresos.filter(x => x.maquinaNombre === maqSel);
+    const gasMaq = gastos.filter(x => x.maquinaNombre === maqSel);
 
-    const periodoIngLabel = periodoSelIngresos
-        ? (faenas.find(f => String(f.id) === String(periodoSelIngresos))?.nombreObra || 'Periodo')
-        : 'Todos los periodos';
-    const totalIngPeriodoSel = periodoSelIngresos
-        ? ingresos.filter(x => x.maquinaNombre === maqSelIngresos && String(x.faenaId) === String(periodoSelIngresos)).reduce((a, x) => a + (x.total || 0), 0)
-        : ingresos.filter(x => x.maquinaNombre === maqSelIngresos).reduce((a, x) => a + (x.total || 0), 0);
+    const ingPer = porPeriodo(ingresos, maqSel, periodo);
+    const gasPer = porPeriodo(gastos, maqSel, periodo);
+    const gasPerSueldo = gasPer.filter(x => incluirSueldo || !esSueldoOperador(x));
+    const utilPer = sumar(ingPer, 'total') - sumar(gasPer, 'monto');
 
-    const periodoGasLabel = periodoSelGastos
-        ? (faenas.find(f => String(f.id) === String(periodoSelGastos))?.nombreObra || 'Periodo')
-        : 'Todos los periodos';
-    const gastosParaReporte  = gastos.filter(x => incluirSueldoGas || !esSueldoOperador(x));
-    const totalGasPeriodoSel = periodoSelGastos
-        ? gastosParaReporte.filter(x => x.maquinaNombre === maqSelGastos && String(x.faenaId) === String(periodoSelGastos)).reduce((a, x) => a + (x.monto || 0), 0)
-        : gastosParaReporte.filter(x => x.maquinaNombre === maqSelGastos).reduce((a, x) => a + (x.monto || 0), 0);
-
-    // ── Reporte por periodo de máquina — ingresos, gastos y utilidad de un periodo, para exportar ──
-    const faenasDeMaqPeriodo = faenas.filter(f => f.maquinaNombre === maqSelPeriodo)
-        .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''));
-    const faenaPeriodoSel = faenasDeMaqPeriodo.find(f => String(f.id) === String(periodoSelPeriodo)) || null;
-    const totalIngDelPeriodo = faenaPeriodoSel
-        ? ingresos.filter(i => i.maquinaNombre === maqSelPeriodo && String(i.faenaId) === String(faenaPeriodoSel.id)).reduce((a, x) => a + (x.total || 0), 0)
-        : ingresos.filter(i => i.maquinaNombre === maqSelPeriodo).reduce((a, x) => a + (x.total || 0), 0);
-    const totalGasDelPeriodo = faenaPeriodoSel
-        ? gastos.filter(g => g.maquinaNombre === maqSelPeriodo && String(g.faenaId) === String(faenaPeriodoSel.id)).reduce((a, x) => a + (x.monto || 0), 0)
-        : gastos.filter(g => g.maquinaNombre === maqSelPeriodo).reduce((a, x) => a + (x.monto || 0), 0);
-    const utilidadDelPeriodo = totalIngDelPeriodo - totalGasDelPeriodo;
-    const periodoMaqLabel = faenaPeriodoSel ? faenaPeriodoSel.nombreObra || 'Periodo' : 'Todos los periodos';
-
+    const maquinaObj = maquinas.find(m => m.nombre === maqSel);
+    const selPeriodo = (
+        <MaquinaPeriodo maquinas={maquinas} maq={maqSel} onMaq={cambiarMaquina}
+            periodos={periodos} periodo={periodo} onPeriodo={setPeriodoSel} />
+    );
     const selMaquina = (
-        <select className="rp-select" value={maqSel} onChange={e => setMaqSel(e.target.value)}>
-            {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-        </select>
+        <div className="rv-fila">
+            <Campo etiqueta="Máquina" id="rv-maq">
+                <select id="rv-maq" className="rv-select" value={maqSel} onChange={e => cambiarMaquina(e.target.value)}>
+                    {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
+                </select>
+            </Campo>
+        </div>
     );
 
     const REPORTES = [
         {
-            id: 'mensual', ico: <BarChart2 size={19} />, color: '#c9790f',
-            titulo: 'Reporte mensual',
+            id: 'mensual', titulo: 'Reporte mensual',
             desc: 'Ingresos, gastos, salarios y utilidad de un mes',
-            control: (
-                <select className="rp-select" value={mesSel} onChange={e => setMesSel(e.target.value)}>
-                    {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                </select>
-            ),
-            metricLabel: `${ingMesSel.length} ing. · ${gasMesSel.length} gas.`,
-            metricValor: utilMesSel,
-            accion:    () => pdfMensual(mesSel, ingresos, gastos, salarios),
-            xlsAccion: () => xlsMensual(mesSel, ingresos, gastos, salarios),
-        },
-        {
-            id: 'maquina', ico: <GiBulldozer size={19} />, color: '#2980b9',
-            titulo: 'Reporte por máquina',
-            desc: 'Ingresos, gastos, combustible y horas de una máquina',
-            control: selMaquina,
-            metricLabel: `${ingMaqSelCount} ing. · ${gasMaqSelCount} gas.`,
-            metricValor: totIngMaqSel,
-            accion: () => {
-                const maq = maquinas.find(m => m.nombre === maqSel);
-                if (maq) pdfMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
-            },
-            xlsAccion: () => {
-                const maq = maquinas.find(m => m.nombre === maqSel);
-                if (maq) return xlsMaquina(maq, ingresos, gastos, combustibles, mantenimientos, horas);
-            },
-        },
-        {
-            id: 'ingresos-periodos', ico: <TrendingUp size={19} />, color: '#8e44ad',
-            titulo: 'Ingresos por periodo',
-            desc: 'Desglosa los ingresos de una máquina, periodo por periodo',
-            control: (
-                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-                    <select className="rp-select" value={maqSelIngresos}
-                        onChange={e => { setMaqSelIngresos(e.target.value); setPeriodoSelIngresos(''); }}>
-                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                    </select>
-                    <select className="rp-select" value={periodoSelIngresos} onChange={e => setPeriodoSelIngresos(e.target.value)}>
-                        <option value=''>Todos los periodos</option>
-                        {faenas.filter(f => f.maquinaNombre === maqSelIngresos)
-                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
-                            .map((f, i, arr) => (
-                                <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
-                            ))}
-                    </select>
-                </div>
-            ),
-            metricLabel: periodoIngLabel,
-            metricValor: totalIngPeriodoSel,
-            accion:    () => pdfIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
-            xlsAccion: () => xlsIngresosPorPeriodo(maqSelIngresos, ingresos, faenas, periodoSelIngresos),
-        },
-        {
-            id: 'gastos-periodos', ico: <TrendingDown size={19} />, color: '#8e44ad',
-            titulo: 'Gastos por periodo',
-            desc: 'Desglosa los gastos de una máquina, periodo por periodo',
-            control: (
+            params: (
                 <>
-                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-                    <select className="rp-select" value={maqSelGastos}
-                        onChange={e => { setMaqSelGastos(e.target.value); setPeriodoSelGastos(''); }}>
-                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                    </select>
-                    <select className="rp-select" value={periodoSelGastos} onChange={e => setPeriodoSelGastos(e.target.value)}>
-                        <option value=''>Todos los periodos</option>
-                        {faenas.filter(f => f.maquinaNombre === maqSelGastos)
-                            .sort((a, b) => (b.fechaInicio || '').localeCompare(a.fechaInicio || ''))
-                            .map((f, i, arr) => (
-                                <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
+                    <div className="rv-campo">
+                        <span className="rv-etq">Mes</span>
+                        <div className="rv-chips" role="group" aria-label="Mes">
+                            {mesesRecientes.map(m => (
+                                <button type="button" key={m.value} className={`rv-chip ${mes === m.value && !otroMes ? 'on' : ''}`}
+                                    aria-pressed={mes === m.value && !otroMes}
+                                    onClick={() => { setMesSel(m.value); setOtroMes(false); }}>{m.label}</button>
                             ))}
-                    </select>
-                </div>
-                <label className="rp-opt">
-                    <input type="checkbox" checked={incluirSueldoGas} onChange={e => setIncluirSueldoGas(e.target.checked)} />
-                    <span>Incluir el sueldo del operador</span>
-                </label>
+                            {meses.length > 3 && (
+                                <button type="button" className={`rv-chip ${otroMes || mesEnOtros ? 'on' : ''}`}
+                                    aria-pressed={otroMes || mesEnOtros} onClick={() => setOtroMes(true)}>Otro mes</button>
+                            )}
+                        </div>
+                        {(otroMes || mesEnOtros) && (
+                            <select className="rv-select rv-otro" aria-label="Elegir otro mes" value={mes}
+                                onChange={e => setMesSel(e.target.value)}>
+                                {meses.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                            </select>
+                        )}
+                    </div>
                 </>
             ),
-            metricLabel: periodoGasLabel,
-            metricValor: totalGasPeriodoSel,
-            metricTono: 'neg',
-            accion:    () => pdfGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos, incluirSueldoGas),
-            xlsAccion: () => xlsGastosPorPeriodo(maqSelGastos, gastos, faenas, periodoSelGastos, incluirSueldoGas),
+            n: ingMes.length + gasMes.length, total: utilMes, tono: utilMes >= 0 ? 'pos' : 'neg',
+            detalle: `${plural(ingMes.length, 'ingreso', 'ingresos')} · ${plural(gasMes.length, 'gasto', 'gastos')}`,
+            vacio: 'Este mes no tiene ingresos ni gastos.',
+            pdf: () => pdfMensual(mes, ingresos, gastos, salarios),
+            xls: () => xlsMensual(mes, ingresos, gastos, salarios),
         },
         {
-            id: 'periodo-maquina', ico: <Calendar size={19} />, color: '#2980b9',
-            titulo: 'Reporte por periodo',
+            id: 'maquina', titulo: 'Reporte por máquina',
+            desc: 'Ingresos, gastos, combustible y horas de una máquina',
+            params: selMaquina,
+            n: ingMaq.length + gasMaq.length, total: sumar(ingMaq, 'total'), tono: 'pos',
+            detalle: `${plural(ingMaq.length, 'ingreso', 'ingresos')} · ${plural(gasMaq.length, 'gasto', 'gastos')}`,
+            vacio: 'Esta máquina no tiene ingresos ni gastos.',
+            pdf: () => { if (maquinaObj) pdfMaquina(maquinaObj, ingresos, gastos, combustibles, mantenimientos, horas); },
+            xls: () => { if (maquinaObj) return xlsMaquina(maquinaObj, ingresos, gastos, combustibles, mantenimientos, horas); },
+        },
+        {
+            id: 'periodo', titulo: 'Reporte por periodo',
             desc: 'Ingresos, gastos y utilidad de un periodo de una máquina, juntos',
-            control: (
-                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
-                    <select className="rp-select" value={maqSelPeriodo}
-                        onChange={e => { setMaqSelPeriodo(e.target.value); setPeriodoSelPeriodo(''); }}>
-                        {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                    </select>
-                    <select className="rp-select" value={periodoSelPeriodo} onChange={e => setPeriodoSelPeriodo(e.target.value)}>
-                        <option value=''>Todos los periodos</option>
-                        {faenasDeMaqPeriodo.map((f, i, arr) => (
-                            <option key={f.id} value={f.id}>{`P${arr.length - i}: ${f.nombreObra || 'Sin nombre'} (${f.fechaInicio || '—'})`}</option>
-                        ))}
-                    </select>
-                </div>
+            params: selPeriodo,
+            n: ingPer.length + gasPer.length, total: utilPer, tono: utilPer >= 0 ? 'pos' : 'neg',
+            detalle: periodoLabel,
+            vacio: 'Este periodo no tiene ingresos ni gastos.',
+            pdf: () => pdfPeriodoMaquina(maqSel, ingresos, gastos, faenas, periodo),
+            xls: () => xlsPeriodoMaquina(maqSel, ingresos, gastos, faenas, periodo),
+        },
+        {
+            id: 'ingresos-periodos', titulo: 'Ingresos por periodo',
+            desc: 'Desglosa los ingresos de una máquina, periodo por periodo',
+            params: selPeriodo,
+            n: ingPer.length, total: sumar(ingPer, 'total'), tono: 'pos',
+            detalle: periodoLabel,
+            vacio: 'Este periodo no tiene ingresos.',
+            pdf: () => pdfIngresosPorPeriodo(maqSel, ingresos, faenas, periodo),
+            xls: () => xlsIngresosPorPeriodo(maqSel, ingresos, faenas, periodo),
+        },
+        {
+            id: 'gastos-periodos', titulo: 'Gastos por periodo',
+            desc: 'Desglosa los gastos de una máquina, periodo por periodo',
+            params: (
+                <>
+                    {selPeriodo}
+                    <label className="rv-check">
+                        <input type="checkbox" checked={incluirSueldo} onChange={e => setIncluirSueldo(e.target.checked)} />
+                        <span>Incluir el sueldo del operador</span>
+                    </label>
+                </>
             ),
-            metricLabel: periodoMaqLabel,
-            metricValor: utilidadDelPeriodo,
-            accion:    () => pdfPeriodoMaquina(maqSelPeriodo, ingresos, gastos, faenas, periodoSelPeriodo),
-            xlsAccion: () => xlsPeriodoMaquina(maqSelPeriodo, ingresos, gastos, faenas, periodoSelPeriodo),
+            n: gasPerSueldo.length, total: sumar(gasPerSueldo, 'monto'), tono: 'neg',
+            detalle: periodoLabel,
+            vacio: 'Este periodo no tiene gastos.',
+            pdf: () => pdfGastosPorPeriodo(maqSel, gastos, faenas, periodo, incluirSueldo),
+            xls: () => xlsGastosPorPeriodo(maqSel, gastos, faenas, periodo, incluirSueldo),
+        },
+        {
+            id: 'corte', titulo: 'Reporte por corte',
+            desc: 'Ingresos, gastos o ambos de uno o varios cortes de un periodo',
         },
     ];
+
+    const actual = REPORTES.find(r => r.id === reporte) || REPORTES[0];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
-                <div><h1>Reportes</h1><p>Genera y descarga reportes en PDF o Excel</p></div>
+                <div><h1>Reportes</h1><p>Elige un reporte, ajusta lo que necesitas y descárgalo en PDF o Excel</p></div>
             </div>
 
             <div className="content"><div className="pad">
 
                 {cargando && (
                     <div className="ale">
-                        <Loader size={18} />
+                        <Loader size={18} className="rv-spin" aria-hidden="true" />
                         <div><p>Cargando datos...</p></div>
                     </div>
                 )}
 
-                {!cargando && (
-                    <div className="rp-grid">
-                        <ReporteCorte maquinas={maquinas} ingresos={ingresos} gastos={gastos} faenas={faenas} />
-                        {REPORTES.map(r => (
-                            <div className="rp-card" key={r.id}>
-                                <div className="rp-top">
-                                    <span className="rp-ico" style={{ background: r.color }}>{r.ico}</span>
-                                    <div className="rp-title"><h3>{r.titulo}</h3><p>{r.desc}</p></div>
-                                </div>
-                                {r.control && <div className="rp-controls">{r.control}</div>}
-                                <div className="rp-metric">
-                                    <span className="m1">{r.metricLabel}</span>
-                                    <span className={`m2 rp-num ${r.metricValorTexto ? '' : (r.metricTono === 'neg' ? 'neg' : r.metricTono === 'neu' ? '' : (r.metricValor >= 0 ? 'pos' : 'neg'))}`}>
-                                        {r.metricValorTexto || fmt(r.metricValor)}
-                                    </span>
-                                </div>
-                                <div className="rp-actions">
-                                    <button className="rp-btn pri" disabled={!!generando} onClick={() => ejecutar(r.id + '-pdf', r.accion)}>
-                                        {generando === r.id + '-pdf'
-                                            ? <><Clock size={13} /> PDF...</>
-                                            : <>↓ PDF</>}
-                                    </button>
-                                    {r.xlsAccion && (
-                                        <button className="rp-btn xls" disabled={!!generando} onClick={() => ejecutar(r.id + '-xls', r.xlsAccion)}>
-                                            {generando === r.id + '-xls'
-                                                ? <><Clock size={13} /> XLS...</>
-                                                : <><FileSpreadsheet size={13} /> Excel</>}
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
+                {!cargando && errorCarga && (
+                    <div className="ale" role="alert"><div><p>No se pudieron cargar los datos. Recarga la página para intentarlo de nuevo.</p></div></div>
+                )}
+
+                {!cargando && !errorCarga && (
+                    <div className="rv-layout">
+                        <nav className="rv-lista" aria-label="Tipos de reporte">
+                            {REPORTES.map(r => (
+                                <button type="button" key={r.id} className={`rv-item ${r.id === actual.id ? 'on' : ''}`}
+                                    aria-pressed={r.id === actual.id} onClick={() => cambiarReporte(r.id)}>
+                                    <strong>{r.titulo}</strong>
+                                    <span>{r.desc}</span>
+                                </button>
+                            ))}
+                        </nav>
+
+                        <article className="rv-panel">
+                            <header className="rv-cab">
+                                <h2>{actual.titulo}</h2>
+                                <p>{actual.desc}</p>
+                            </header>
+
+                            {actual.id === 'corte' ? (
+                                <ReporteCorte maquinas={maquinas} ingresos={ingresos} gastos={gastos} faenas={faenas}
+                                    maq={maqSel} onMaq={cambiarMaquina} periodoId={periodo} onPeriodo={setPeriodoSel}
+                                    generando={generando} ejecutar={ejecutar} error={errorExport} />
+                            ) : (
+                                <>
+                                    <div className="rv-params">{actual.params}</div>
+                                    <VistaPrevia total={actual.total} tono={actual.tono} detalle={actual.detalle}
+                                        sinDatos={actual.n === 0} mensajeVacio={actual.vacio}
+                                        generando={generando} error={errorExport}
+                                        onPdf={() => ejecutar('pdf', actual.pdf)} onXls={() => ejecutar('xls', actual.xls)} />
+                                </>
+                            )}
+                        </article>
                     </div>
                 )}
 

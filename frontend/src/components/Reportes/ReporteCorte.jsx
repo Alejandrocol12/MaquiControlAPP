@@ -1,36 +1,27 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Scissors, Clock, FileSpreadsheet } from 'lucide-react';
 import { getCortes } from '../../api';
-import { useToast } from '../../utils/toast';
 import { fmtHoras } from '../../utils/cortes';
 import { gruposDeCortes, pdfReporteCorte } from '../../utils/reporteCorte';
 import { xlsReporteCorte } from '../../utils/excelReportes';
+import { Chips, MaquinaPeriodo, VistaPrevia } from './ReporteUI';
 
-const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
-const INCLUIR = [['ing', 'Ingresos'], ['gas', 'Gastos'], ['amb', 'Ambos']];
+const INCLUIR = [{ value: 'ing', label: 'Ingresos' }, { value: 'gas', label: 'Gastos' }, { value: 'amb', label: 'Ambos' }];
 
 // Reporte por corte: se elige la máquina, el periodo y uno o varios cortes. Las columnas de ingresos
 // son siempre las mismas (fecha, horas, descripción, horómetro inicio y fin, total) y el PDF lleva
-// resumen arriba y subtotal en cada corte. Es una tarjeta como las demás de Reportes.
-function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
-    const toast = useToast();
+// resumen arriba y subtotal en cada corte. La máquina y el periodo los comparte con los demás reportes.
+function ReporteCorte({ maquinas, ingresos, gastos, faenas, maq, onMaq, periodoId, onPeriodo, generando, ejecutar, error }) {
     const [cortes, setCortes] = useState([]);
-    const [maq, setMaq] = useState('');
-    const [faenaId, setFaenaId] = useState('');
     const [incluir, setIncluir] = useState('amb');
     const [elegidos, setElegidos] = useState({});
-    const [generando, setGenerando] = useState('');
 
     useEffect(() => { getCortes().then(r => setCortes(r.data || [])).catch(() => {}); }, []);
-    useEffect(() => { if (!maq && maquinas.length) setMaq(maquinas[0].nombre); }, [maquinas, maq]);
 
     const periodos = useMemo(() => faenas.filter(f => f.maquinaNombre === maq && f.tipo !== 'gastos')
         .sort((a, b) => String(b.fechaInicio || '').localeCompare(String(a.fechaInicio || ''))), [faenas, maq]);
-    useEffect(() => {
-        if (!periodos.some(f => String(f.id) === String(faenaId))) setFaenaId(periodos[0] ? String(periodos[0].id) : '');
-    }, [periodos, faenaId]);
-
-    const faena = periodos.find(f => String(f.id) === String(faenaId)) || null;
+    // Este reporte siempre es de un periodo concreto: si no hay uno elegido toma el más reciente
+    const faena = periodos.find(f => String(f.id) === String(periodoId)) || periodos[0] || null;
+    const faenaId = faena ? String(faena.id) : '';
     const grupos = useMemo(() => gruposDeCortes(faena, cortes, ingresos, gastos), [faena, cortes, ingresos, gastos]);
 
     // Al cambiar de periodo quedan elegidos todos sus cortes
@@ -46,63 +37,31 @@ function ReporteCorte({ maquinas, ingresos, gastos, faenas }) {
     const valor = verIng && verGas ? totIng - totGas : verGas ? totGas : totIng;
     const tono = verIng && verGas ? (valor >= 0 ? 'pos' : 'neg') : verGas ? 'neg' : 'pos';
 
-    const ejecutar = async (tipo) => {
-        if (!lista.length || !faena) return;
-        setGenerando(tipo);
-        try {
-            const datos = { maquina: maq, faena, grupos: lista, incluir };
-            if (tipo === 'pdf') await pdfReporteCorte(datos); else await xlsReporteCorte(datos);
-            toast(tipo === 'pdf' ? 'PDF generado' : 'Excel generado');
-        } catch (e) { console.error(e); toast('No se pudo generar el reporte', 'e'); }
-        setGenerando('');
-    };
+    const generar = (tipo) => ejecutar(tipo, async () => {
+        const datos = { maquina: maq, faena, grupos: lista, incluir };
+        if (tipo === 'pdf') await pdfReporteCorte(datos); else await xlsReporteCorte(datos);
+    });
+
+    const vacio = !faena ? 'Esta máquina no tiene periodos.'
+        : grupos.length === 0 ? 'Este periodo todavía no tiene ingresos ni gastos.'
+        : 'Elige al menos un corte.';
 
     return (
-        <div className="rp-card">
-            <div className="rp-top">
-                <span className="rp-ico" style={{ background: '#c9790f' }}><Scissors size={19} /></span>
-                <div className="rp-title"><h3>Reporte por corte</h3><p>Ingresos, gastos o ambos de uno o varios cortes de un periodo</p></div>
+        <>
+            <div className="rv-params">
+                <MaquinaPeriodo maquinas={maquinas} maq={maq} onMaq={onMaq} periodos={periodos}
+                    periodo={faenaId} onPeriodo={onPeriodo} conTodos={false} />
+                {grupos.length > 0 && (
+                    <Chips etiqueta="Cortes" multiple valor={elegidos}
+                        opciones={grupos.map(g => ({ value: g.id, label: g.nombre, title: `${g.fechas} · ${fmtHoras(g.horas)} h` }))}
+                        onChange={id => setElegidos(e => ({ ...e, [id]: !e[id] }))} />
+                )}
+                <Chips etiqueta="Contenido" opciones={INCLUIR} valor={incluir} onChange={setIncluir} />
             </div>
-
-            <div className="rp-controls">
-                <select className="rp-select" aria-label="Máquina" value={maq} onChange={e => setMaq(e.target.value)}>
-                    {maquinas.map(m => <option key={m.id}>{m.nombre}</option>)}
-                </select>
-                <select className="rp-select" aria-label="Periodo" value={faenaId} onChange={e => setFaenaId(e.target.value)}>
-                    {periodos.length === 0 && <option value="">Sin periodos</option>}
-                    {periodos.map(f => <option key={f.id} value={f.id}>{f.nombreObra || 'Sin nombre'}</option>)}
-                </select>
-            </div>
-
-            <div className="rc-seg" role="group" aria-label="Qué incluir">
-                {INCLUIR.map(([k, l]) => <button key={k} type="button" className={incluir === k ? 'on' : ''} aria-pressed={incluir === k} onClick={() => setIncluir(k)}>{l}</button>)}
-            </div>
-
-            {grupos.length === 0 ? (
-                <p className="rc-vacio">{faena ? 'Este periodo todavía no tiene ingresos ni gastos.' : 'Esta máquina no tiene periodos.'}</p>
-            ) : (
-                <div className="rc-chips" role="group" aria-label="Cortes">
-                    {grupos.map(g => {
-                        const on = !!elegidos[g.id];
-                        return <button type="button" key={g.id} className={on ? 'on' : ''} aria-pressed={on} title={`${g.fechas} · ${fmtHoras(g.horas)} h`}
-                            onClick={() => setElegidos(e => ({ ...e, [g.id]: !on }))}>{g.nombre}</button>;
-                    })}
-                </div>
-            )}
-
-            <div className="rp-metric">
-                <span className="m1">{lista.length} corte{lista.length === 1 ? '' : 's'} · {fmtHoras(totHoras)} h</span>
-                <span className={`m2 rp-num ${tono}`}>{fmt(valor)}</span>
-            </div>
-            <div className="rp-actions">
-                <button className="rp-btn pri" disabled={!lista.length || !!generando} onClick={() => ejecutar('pdf')}>
-                    {generando === 'pdf' ? <><Clock size={13} /> PDF...</> : <>↓ PDF</>}
-                </button>
-                <button className="rp-btn xls" disabled={!lista.length || !!generando} onClick={() => ejecutar('xls')}>
-                    {generando === 'xls' ? <><Clock size={13} /> XLS...</> : <><FileSpreadsheet size={13} /> Excel</>}
-                </button>
-            </div>
-        </div>
+            <VistaPrevia total={valor} tono={tono} sinDatos={!lista.length} mensajeVacio={vacio}
+                detalle={`${lista.length} corte${lista.length === 1 ? '' : 's'} · ${fmtHoras(totHoras)} h`}
+                generando={generando} error={error} onPdf={() => generar('pdf')} onXls={() => generar('xls')} />
+        </>
     );
 }
 
