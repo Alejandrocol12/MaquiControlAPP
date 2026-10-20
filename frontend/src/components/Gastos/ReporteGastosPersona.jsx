@@ -15,7 +15,8 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 function rangoDe(clave) {
     const hoy = new Date();
     const y = hoy.getFullYear(), m = hoy.getMonth();
-    if (clave === 'mes') return [iso(new Date(y, m, 1)), iso(hoy)];
+    // Este mes llega hasta el último día del mes, para no dejar fuera un gasto con fecha adelantada
+    if (clave === 'mes') return [iso(new Date(y, m, 1)), iso(new Date(y, m + 1, 0))];
     if (clave === 'ultimo') return [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 0))];
     if (clave === 'd30') return [iso(new Date(y, m, hoy.getDate() - 29)), iso(hoy)];
     if (clave === 'anio') return [iso(new Date(y, 0, 1)), iso(hoy)];
