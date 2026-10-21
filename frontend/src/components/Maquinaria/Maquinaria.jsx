@@ -28,6 +28,7 @@ import { pendientesDeCierre } from '../../utils/pendientesCierre';
 import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
+import { TarjetasPeriodo, PronosticoMes } from './ResumenMaquina';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
@@ -36,7 +37,7 @@ import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
     Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
-    Target, Eye, CreditCard, History,
+    Eye, CreditCard, History,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -575,6 +576,14 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
 
+    // Meta de horas del mes (0 la quita)
+    const guardarMeta = (horas) => {
+        const nueva = { ...maq, metaMensualHoras: horas > 0 ? horas : null };
+        setMaq(nueva);
+        onActualizar(nueva);
+        updateMaquina(maq.id, { ...maq, metaMensualHoras: horas }).catch(() => toast('No se pudo guardar la meta', 'e'));
+    };
+
     // Tras guardar un parte diario: recarga los datos y el horómetro de la máquina, que pudo cambiar
     const refrescarTrasParte = () => {
         cargarTodo();
@@ -656,6 +665,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     // Horas trabajadas en la faena actual
     const horasFaena = ingFaena.filter(i => i.tipoTrabajo === 'Horas').reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+
+    // Días con horas en el periodo y horas del mes en curso, para las tarjetas y la meta
+    const diasTrabajadosFaena = new Set(ingFaena.filter(i => i.tipoTrabajo === 'Horas' && Number(i.cantidad) > 0).map(i => i.fecha)).size;
+    const ahoraMes = new Date();
+    const prefijoMes = `${ahoraMes.getFullYear()}-${String(ahoraMes.getMonth() + 1).padStart(2, '0')}`;
+    const horasEsteMes = ingresos.filter(i => i.tipoTrabajo === 'Horas' && String(i.fecha || '').startsWith(prefijoMes)).reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+    const diasDelMes = new Date(ahoraMes.getFullYear(), ahoraMes.getMonth() + 1, 0).getDate();
 
     // Totales de la faena
     const totalIngresos = ingFaena.reduce((a, i) => a + (i.total || 0), 0);
@@ -969,40 +985,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     <>
                         {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onVer={() => setTab(5)} />}
 
-                        <div className="mq-hero4">
-                            <div className="mq-kpi good">
-                                <div className="mq-kpi-top"><span className="mq-kpi-label">Ingresos periodo</span><span className="mq-kpi-ico"><TrendingUp size={14} /></span></div>
-                                <div className="mq-kpi-val mq-num">{fmt(totalIngresos)}</div>
-                                <div className="mq-kpi-sub">{faenaActiva ? faenaActiva.nombreObra : 'sin periodo activo'}</div>
-                            </div>
-                            <div className="mq-kpi bad">
-                                <div className="mq-kpi-top"><span className="mq-kpi-label">Gastos periodo</span><span className="mq-kpi-ico"><TrendingDown size={14} /></span></div>
-                                <div className="mq-kpi-val mq-num">{fmt(totalGastos)}</div>
-                                <div className="mq-kpi-sub">acumulados</div>
-                            </div>
-                            <div className="mq-kpi profit">
-                                <div className="mq-kpi-top"><span className="mq-kpi-label">Utilidad</span><span className="mq-kpi-ico"><TrendingUp size={14} /></span></div>
-                                <div className="mq-kpi-val mq-num">{fmt(totalIngresos - totalGastos)}</div>
-                                <div className="mq-kpi-sub">ingresos − gastos</div>
-                            </div>
-                            <div className="mq-kpi info">
-                                <div className="mq-kpi-top"><span className="mq-kpi-label">Horas periodo</span><span className="mq-kpi-ico"><Clock size={14} /></span></div>
-                                <div className="mq-kpi-val mq-num">{fmtHoras(horasFaena)}</div>
-                                <div className="mq-kpi-sub">trabajadas en este periodo</div>
-                            </div>
-                        </div>
+                        <TarjetasPeriodo ingresos={totalIngresos} gastos={totalGastos} utilidad={totalIngresos - totalGastos}
+                            horas={horasFaena} diasTrabajados={diasTrabajadosFaena} periodoNombre={faenaActiva?.nombreObra}
+                            valorHora={maq.valorHoraMaquina} onIr={setTab} />
 
-                        {pronostico ? (
-                            <div className="mq-insight">
-                                <Target size={18} />
-                                <div>
-                                    <b>Pronóstico a fin de mes: {pronostico.totalProyectado.toLocaleString('es-CO')} hrs ({fmt(pronostico.ingresoProyectado)})</b>
-                                    <p>{pronostico.horasEsteMes.toLocaleString('es-CO')} hrs ya trabajadas este mes + ~{pronostico.horasRestantes.toLocaleString('es-CO')} hrs proyectadas en los {pronostico.diasRestantes} días que quedan, según el patrón histórico de esta máquina.</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <p className="vacio" style={{ marginBottom: '16px' }}>Aún no hay suficiente historial de horas trabajadas para pronosticar fin de mes (se necesitan al menos 3 días registrados).</p>
-                        )}
+                        <PronosticoMes pronostico={pronostico} horasMes={horasEsteMes} diasDelMes={diasDelMes}
+                            valorHora={maq.valorHoraMaquina} meta={maq.metaMensualHoras || 0} onGuardarMeta={guardarMeta} />
 
                         <CalendarioTrabajo maq={maq} ingresos={ingresos} combustibles={combustibles}
                             esperadoPorDia={pronostico?.esperadoPorDia || null} verGalones={moduloVisible('combustible')}
