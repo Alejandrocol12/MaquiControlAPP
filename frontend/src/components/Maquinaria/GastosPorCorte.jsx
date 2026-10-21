@@ -73,7 +73,7 @@ export default function GastosPorCorte({ faena, gastos, ingresos, externos, suel
             <section className="fc-hero gas">
                 <div className="fc-hero-main">
                     <span className="fc-eyebrow">Control de gastos de operación</span>
-                    <b className="fc-hero-total"><Monto v={totalGas} /></b>
+                    <b className="fc-hero-total">{fmt(totalGas)}</b>
                     <span className="fc-hero-sub">Acumulado total de gastos en el proyecto <b>{faena.nombreObra}</b></span>
                 </div>
                 <div className="fc-hero-datos">

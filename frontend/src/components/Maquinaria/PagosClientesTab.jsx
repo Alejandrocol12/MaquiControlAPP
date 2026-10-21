@@ -34,6 +34,8 @@ export default function PagosClientesTab({ maq, pagos, modalAbierto, editando, f
 
     const recibido = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
     const porCobrar = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
+    const facturado = pagos.reduce((a, p) => a + (Number(p.valorTotal) || 0), 0);
+    const pctRecibido = facturado > 0 ? Math.round((recibido / facturado) * 100) : 0;
     const conSaldo = pagos.filter(p => (Number(p.saldoPendiente) || 0) > 0).length;
     const conAbono = pagos.filter(p => (Number(p.valorPagado) || 0) > 0).length;
     const ordenados = [...pagos].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
@@ -45,6 +47,11 @@ export default function PagosClientesTab({ maq, pagos, modalAbierto, editando, f
                     <span className="pc-etq">Pagos recibidos</span>
                     <b className="pc-valor vd"><Monto v={recibido} /></b>
                     <small>{conAbono} cobro{conAbono === 1 ? '' : 's'} con pagos registrados</small>
+                </div>
+                <div className="pc-tarjeta">
+                    <span className="pc-etq">Total facturado</span>
+                    <b className="pc-valor"><Monto v={facturado} /></b>
+                    <small>{pagos.length} cobro{pagos.length === 1 ? '' : 's'} · {pctRecibido}% ya recibido</small>
                 </div>
                 <div className="pc-tarjeta">
                     <span className="pc-etq">Saldos por cobrar</span>

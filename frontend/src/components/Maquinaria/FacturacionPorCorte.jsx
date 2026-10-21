@@ -88,7 +88,7 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
             <section className="fc-hero">
                 <div className="fc-hero-main">
                     <span className="fc-eyebrow">Liquidación y facturación de maquinaria</span>
-                    <b className="fc-hero-total"><Monto v={totalTot} /></b>
+                    <b className="fc-hero-total">{fmt(totalTot)}</b>
                     <span className="fc-hero-sub">Acumulado total de ingresos en el proyecto <b>{faena.nombreObra}</b></span>
                 </div>
                 <div className="fc-hero-datos">
