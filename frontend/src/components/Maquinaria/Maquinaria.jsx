@@ -15,9 +15,7 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
-import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
-import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
@@ -32,6 +30,7 @@ import { TarjetasPeriodo, PronosticoMes } from './ResumenMaquina';
 import FacturacionPorCorte from './FacturacionPorCorte';
 import GastoModal from './GastoModal';
 import GastosPorCorte from './GastosPorCorte';
+import PagosClientesTab from './PagosClientesTab';
 import { usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
@@ -140,7 +139,7 @@ const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
 const FORM_VACIO = { nombre: '', tipo: '', placa: '', horometroActual: 0, estado: 'Activa', operadorNombre: '', valorHoraOperador: 0, valorHoraMaquina: 0 };
 
-const PAGO_VACIO = { cliente: '', descripcion: '', valorTotal: '', valorPagado: '', fecha: hoy() };
+const PAGO_VACIO = { cliente: '', descripcion: '', valorTotal: '', valorPagado: '', fecha: hoy(), metodoPago: '', comprobante: '' };
 const normalizarPago = (p) => {
     const valorTotal = Number(p.valorTotal ?? 0) || 0;
     const valorPagado = Number(p.valorPagado ?? 0) || 0;
@@ -376,7 +375,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [pagoForm, setPagoForm] = useState(PAGO_VACIO);
     const [editandoPagoId, setEditandoPagoId] = useState(null);
     const editarPago = (p) => { setPagoForm(normalizarPago(p)); setEditandoPagoId(p.id); };
-    const cancelarEditarPago = () => { setEditandoPagoId(null); setPagoForm(PAGO_VACIO); errPago.setErrores({}); };
+    const [pagoModal, setPagoModal] = useState(false);
+    const cancelarEditarPago = () => { setPagoModal(false); setEditandoPagoId(null); setPagoForm(PAGO_VACIO); errPago.setErrores({}); };
     const errPago = useErrores();
     const errTrabajo = useErrores();
     const errGasto = useErrores();
@@ -1401,83 +1401,10 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                 {/* TAB 6 — PAGOS CLIENTES */}
                 {tab === 6 && (
-                    <>
-                        <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><CreditCard size={18} /> {editandoPagoId ? 'Editar pago' : 'Registrar pago de cliente'}</h3>
-                            <p className="fd">El pago queda asociado a {maq.nombre} automáticamente</p>
-                            <label className="fl">Cliente *</label>
-                            <input className={errPago.clase('fi', 'pagoCliente')} {...errPago.props('pagoCliente')} value={pagoForm.cliente}
-                                onChange={e => { setPagoForm({ ...pagoForm, cliente: e.target.value }); errPago.limpiar('pagoCliente'); }} placeholder="Ej: Municipio de..." />
-                            <ErrorCampo msg={errPago.errores.pagoCliente} />
-                            <div className="fg2-keep">
-                                <div><label className="fl">Total ($)</label><MoneyInput className="fi" value={pagoForm.valorTotal} onChange={e => setPagoForm({ ...pagoForm, valorTotal: e.target.value })} /></div>
-                                <div><label className="fl">Pagado ($)</label><MoneyInput className="fi" value={pagoForm.valorPagado} onChange={e => setPagoForm({ ...pagoForm, valorPagado: e.target.value })} /></div>
-                            </div>
-                            <Opcional label="Descripción y fecha (opcional)" abierto={!!editandoPagoId && !!pagoForm.descripcion}>
-                                <div className="fg2-keep">
-                                    <div><label className="fl">Descripción</label><input className="fi" value={pagoForm.descripcion} onChange={e => setPagoForm({ ...pagoForm, descripcion: e.target.value })} placeholder="Ej: Abono obra" /></div>
-                                    <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoForm.fecha} onChange={e => setPagoForm({ ...pagoForm, fecha: e.target.value })} /></div>
-                                </div>
-                            </Opcional>
-                            <div className="fa">
-                                <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={guardarPago}>
-                                    <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} /> {editandoPagoId ? 'Guardar cambios' : 'Registrar pago'}
-                                </button>
-                                {editandoPagoId && <button className="bs" onClick={cancelarEditarPago}>Cancelar</button>}
-                            </div>
-                        </div>
-                        <div className="tbl">
-                            <div className="th"><strong>Pagos de clientes — {maq.nombre}</strong></div>
-                            {pagos.length === 0 ? (
-                                <EmptyState
-                                    icono={<CreditCard size={20} />}
-                                    titulo="Aún no hay pagos de esta máquina"
-                                    texto={`Registra lo que te pagan los clientes por el trabajo de ${maq.nombre}.`}
-                                    accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="pagoCliente"]')?.focus() }}
-                                />
-                            ) : (
-                                <>
-                                    <div className="tr hdr only-desk">
-                                        <span>Fecha</span><span className="w2">Cliente</span><span className="w2">Descripción</span>
-                                        <span className="amt">Total</span><span className="amt">Pagado</span><span className="amt">Saldo</span><span>Estado</span><span>Acc.</span>
-                                    </div>
-                                    {pagos.map(p => (
-                                        <div className="tr only-desk" key={p.id}>
-                                            <span>{fmtFecha(p.fecha)}</span>
-                                            <span className="w2">{p.cliente}</span>
-                                            <span className="w2">{p.descripcion || '—'}</span>
-                                            <span className="amt">{fmt(p.valorTotal)}</span>
-                                            <span className="pos amt">{fmt(p.valorPagado)}</span>
-                                            <span className="neg amt">{fmt(p.saldoPendiente)}</span>
-                                            <span><Estado valor={p.estado} /></span>
-                                            <span>
-                                                <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPago(p)}><Pencil size={14} /></button>
-                                                <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPago(p.id)}><Trash2 size={14} /></button>
-                                            </span>
-                                        </div>
-                                    ))}
-                                    {pagos.map(p => (
-                                        <div className="mcard only-mob" key={p.id}>
-                                            <div className="mcard-top"><span className="mcard-t">{p.cliente}</span><Estado valor={p.estado} /></div>
-                                            {p.descripcion && <div className="mcard-d">{p.descripcion}</div>}
-                                            <div className="mcard-nums">
-                                                <div><span>Total</span><b>{fmt(p.valorTotal)}</b></div>
-                                                <div><span>Pagado</span><b className="pos">{fmt(p.valorPagado)}</b></div>
-                                                <div><span>Saldo</span><b className={p.saldoPendiente > 0 ? 'neg' : ''}>{fmt(p.saldoPendiente)}</b></div>
-                                            </div>
-                                            <div className="mcard-foot">
-                                                <span>{fmtFecha(p.fecha)}</span>
-                                                <span>
-                                                    <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPago(p)}><Pencil size={15} /></button>
-                                                    <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPago(p.id)}><Trash2 size={15} /></button>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
-                            )}
-                        </div>
-                    </>
+                    <PagosClientesTab maq={maq} pagos={pagos} modalAbierto={pagoModal || !!editandoPagoId} editando={!!editandoPagoId}
+                        form={pagoForm} setForm={setPagoForm} errores={errPago}
+                        onNuevo={() => setPagoModal(true)} onEditar={editarPago} onEliminar={eliminarPago}
+                        onGuardar={guardarPago} onCerrar={cancelarEditarPago} />
                 )}
 
             </div></div>
