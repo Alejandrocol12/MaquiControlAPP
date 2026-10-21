@@ -31,6 +31,7 @@ import FacturacionPorCorte from './FacturacionPorCorte';
 import GastoModal from './GastoModal';
 import GastosPorCorte from './GastosPorCorte';
 import PagosClientesTab from './PagosClientesTab';
+import CabeceraMaquina from './CabeceraMaquina';
 import { PeriodoHero, SinPeriodo, PeriodosAnteriores } from './PeriodoMaquina';
 import './TrabajoMaquina.css';
 import { usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
@@ -1005,22 +1006,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             <div className="content"><div className="pad">
 
                 {/* HEADER */}
-                <div className="mq-dh">
-                    <div className="mq-dh-l">
-                        <div className="mq-dh-ico"><IcoMaquina tipo={maq.tipo} size={28} /></div>
-                        <div>
-                            <h2>{maq.nombre}</h2>
-                            <p>Placa {maq.placa} · Operador {maq.operadorNombre || '—'} · {fmt(maq.valorHoraOperador)}/hr operador · {fmt(maq.valorHoraMaquina || 0)}/hr máquina</p>
-                            <div className="mq-dh-badges">
-                                <span className={`mq-pill ${maq.estado === 'Activa' ? 'ok' : maq.estado === 'En mantenimiento' ? 'warn' : 'off'}`}><i></i>{maq.estado}</span>
-                                <span className="mq-pill off">{fmtHoro(maq.horometroActual)} hrs horómetro</span>
-                                {faenaActiva
-                                    ? <span className="mq-pill job">Periodo: {faenaActiva.nombreObra}</span>
-                                    : <span className="mq-pill nojob">Sin periodo activo</span>}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <CabeceraMaquina maq={maq} faenaActiva={faenaActiva} icono={<IcoMaquina tipo={maq.tipo} size={42} />} />
 
                 {/* Sin faena: alerta */}
                 {!faenaActiva && (
