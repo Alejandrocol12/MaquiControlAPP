@@ -29,6 +29,7 @@ import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { TarjetasPeriodo, PronosticoMes } from './ResumenMaquina';
+import FacturacionPorCorte from './FacturacionPorCorte';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
@@ -1071,6 +1072,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
                     <>
+                        {faenaActiva && <FacturacionPorCorte maq={maq} faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} />}
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
                             fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
