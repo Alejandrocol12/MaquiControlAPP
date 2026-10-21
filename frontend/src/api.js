@@ -93,6 +93,10 @@ export const createPago  = (data)     => API.post('/pagos', data);
 export const updatePago  = (id, data) => API.put(`/pagos/${id}`, data);
 export const deletePago  = (id)       => API.delete(`/pagos/${id}`);
 
+// Parte diario: estado de operación, actividad y observaciones de un día de una máquina
+export const getPartesDiarios = (maquina) => API.get(`/partes-diarios/maquina/${encodeURIComponent(maquina)}`);
+export const guardarParteDiario = (data) => API.put('/partes-diarios', data);
+
 // Pagos operador -- cada pago genera su gasto "Pago operador" en el backend
 export const getPagosOperador    = ()         => API.get('/pagos-operador');
 export const createPagoOperador  = (data)     => API.post('/pagos-operador', data);

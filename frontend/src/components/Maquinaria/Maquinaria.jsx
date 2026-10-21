@@ -112,6 +112,7 @@ function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina) {
         totalProyectado: Math.round(totalProyectado * 10) / 10,
         ingresoProyectado: Math.round(totalProyectado * (valorHoraMaquina || 0)),
         diasRestantes,
+        esperadoPorDia: horasEsperadasPorDia, // horas esperadas por día de la semana (0 = domingo)
     };
 }
 
@@ -574,6 +575,15 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
 
+    // Tras guardar un parte diario: recarga los datos y el horómetro de la máquina, que pudo cambiar
+    const refrescarTrasParte = () => {
+        cargarTodo();
+        getMaquinas().then(r => {
+            const actualizada = (r.data || []).find(m => m.nombre === maq.nombre);
+            if (actualizada) { setMaq(actualizada); onActualizar(actualizada); }
+        }).catch(() => {});
+    };
+
     // alcanceInicial (opcional): 'c:<id del corte>' o 'curso:<id del periodo>' para abrir con eso ya elegido
     const abrirCompartir = (alcanceInicial) => {
         setModalCompartir(true);
@@ -994,7 +1004,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <p className="vacio" style={{ marginBottom: '16px' }}>Aún no hay suficiente historial de horas trabajadas para pronosticar fin de mes (se necesitan al menos 3 días registrados).</p>
                         )}
 
-                        <CalendarioTrabajo ingresos={ingresos} />
+                        <CalendarioTrabajo maq={maq} ingresos={ingresos} combustibles={combustibles}
+                            esperadoPorDia={pronostico?.esperadoPorDia || null} verGalones={moduloVisible('combustible')}
+                            onCambio={refrescarTrasParte} />
                     </>
                 )}
 
