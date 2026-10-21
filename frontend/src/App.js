@@ -498,7 +498,6 @@ function App() {
     const [sharedToken] = useState(() => new URLSearchParams(window.location.search).get('token'));
     const [modulo, setModulo] = useState('dashboard');
     const { toasts, toast } = useToastState();
-    const [finOpen, setFinOpen] = useState(false);
     const [finTab, setFinTab] = useState('ingresos');
     const [maqVista, setMaqVista] = useState('lista');
     const [user, setUser] = useState(null);
@@ -572,7 +571,7 @@ function App() {
         if (outcome === 'accepted') setInstallPrompt(null);
     };
 
-    const navFin = (tab) => { setModulo('finanzas'); setFinOpen(true); setFinTab(tab); };
+    const navFin = (tab) => { setModulo('finanzas'); setFinTab(tab); };
     const irNuevaMaquina = () => { setMaqVista('nueva'); setModulo('maquinaria'); };
     const irMaquinaria = () => { setMaqVista('lista'); setModulo('maquinaria'); };
 
@@ -711,18 +710,8 @@ function App() {
                                 <span className="ico"><GiBulldozer size={18} /></span><span className="sb-label">Maquinaria</span>
                             </div>
 
-                            <div
-                                className={`ni ${modulo === 'finanzas' ? 'active' : ''} ${finOpen ? 'exp' : ''}`}
-                                onClick={() => { ir('finanzas'); setFinOpen(!finOpen); }}
-                            >
+                            <div className={`ni ${modulo === 'finanzas' ? 'active' : ''}`} onClick={() => ir('finanzas')}>
                                 <span className="ico"><DollarSign size={18} /></span><span className="sb-label">Finanzas</span>
-                                <span className="arr">›</span>
-                            </div>
-                            <div className={`ng ${finOpen ? 'open' : ''}`}>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'ingresos' ? 'active' : ''}`} onClick={() => navFin2('ingresos')}>› Ingresos</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'gastos' ? 'active' : ''}`} onClick={() => navFin2('gastos')}>› Gastos</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'salarios' ? 'active' : ''}`} onClick={() => navFin2('salarios')}>› Salarios</div>
-                                <div className={`nsub ${modulo === 'finanzas' && finTab === 'pagos' ? 'active' : ''}`} onClick={() => navFin2('pagos')}>› Pagos Clientes</div>
                             </div>
 
                             <div className={`ni ${modulo === 'faenas' ? 'active' : ''}`} onClick={() => ir('faenas')}>

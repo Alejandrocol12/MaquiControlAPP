@@ -1,0 +1,89 @@
+/* Finanzas con el mismo estilo que Maquinaria: resumen oscuro, tarjetas redondeadas, pestañas tipo píldora.
+   Se carga después de Finanzas.css y solo cambia la apariencia. */
+
+/* ── Resumen oscuro ── */
+.fin-hero{gap:0;margin-bottom:18px;padding:22px 8px;background:#0f1a2b;border-radius:22px;box-shadow:0 12px 28px -18px rgba(5,10,26,.7);position:relative;overflow:hidden;}
+.fin-hero::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#f59300,#ffb81c 55%,#22d39a);}
+.fin-hero .fin-kpi{background:transparent;border:0;border-radius:0;box-shadow:none;padding:6px 22px;border-left:1px solid #26354d;}
+.fin-hero .fin-kpi:first-child{border-left:0;}
+.fin-hero .fin-kpi-label{color:#94a3b8;font-size:11.5px;letter-spacing:.07em;}
+.fin-hero .fin-kpi-ico{width:30px;height:30px;border-radius:9px;}
+.fin-hero .fin-kpi.good .fin-kpi-ico{background:rgba(34,211,154,.14);color:#22d39a;}
+.fin-hero .fin-kpi.bad .fin-kpi-ico{background:rgba(255,84,112,.14);color:#ff6b86;}
+.fin-hero .fin-kpi.profit .fin-kpi-ico{background:rgba(255,184,28,.16);color:#ffb81c;}
+.fin-hero .fin-kpi-val{font-family:'IBM Plex Mono',monospace;font-size:clamp(17px,2.2vw,28px);font-weight:700;letter-spacing:-.02em;}
+.fin-hero .fin-kpi.good .fin-kpi-val{color:#22d39a;}
+.fin-hero .fin-kpi.bad .fin-kpi-val{color:#ff6b86;}
+.fin-hero .fin-kpi.profit{background:transparent;color:inherit;}
+.fin-hero .fin-kpi.profit .fin-kpi-label{color:#94a3b8;}
+.fin-hero .fin-kpi.profit .fin-kpi-val{color:#ffb81c;font-size:clamp(18px,2.4vw,30px);}
+.fin-hero .fin-kpi-sub,.fin-hero .fin-kpi.profit .fin-kpi-sub{color:#8fa0b8;}
+.fin-hero .fin-cob-nums .a{color:#22d39a;font-size:16px;}
+.fin-hero .fin-cob-nums .b{color:#8fa0b8;}
+.fin-hero .fin-cob-track{background:#26354d;height:7px;}
+.fin-hero .fin-cob-foot{color:#94a3b8;}
+.fin-hero .fin-cob-foot .warn{color:#ff9a5c;}
+
+/* ── Selector de máquina ── */
+.fin-machinebar{border-radius:16px;padding:12px 18px;border-color:#e3e8ef;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.fin-machinebar label{letter-spacing:.07em;}
+.fin-machinebar .fin-select{border-radius:12px;min-height:42px;}
+
+/* ── Filtros y pestañas ── */
+.fin-filters{margin-bottom:16px;}
+.fin-filters .fchip{min-height:36px;padding:0 16px;font-size:13px;}
+.fin-filters .fchip.on{background:#0f1a2b;border-color:#0f1a2b;}
+.fin-tabs{gap:6px;padding:6px;margin-bottom:16px;background:#fff;border:1px solid #e3e8ef;border-radius:16px;width:fit-content;max-width:100%;overflow-x:auto;}
+.fin-tab{min-height:42px;padding:0 16px;border-radius:11px;border:0;margin:0;color:#64748b;font-size:14px;white-space:nowrap;}
+.fin-tab:hover{background:#f1f5f9;color:#0f1b2d;}
+.fin-tab.on{background:#0f1a2b;color:#fff;border:0;}
+.fin-tab.on .n{background:rgba(255,184,28,.18);color:#ffb81c;}
+.fin-tab .n{font-weight:600;}
+.fin-tab:focus-visible,.fchip:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+
+/* ── Panel de registros ── */
+.fin-panel{border-radius:20px;border-color:#e3e8ef;}
+.fin-ledger-head{padding:18px 22px;}
+.fin-ledger-head h2{font-size:20px;}
+.fin-search{border-radius:12px;min-height:40px;padding:0 14px;}
+.fin-lrow-head{background:#f8fafc;padding:11px 22px;}
+.fin-lrow{padding:13px 22px;}
+.fin-lrow:hover{background:#fafbfd;}
+.fin-money{font-size:13.5px;}
+.fin-catpill{padding:4px 11px;}
+.fin-iconbtn{width:32px;height:32px;border-radius:9px;}
+
+/* ── Formulario de registro ── */
+.fin-compose{border-radius:20px;}
+.fin-compose-head{background:#0f1a2b;border-bottom:0;padding:18px 22px;}
+.fin-compose-head h2{color:#fff;font-size:22px;}
+.fin-compose-x{background:rgba(255,255,255,.08);color:#cbd5e1;border-radius:10px;}
+.fin-compose-body{padding:20px 22px;}
+.fin-input,.fin-select{border-radius:12px;min-height:46px;border-color:#cfd8e3;}
+.fin-fld label{letter-spacing:.07em;}
+.fin-btn{border-radius:12px;min-height:46px;}
+.fin-btn.pri{background:#ffb81c;border-color:#ffb81c;}
+.fin-compose-actions{padding:14px 22px;}
+
+.fin-note{border-radius:14px;border-color:#c9daf8;background:#f3f7ff;}
+
+/* ── Celular ── */
+@media (max-width:760px){
+    .fin-hero{grid-template-columns:1fr 1fr;padding:16px 4px;gap:14px 0;}
+    .fin-hero .fin-kpi{padding:4px 14px;}
+    .fin-hero .fin-kpi:nth-child(odd){border-left:0;}
+    .fin-hero .fin-kpi-val{font-size:clamp(16px,5.4vw,22px);}
+    .fin-hero .fin-kpi.profit .fin-kpi-val{font-size:clamp(17px,5.6vw,23px);}
+    .fin-tabs{width:100%;}
+    .fin-ledger-head,.fin-lrow{padding-left:16px;padding-right:16px;}
+}
+
+/* ── Modo oscuro ── */
+body.dark .fin-tabs{background:#1e293b;border-color:#334155;}
+body.dark .fin-tab:hover{background:#0f172a;color:#f1f5f9;}
+body.dark .fin-tab.on{background:#f5a623;color:#1a1305;}
+body.dark .fin-tab.on .n{background:rgba(0,0,0,.15);color:#1a1305;}
+body.dark .fin-lrow-head{background:#162033;}
+body.dark .fin-lrow:hover{background:#243244;}
+body.dark .fin-filters .fchip.on{background:#f5a623;border-color:#f5a623;}
+body.dark .fin-note{background:#16223a;border-color:#27406e;}

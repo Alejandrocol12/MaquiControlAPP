@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Monto from '../../utils/Monto';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import { useSortable } from '../../utils/useSortable';
 import {
@@ -26,6 +27,7 @@ import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
 import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto } from '../Gastos/DestinoGasto';
 import { quienPago, SIN_ASIGNAR } from '../../utils/gastosPersona';
 import './Finanzas.css';
+import './FinanzasModerno.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -348,22 +350,22 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 <div className="fin-hero">
                     <div className="fin-kpi good">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Ingresos</span><span className="fin-kpi-ico"><TrendingUp size={14} /></span></div>
-                        <div className="fin-kpi-val fin-num">{fmt(totalIngresos)}</div>
+                        <div className="fin-kpi-val fin-num"><Monto v={totalIngresos} /></div>
                         <div className="fin-kpi-sub">{ingFiltrados.length} registros</div>
                     </div>
                     <div className="fin-kpi bad">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Egresos</span><span className="fin-kpi-ico"><TrendingDown size={14} /></span></div>
-                        <div className="fin-kpi-val fin-num">{fmt(totalEgresos)}</div>
+                        <div className="fin-kpi-val fin-num"><Monto v={totalEgresos} /></div>
                         <div className="fin-kpi-sub">{gasFiltrados.length} gastos{salariosEgreso.length > 0 ? ` + ${salariosEgreso.length} nóminas` : ''}</div>
                     </div>
                     <div className="fin-kpi profit">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Utilidad</span><span className="fin-kpi-ico"><BarChart2 size={14} /></span></div>
-                        <div className="fin-kpi-val fin-num">{fmt(utilidad)}</div>
+                        <div className="fin-kpi-val fin-num"><Monto v={utilidad} /></div>
                         <div className="fin-kpi-sub">margen del {margen}%</div>
                     </div>
                     <div className="fin-kpi cobranza">
                         <div className="fin-kpi-top"><span className="fin-kpi-label">Cobranza</span><span className="fin-kpi-ico" style={{ background: 'rgba(41,128,185,.1)', color: '#2980b9' }}><CreditCard size={14} /></span></div>
-                        <div className="fin-cob-nums"><span className="a fin-num">{fmt(totalCobrado)}</span><span className="b fin-num">de {fmt(totalContratado)}</span></div>
+                        <div className="fin-cob-nums"><span className="a fin-num"><Monto v={totalCobrado} /></span><span className="b fin-num">de <Monto v={totalContratado} /></span></div>
                         <div className="fin-cob-track"><div className="fin-cob-fill" style={{ width: `${Math.min(pctCobrado, 100)}%` }} /></div>
                         <div className="fin-cob-foot"><span>{pctCobrado}% cobrado</span>{totalPorCobrar > 0 && <span className="warn">{fmt(totalPorCobrar)} por cobrar</span>}</div>
                     </div>
