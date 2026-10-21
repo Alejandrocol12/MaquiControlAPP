@@ -133,3 +133,11 @@ body.dark .fc-m-resumen,body.dark .fc-gastos{background:#0f172a;border-color:#33
 body.dark .fc-m-pie{background:#1e293b;}
 body.dark .fc-campo input,body.dark .fc-imprimir{background:#0f172a;border-color:#334155;color:#f1f5f9;}
 body.dark .fc-campo,body.dark .fc-cancelar,body.dark .fc-desglose>footer{color:#cbd5e1;}
+
+/* ── Gastos por corte ── */
+.fc-tr.gas{grid-template-columns:90px minmax(0,1.6fr) 110px 130px 110px minmax(96px,auto);}
+.fc-tr .rj,.fc-hero-datos b.rj{color:#e11d48;font:700 13.5px 'IBM Plex Mono',monospace;}
+.fc-hero-datos b.rj{color:#ff6b86;font-size:18px;}
+.fc-btn-liq.gas{display:inline-flex;align-items:center;gap:8px;}
+.fc-tr .mq-catpill{white-space:nowrap;}
+@media (max-width:820px){.fc-tr.gas{grid-template-columns:1fr 1fr;}}
