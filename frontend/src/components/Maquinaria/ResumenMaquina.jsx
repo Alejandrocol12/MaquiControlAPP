@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TrendingUp, TrendingDown, Clock, ArrowUpRight, Target, Pencil, Check, X } from 'lucide-react';
 import { fmtHoras } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './ResumenMaquina.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -16,17 +17,17 @@ export function TarjetasPeriodo({ ingresos, gastos, utilidad, horas, diasTrabaja
         <div className="rs-tarjetas">
             <button type="button" className="rs-tarjeta" onClick={() => onIr(2)} aria-label="Ver ingresos">
                 <span className="rs-top"><span>Ingresos periodo</span><i className="rs-ico verde"><TrendingUp size={16} aria-hidden="true" /></i></span>
-                <b className="rs-valor">{fmt(ingresos)}</b>
+                <b className="rs-valor"><Monto v={ingresos} /></b>
                 <span className="rs-pie"><span>{periodoNombre || 'sin periodo activo'}</span>{valorHora > 0 && <em className="verde">+{fmt(valorHora)}/h</em>}</span>
             </button>
             <button type="button" className="rs-tarjeta" onClick={() => onIr(3)} aria-label="Ver gastos">
                 <span className="rs-top"><span>Gastos periodo</span><i className="rs-ico rojo"><TrendingDown size={16} aria-hidden="true" /></i></span>
-                <b className="rs-valor rojo">{fmt(gastos)}</b>
+                <b className="rs-valor rojo"><Monto v={gastos} /></b>
                 <span className="rs-pie"><span>acumulados en obra</span>{ingresos > 0 && <em className="rojo">{pct(pctGasto)} de ingresos</em>}</span>
             </button>
             <button type="button" className="rs-tarjeta util" onClick={() => onIr(5)} aria-label="Ver periodo y cortes">
                 <span className="rs-top"><span>Utilidad neta</span><i className="rs-ico claro"><ArrowUpRight size={16} aria-hidden="true" /></i></span>
-                <b className="rs-valor">{fmt(utilidad)}</b>
+                <b className="rs-valor"><Monto v={utilidad} /></b>
                 <span className="rs-pie"><span>ingresos − gastos</span>{ingresos > 0 && <em className="pastilla">{pct(margen)} margen</em>}</span>
             </button>
             <button type="button" className="rs-tarjeta" onClick={() => onIr(1)} aria-label="Ver trabajo">

@@ -32,3 +32,23 @@
     .cc-linea b{font-size:22px;}
     .cc-linea.util b{font-size:26px;}
 }
+
+/* Celular: tarjeta más compacta */
+@media (max-width:760px){
+    .cc{padding:20px 16px 16px;gap:14px;border-radius:20px;}
+    .cc::before{height:4px;}
+    .cc-chip{font-size:11.5px;padding:4px 10px;}
+    .cc-prev{font-size:12px;}
+    .cc-horas{font-size:40px;margin:10px 0 2px;}
+    .cc-horas small{font-size:18px;}
+    .cc-desde{font-size:12.5px;margin-bottom:12px;}
+    .cc-boton{width:100%;justify-content:center;min-height:44px;font-size:14px;}
+    .cc-der{padding-top:12px;gap:10px;}
+    .cc-linea{font-size:13px;gap:10px;}
+    .cc-linea b{font-size:19px;}
+    .cc-linea.util{padding-top:10px;}
+    .cc-linea.util b{font-size:22px;}
+    .cc-linea.util strong{font-size:14px;}
+    .cc-linea.util small{font-size:11px;margin-top:3px;}
+    .cc-enlace{font-size:13px;}
+}

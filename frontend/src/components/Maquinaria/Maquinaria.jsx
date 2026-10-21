@@ -1066,7 +1066,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <div className="tw-grid">
                             <div className="tw-form">
                             <div className="tg">
-                                {TODOS_TIPOS.map(t => {
+                                {TODOS_TIPOS.filter(t => tiposPermitidos.includes(t.key) || (editandoIngresoId && tipoTrabajo === t.key)).map(t => {
                                     const activo = tiposPermitidos.includes(t.key);
                                     return (
                                         <div key={t.key} className={`tc ${!activo || editandoIngresoId ? 'dis' : tipoTrabajo === t.key ? 'sel' : ''} ${editandoIngresoId && tipoTrabajo === t.key ? 'sel' : ''}`}

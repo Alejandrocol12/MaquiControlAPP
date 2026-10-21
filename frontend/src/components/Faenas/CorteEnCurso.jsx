@@ -3,9 +3,9 @@ import { Scissors, ChevronRight, ArrowUpRight } from 'lucide-react';
 import { getCortes } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { diaSiguiente, ordenarCortes, resumenTramo, fmtHoras, resumenGastosTramo, leerContarOperador } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './CorteEnCurso.css';
 
-const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
 
 // Tarjeta del corte en curso de un periodo: las horas y la plata que van desde el último corte.
 // Para hacer el corte se va a la sección Cortes (onVer); los gastos del corte llevan a Gastos (onVerGastos).
@@ -48,17 +48,17 @@ function CorteEnCurso({ faena, ingresos, gastos = [], onVer, onVerGastos }) {
             <div className="cc-der">
                 <div className="cc-linea">
                     <span>Por cobrar en este corte:</span>
-                    <b className="vd">{fmt(enCurso.total)}</b>
+                    <b className="vd"><Monto v={enCurso.total} /></b>
                 </div>
                 <div className="cc-linea">
                     {onVerGastos
                         ? <button type="button" className="cc-enlace" onClick={onVerGastos}>Gastos en este corte ({gas.n}) <ArrowUpRight size={13} aria-hidden="true" /></button>
                         : <span>Gastos en este corte ({gas.n})</span>}
-                    <b className="rj">{fmt(gas.total)}</b>
+                    <b className="rj"><Monto v={gas.total} /></b>
                 </div>
                 <div className="cc-linea util">
                     <span><strong>Utilidad hasta hoy:</strong>{enCurso.total > 0 && <small>Margen neto {(Math.round(margen * 10) / 10).toLocaleString('es-CO')}%</small>}</span>
-                    <b className={util < 0 ? 'rj' : 'vd2'}>{fmt(util)}</b>
+                    <b className={util < 0 ? 'rj' : 'vd2'}><Monto v={util} /></b>
                 </div>
             </div>
         </section>

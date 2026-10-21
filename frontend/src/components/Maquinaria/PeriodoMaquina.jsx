@@ -1,6 +1,7 @@
 import { Briefcase, Calendar, Plus, AlertTriangle } from 'lucide-react';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { fmtHoras } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './PeriodoMaquina.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -26,9 +27,9 @@ export function PeriodoHero({ faena, ingresos, gastos, horas, diasCampo, promedi
                 </div>
             </div>
             <div className="pm-datos">
-                <div><span>Ingresos</span><b className="vd">{fmt(ingresos)}</b></div>
-                <div><span>Gastos</span><b className="rj">{fmt(gastos)}</b></div>
-                <div><span>Utilidad</span><b className={util < 0 ? 'rj' : 'na'}>{fmt(util)}</b></div>
+                <div><span>Ingresos</span><b className="vd"><Monto v={ingresos} /></b></div>
+                <div><span>Gastos</span><b className="rj"><Monto v={gastos} /></b></div>
+                <div><span>Utilidad</span><b className={util < 0 ? 'rj' : 'na'}><Monto v={util} /></b></div>
                 <div><span>Horas</span><b className="am">{fmtHoras(horas)} h</b></div>
             </div>
             {promedioDias && (

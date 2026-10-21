@@ -4,6 +4,7 @@ import { getCortes, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { diaSiguiente, ordenarCortes, nombreCorte, enRango, hoyISO } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './FacturacionPorCorte.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -72,14 +73,14 @@ export default function GastosPorCorte({ faena, gastos, ingresos, externos, suel
             <section className="fc-hero gas">
                 <div className="fc-hero-main">
                     <span className="fc-eyebrow">Control de gastos de operación</span>
-                    <b className="fc-hero-total">{fmt(totalGas)}</b>
+                    <b className="fc-hero-total"><Monto v={totalGas} /></b>
                     <span className="fc-hero-sub">Acumulado total de gastos en el proyecto <b>{faena.nombreObra}</b></span>
                 </div>
                 <div className="fc-hero-datos">
                     <div><span>Gastos registrados</span><b className="am">{gastos.length}</b></div>
-                    <div><span>Gasto promedio</span><b>{gastos.length ? fmt(totalGas / gastos.length) : '—'}</b></div>
+                    <div className="solo-pc"><span>Gasto promedio</span><b>{gastos.length ? fmt(totalGas / gastos.length) : '—'}</b></div>
                     <div><span>% de los ingresos</span><b className="rj">{totalIng > 0 ? pct((totalGas / totalIng) * 100) : '—'}</b></div>
-                    <div><span>Categoría principal</span><b>{catTop ? `${catTop[0]} · ${fmt(catTop[1])}` : '—'}</b></div>
+                    <div className="solo-pc"><span>Categoría principal</span><b>{catTop ? `${catTop[0]} · ${fmt(catTop[1])}` : '—'}</b></div>
                 </div>
             </section>
 
@@ -122,7 +123,7 @@ export default function GastosPorCorte({ faena, gastos, ingresos, externos, suel
                                         </div>
                                     </div>
                                     <div className="fc-dato"><span>Gastos</span><b>{g.items.length}</b></div>
-                                    <div className="fc-dato"><span>Total gastado</span><b className="rj">{fmt(g.total)}</b></div>
+                                    <div className="fc-dato"><span>Total gastado</span><b className="rj"><Monto v={g.total} /></b></div>
                                     <div className="fc-dato"><span>% de los ingresos</span><b>{g.ing > 0 ? pct((g.total / g.ing) * 100) : '—'}</b></div>
                                 </div>
                                 {ab && (g.items.length === 0

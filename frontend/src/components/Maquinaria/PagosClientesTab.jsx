@@ -6,6 +6,7 @@ import { ErrorCampo } from '../../utils/useErrores';
 import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { nombreCorte, ordenarCortes } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './PagosClientesTab.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -33,12 +34,8 @@ export default function PagosClientesTab({ maq, pagos, modalAbierto, editando, f
 
     const recibido = pagos.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
     const porCobrar = pagos.reduce((a, p) => a + (Number(p.saldoPendiente) || 0), 0);
-    const facturado = pagos.reduce((a, p) => a + (Number(p.valorTotal) || 0), 0);
     const conSaldo = pagos.filter(p => (Number(p.saldoPendiente) || 0) > 0).length;
     const conAbono = pagos.filter(p => (Number(p.valorPagado) || 0) > 0).length;
-    const porCliente = {};
-    pagos.forEach(p => { if (p.cliente) porCliente[p.cliente] = (porCliente[p.cliente] || 0) + (Number(p.valorTotal) || 0); });
-    const principal = Object.entries(porCliente).sort((a, b) => b[1] - a[1])[0];
     const ordenados = [...pagos].sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || '')));
 
     return (
@@ -46,18 +43,13 @@ export default function PagosClientesTab({ maq, pagos, modalAbierto, editando, f
             <div className="pc-tarjetas">
                 <div className="pc-tarjeta">
                     <span className="pc-etq">Pagos recibidos</span>
-                    <b className="pc-valor vd">{fmt(recibido)}</b>
+                    <b className="pc-valor vd"><Monto v={recibido} /></b>
                     <small>{conAbono} cobro{conAbono === 1 ? '' : 's'} con pagos registrados</small>
                 </div>
                 <div className="pc-tarjeta">
                     <span className="pc-etq">Saldos por cobrar</span>
-                    <b className="pc-valor na">{fmt(porCobrar)}</b>
+                    <b className="pc-valor na"><Monto v={porCobrar} /></b>
                     <small>{conSaldo} cobro{conSaldo === 1 ? '' : 's'} con saldo pendiente</small>
-                </div>
-                <div className="pc-tarjeta">
-                    <span className="pc-etq">Cliente principal</span>
-                    <b className="pc-valor cl">{principal ? principal[0] : 'Sin cobros todavía'}</b>
-                    <small>{principal ? `${pagos.length} cobro${pagos.length === 1 ? '' : 's'} · facturado ${fmt(facturado)}` : 'Registra el primer pago'}</small>
                 </div>
             </div>
 

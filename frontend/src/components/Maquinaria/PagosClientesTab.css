@@ -32,7 +32,7 @@
 .pc-acc button:hover{background:#eef2f7;color:#0f1b2d;}
 .pc-acc button:focus-visible,.pc-nuevo:focus-visible,.pc-modal button:focus-visible,.pc-in:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
 
-.pc-fondo{position:fixed;inset:0;z-index:1000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;}
+.pc-fondo{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;}
 .pc-modal{width:100%;max-width:560px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,.35);color:#0f1b2d;}
 .pc-m-cab{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;background:#0f1a2b;color:#fff;}
 .pc-m-cab h3{margin:0;font-size:18px;}

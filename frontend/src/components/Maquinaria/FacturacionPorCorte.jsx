@@ -7,6 +7,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import {
     hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, enRango, fmtHoras, resumenGastosTramo, leerContarOperador,
 } from '../../utils/cortes';
+import Monto from '../../utils/Monto';
 import './FacturacionPorCorte.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -87,15 +88,15 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
             <section className="fc-hero">
                 <div className="fc-hero-main">
                     <span className="fc-eyebrow">Liquidación y facturación de maquinaria</span>
-                    <b className="fc-hero-total">{fmt(totalTot)}</b>
+                    <b className="fc-hero-total"><Monto v={totalTot} /></b>
                     <span className="fc-hero-sub">Acumulado total de ingresos en el proyecto <b>{faena.nombreObra}</b></span>
                 </div>
                 <div className="fc-hero-datos">
                     <div><span>Horas facturables</span><b className="am">{fmtHoras(horasTot)} h</b></div>
                     <div><span>Días trabajados</span><b>{diasTrab}</b></div>
                     <div><span>Promedio por día</span><b>{diasTrab ? fmtHoras(horasTot / diasTrab) : '—'} h</b></div>
-                    <div><span>Tarifa pactada</span><b className="vd">{fmt(tarifa)}/h</b></div>
-                    <div><span>Cliente principal</span><b>{cliente}</b></div>
+                    <div className="solo-pc"><span>Tarifa pactada</span><b className="vd">{fmt(tarifa)}/h</b></div>
+                    <div className="solo-pc"><span>Cliente principal</span><b>{cliente}</b></div>
                 </div>
             </section>
 
@@ -138,8 +139,8 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
                                         </div>
                                     </div>
                                     <Dato etq="Horas" v={`${fmtHoras(g.horas)} h`} sub={`${g.dias} día${g.dias === 1 ? '' : 's'}${g.dias > 0 && g.horas > 0 ? ` · ${fmtHoras(g.horas / g.dias)} h/día` : ''}`} />
-                                    <Dato etq="Valor facturado" v={fmt(g.total)} cls="vd" />
-                                    <Dato etq="Utilidad neta" v={fmt(g.util)} cls={g.util < 0 ? 'rj' : 'na'} />
+                                    <Dato etq="Valor facturado" v={<Monto v={g.total} />} cls="vd" />
+                                    <Dato etq="Utilidad neta" v={<Monto v={g.util} />} cls={g.util < 0 ? 'rj' : 'na'} />
                                 </div>
                                 {ab && <TablaIngresos items={g.items} horas={g.horas} total={g.total} onEditar={onEditar} onEliminar={onEliminar} />}
                             </div>
