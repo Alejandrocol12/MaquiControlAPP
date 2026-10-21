@@ -63,3 +63,7 @@ body.dark .tw .tc.sel{background:#2a2418;border-color:#f5a623;}
     .tw .tw-card{grid-template-columns:1fr;}
     .tw .tw-resumen{grid-column:1;grid-row:3;}
 }
+
+/* El botón de registrar va dentro del panel oscuro: sin la barra blanca pegajosa que usan los demás formularios en el celular */
+.tw .tw-resumen .fa{position:static;bottom:auto;background:transparent;box-shadow:none;border-radius:0;margin:auto 0 0;padding:0;border:0;}
+.tw .tw-resumen .fa .bp{flex:1;}
