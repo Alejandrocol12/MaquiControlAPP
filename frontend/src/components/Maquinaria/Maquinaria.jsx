@@ -1044,7 +1044,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 0 — RESUMEN */}
                 {tab === 0 && (
                     <>
-                        {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onVer={() => setTab(5)} />}
+                        {faenaActiva && <CorteEnCurso faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onVer={() => setTab(5)} onVerGastos={() => setTab(3)} />}
 
                         <TarjetasPeriodo ingresos={totalIngresos} gastos={totalGastos} utilidad={totalIngresos - totalGastos}
                             horas={horasFaena} diasTrabajados={diasTrabajadosFaena} periodoNombre={faenaActiva?.nombreObra}

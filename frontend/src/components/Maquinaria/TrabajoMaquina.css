@@ -52,3 +52,14 @@ body.dark .tw-cab h3,body.dark .tw .tnom{color:#f1f5f9;}
 body.dark .tw .fl{color:#cbd5e1;}
 body.dark .tw .tc{background:#0f172a;border-color:#334155;}
 body.dark .tw .tc.sel{background:#2a2418;border-color:#f5a623;}
+
+/* La zona oscura ocupa todo el alto de la tarjeta, desde arriba hasta abajo */
+.tw .tw-card{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);}
+.tw .tw-grid{display:contents;}
+.tw .tw-cab{grid-column:1;grid-row:1;}
+.tw .tw-form{grid-column:1;grid-row:2;}
+.tw .tw-resumen{grid-column:2;grid-row:1 / span 2;padding-top:28px;}
+@media (max-width:900px){
+    .tw .tw-card{grid-template-columns:1fr;}
+    .tw .tw-resumen{grid-column:1;grid-row:3;}
+}
