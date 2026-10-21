@@ -110,3 +110,85 @@ body.dark .pr-cuerpo .fl{color:#cbd5e1;}
 body.dark .pr-cuerpo .fi,body.dark .pr-cuerpo .fsel{background:#0f172a;border-color:#334155;color:#f1f5f9;}
 body.dark .pr-pie{background:#1e293b;border-color:#334155;}
 body.dark .pr-cancelar{color:#cbd5e1;}
+
+/* ═══ Detalle del periodo: tarjetas de resumen y cortes ═══ */
+
+/* Tarjetas de ingresos, horas, gastos, pago operador y utilidad */
+.pe-panel .pe-breakdown{grid-template-columns:repeat(5,minmax(0,1fr));}
+.pe-panel .pe-bcard{background:#fff;border:1px solid #e3e8ef;border-left:1px solid #e3e8ef;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.pe-panel .pe-bcard-l{flex-direction:row-reverse;justify-content:space-between;align-items:center;font-size:11.5px;letter-spacing:.06em;color:#64748b;}
+.pe-panel .pe-bcard-l svg{box-sizing:content-box;width:15px;height:15px;padding:8px;border-radius:10px;background:#eef2f7;color:#64748b;}
+.pe-panel .pe-bcard.good .pe-bcard-l svg{background:#e6f8ee;color:#16a05a;}
+.pe-panel .pe-bcard.bad .pe-bcard-l svg{background:#fde8ec;color:#e11d48;}
+.pe-panel .pe-bcard.info .pe-bcard-l svg{background:#e7f0fe;color:#2563eb;}
+.pe-panel .pe-bcard-v{font:700 clamp(18px,1.7vw,24px) 'IBM Plex Mono',monospace;letter-spacing:-.02em;overflow-wrap:anywhere;}
+.pe-panel .pe-bcard.gold{background:linear-gradient(135deg,#f79a0b,#c2570a);border:0;}
+.pe-panel .pe-bcard.gold .pe-bcard-l{color:rgba(255,255,255,.9);}
+.pe-panel .pe-bcard.gold .pe-bcard-l svg{background:rgba(255,255,255,.25);color:#fff;}
+.pe-panel .pe-bcard.gold .pe-bcard-v{color:#fff !important;}
+
+/* Caja de cortes */
+.ct-box{border-radius:20px;border-color:#e3e8ef;padding:22px 24px;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.ct-head{margin-bottom:14px;}
+.ct-head b{font-size:17px;font-weight:700;}
+.ct-btn{min-height:44px;padding:0 20px;border-radius:12px;font-size:14.5px;font-weight:700;background:#ffb81c;color:#1a1305;}
+.ct-check{font-size:14px;min-height:36px;align-items:center;}
+.ct-check small{display:block;color:#94a3b8;font-size:12px;}
+.ct-form{border-radius:16px;padding:18px;background:#f8fafc;}
+.ct-calc{border-radius:14px;}
+.ct-acts .bp,.ct-acts .bs{min-height:44px;border-radius:12px;}
+.ct-aviso{border-radius:14px;}
+
+/* Resumen cobrado / por cobrar / sin cortar */
+.ct-sum{gap:14px;margin:16px 0 12px;}
+.ct-sum-t{border-radius:16px;padding:14px 18px;gap:4px;background:#fff;border-color:#e3e8ef;}
+.ct-sum-t span{letter-spacing:.07em;}
+.ct-sum-t b{font:700 clamp(18px,1.9vw,26px) 'IBM Plex Mono',monospace;letter-spacing:-.02em;}
+.ct-sum-t.ok b{color:#12a05b;}
+.ct-sum-t.warn b{color:#e8710a;}
+.ct-sbar{height:10px;margin-bottom:18px;}
+.ct-sbar i.ok{background:#22c55e;} .ct-sbar i.warn{background:#f59e0b;} .ct-sbar i.gold{background:#ffb81c;}
+
+/* Tarjetas de cada corte */
+.ct-cards{gap:16px;}
+.ct-box .ct-card{border-radius:18px;border:1px solid #e3e8ef;border-top:4px solid #cbd5e1;padding:18px 20px;gap:6px;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.ct-box .ct-card.ok{border-top-color:#22c55e;}
+.ct-box .ct-card.warn{border-top-color:#f59e0b;}
+.ct-box .ct-card.bad{border-top-color:#e11d48;}
+.ct-card-top b{font:700 20px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.02em;}
+.ct-card-f{font-size:12.5px;}
+.ct-card-big{font:700 clamp(22px,2vw,28px) 'IBM Plex Mono',monospace;letter-spacing:-.02em;margin:4px 0 6px;}
+.ct-card-r{padding:8px 0;font-size:13.5px;}
+.ct-card-r b{font-size:13.5px;}
+.ct-card-r b.pos{color:#12a05b;} .ct-card-r b.neg{color:#e11d48;}
+.ct-card-a{margin-top:8px;gap:8px;}
+.ct-link{min-height:34px;padding:0 12px;border-radius:10px;font-size:12.5px;display:inline-flex;align-items:center;gap:5px;}
+.ct-link:hover{color:#0f1b2d;border-color:#94a3b8;}
+
+/* Corte en curso: oscuro, como la tarjeta del Resumen */
+.ct-box .ct-card.curso{background:#0f1a2b;border-color:#0f1a2b;border-top-color:#ffb81c;color:#a8b6ca;}
+.ct-box .ct-card.curso .ct-card-top b,.ct-box .ct-card.curso .ct-card-big{color:#fff;}
+.ct-box .ct-card.curso .ct-card-f{color:#8fa0b8;}
+.ct-box .ct-card.curso .ct-card-r{border-bottom-color:#26354d;color:#a8b6ca;}
+.ct-box .ct-card.curso .ct-card-r b{color:#fff;}
+.ct-box .ct-card.curso .ct-card-r b.pos{color:#22d39a;}
+.ct-box .ct-card.curso .ct-card-r b.neg{color:#ff6b86;}
+.ct-box .ct-card.curso .ct-link{background:transparent;border-color:#3b4f66;color:#cbd5e1;}
+.ct-box .ct-card.curso .ct-link:hover{color:#fff;border-color:#ffb81c;}
+.ct-box .ct-card.curso .ct-btn{background:#ffb81c;color:#1a1305;min-height:36px;padding:0 14px;font-size:13px;}
+.ct-box .ct-card.curso .ct-det{background:#16253b;border-color:#26354d;}
+.ct-box .ct-card.curso .ct-gl{border-bottom-color:#26354d;color:#cbd5e1;}
+.ct-box .ct-card.curso .ct-gl small,.ct-box .ct-card.curso .ct-gf{color:#8fa0b8;}
+
+@media (max-width:1100px){.pe-panel .pe-breakdown{grid-template-columns:repeat(2,minmax(0,1fr));}.pe-panel .pe-bcard.gold{grid-column:1 / -1;}}
+@media (max-width:760px){
+    .ct-box{padding:16px;}
+    .ct-sum{grid-template-columns:1fr;gap:10px;}
+    .ct-btn{width:auto;}
+    .pe-panel .pe-bcard{padding:14px;}
+}
+
+body.dark .pe-panel .pe-bcard,body.dark .ct-sum-t,body.dark .ct-box .ct-card{background:#1e293b;border-color:#334155;}
+body.dark .pe-panel .pe-bcard.gold{background:linear-gradient(135deg,#f79a0b,#c2570a);border:0;}
+body.dark .ct-box .ct-card.curso{background:#0b1425;border-color:#0b1425;}
+body.dark .ct-form{background:#162033;}
