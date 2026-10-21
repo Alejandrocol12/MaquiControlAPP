@@ -1072,7 +1072,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 2 — INGRESOS */}
                 {tab === 2 && (
                     <>
-                        {faenaActiva && <FacturacionPorCorte maq={maq} faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} />}
+                        {faenaActiva && <FacturacionPorCorte maq={maq} faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos}
+                            onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />}
+                        {faenaActiva && ingFaena.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="Este periodo todavía no tiene ingresos" texto="Registra un trabajo o toca un día del calendario para empezar." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
+                        {/* Sin periodo activo se conserva la lista completa con su filtro de fechas */}
+                        {!faenaActiva && <>
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
                             fechaHasta={fechaHastaMaq} setFechaHasta={setFechaHastaMaq} />
@@ -1083,6 +1087,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                         </div>
                         <AgrupadoPorCorte modo="ingresos" items={ingOrdenadosF} faenas={faenasMaq} onEditar={editarIngreso} onEliminar={(i) => eliminarIngreso(i.id)} />
                         {ingOrdenadosF.length === 0 && <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos en este rango" texto="Prueba con otro filtro de fechas o registra un trabajo nuevo." accion={{ label: 'Registrar trabajo', onClick: () => setTab(1) }} />}
+                        </>}
                     </>
                 )}
 

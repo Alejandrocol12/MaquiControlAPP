@@ -17,7 +17,35 @@
 .fc-desglose header p{margin:3px 0 0;font-size:13px;color:#64748b;}
 .fc-btn-liq{min-height:44px;padding:0 20px;border:0;border-radius:12px;background:#ffb81c;color:#1a1305;font:700 14.5px 'Barlow',sans-serif;cursor:pointer;}
 .fc-fila{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:16px;align-items:center;padding:16px 24px;border-top:1px solid #eef2f7;}
-.fc-fila.curso{background:#fffaf0;}
+.fc-grupo{border-top:1px solid #eef2f7;}
+.fc-grupo .fc-fila{border-top:0;cursor:pointer;}
+.fc-grupo .fc-fila:hover{background:#f8fafc;}
+.fc-grupo .fc-fila:focus-visible{outline:3px solid #4C8DFF;outline-offset:-3px;}
+.fc-grupo.curso{background:#fffaf0;}
+.fc-grupo.curso .fc-fila:hover{background:#fff5e0;}
+.fc-nombre{display:flex;gap:10px;align-items:flex-start;}
+.fc-chev{margin-top:4px;color:#94a3b8;flex-shrink:0;transition:transform .15s;}
+.fc-grupo.open .fc-chev{transform:rotate(90deg);}
+.fc-lapiz{border:0;background:transparent;color:#94a3b8;cursor:pointer;padding:4px;margin-right:6px;border-radius:6px;}
+.fc-lapiz:hover{background:#eef2f7;color:#334155;}
+.fc-ren{display:inline-flex;gap:4px;align-items:center;}
+.fc-ren input{min-height:34px;padding:0 8px;border:1px solid #cfd8e3;border-radius:8px;font:500 14px 'Barlow',sans-serif;}
+.fc-ren button{width:32px;height:32px;border:1px solid #dbe1e9;border-radius:8px;background:#fff;color:#334155;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.fc-dato small{display:block;margin-top:3px;font-size:11.5px;color:#94a3b8;}
+.fc-tabla{margin:0 24px 18px;border:1px solid #e3e8ef;border-radius:14px;overflow:hidden;background:#fff;}
+.fc-tr{display:grid;grid-template-columns:100px minmax(0,1.6fr) 80px minmax(0,1fr) 120px 72px;gap:12px;align-items:center;padding:10px 14px;border-top:1px solid #eef2f7;font-size:13.5px;}
+.fc-tr:first-child{border-top:0;}
+.fc-th{background:#f8fafc;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#64748b;}
+.fc-tr .r{text-align:right;}
+.fc-tr .vd{color:#12a05b;font:700 13.5px 'IBM Plex Mono',monospace;}
+.fc-tr small{color:#94a3b8;}
+.fc-horo{font:500 12px 'IBM Plex Mono',monospace;color:#64748b;}
+.fc-sub{background:#f8fafc;}
+.fc-acc{display:flex;gap:4px;justify-content:flex-end;}
+.fc-acc button{width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.fc-acc button:hover{background:#eef2f7;color:#0f1b2d;}
+.fc-acc button:focus-visible{outline:3px solid #4C8DFF;}
+.fc-sinreg{padding:0 24px 18px;}
 .fc-nombre b{font:700 17px 'IBM Plex Mono',monospace;color:#0f1b2d;margin-right:10px;}
 .fc-nombre small{display:block;margin-top:6px;font-size:12.5px;color:#64748b;}
 .fc-dato{text-align:right;}
@@ -75,6 +103,12 @@
 @keyframes fc-vuelta{to{transform:rotate(360deg);}}
 
 @media (max-width:820px){
+    .fc-tabla{margin:0 12px 14px;}
+    .fc-th{display:none;}
+    .fc-tr{grid-template-columns:1fr 1fr;gap:6px 12px;}
+    .fc-tr>span::before{content:attr(data-l);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;}
+    .fc-tr>.fc-acc{grid-column:1 / -1;}
+    .fc-tr .r{text-align:left;}
     .fc-hero{padding:18px;}
     .fc-hero-total{font-size:30px;}
     .fc-hero-datos{padding-left:0;border-left:0;gap:18px;}
@@ -90,7 +124,11 @@
 body.dark .fc-desglose,body.dark .fc-modal{background:#1e293b;border-color:#334155;color:#f1f5f9;}
 body.dark .fc-desglose h3,body.dark .fc-nombre b,body.dark .fc-dato b,body.dark .fc-desglose>footer b{color:#f1f5f9;}
 body.dark .fc-fila,body.dark .fc-desglose>footer,body.dark .fc-m-pie,body.dark .fc-gastos li{border-color:#334155;}
-body.dark .fc-fila.curso{background:#2a2418;}
+body.dark .fc-grupo,body.dark .fc-tr{border-color:#334155;}
+body.dark .fc-grupo.curso{background:#2a2418;}
+body.dark .fc-grupo .fc-fila:hover{background:#0f172a;}
+body.dark .fc-tabla{background:#0f172a;border-color:#334155;}
+body.dark .fc-th,body.dark .fc-sub{background:#162033;}
 body.dark .fc-m-resumen,body.dark .fc-gastos{background:#0f172a;border-color:#334155;}
 body.dark .fc-m-pie{background:#1e293b;}
 body.dark .fc-campo input,body.dark .fc-imprimir{background:#0f172a;border-color:#334155;color:#f1f5f9;}

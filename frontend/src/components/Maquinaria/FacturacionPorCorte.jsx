@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, X, Printer, Loader, AlertTriangle } from 'lucide-react';
-import { getCortes, getPagos, createCorte } from '../../api';
+import { Scissors, X, Printer, Loader, AlertTriangle, ChevronRight, Pencil, Trash2, Check } from 'lucide-react';
+import { getCortes, getPagos, createCorte, renombrarCorte } from '../../api';
+import { fmtHoro } from '../../utils/horometro';
 import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
-    hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, fmtHoras, resumenGastosTramo, leerContarOperador,
+    hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, enRango, fmtHoras, resumenGastosTramo, leerContarOperador,
 } from '../../utils/cortes';
 import './FacturacionPorCorte.css';
 
@@ -14,10 +15,14 @@ const pct = (n) => (Math.round(n * 10) / 10).toLocaleString('es-CO') + '%';
 const diasEntre = (a, b) => Math.max(1, Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000) + 1);
 
 // Pestaña Ingresos del periodo: lo facturado, el desglose por corte y la liquidación del corte en curso
-export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCambio }) {
+export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCambio, onEditar, onEliminar }) {
+    const toast = useToast();
     const [cortes, setCortes] = useState([]);
     const [pagos, setPagos] = useState([]);
     const [liquidando, setLiquidando] = useState(false);
+    const [abiertos, setAbiertos] = useState({});
+    const [renombrando, setRenombrando] = useState(null);
+    const [nombreNuevo, setNombreNuevo] = useState('');
     const contarOp = leerContarOperador();
 
     const cargar = useCallback(() => {
@@ -30,13 +35,15 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
 
     const horasTot = ingresos.filter(i => i.tipoTrabajo === 'Horas').reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
     const totalTot = ingresos.reduce((a, i) => a + (Number(i.total) || 0), 0);
+    const diasTrab = new Set(ingresos.filter(i => i.tipoTrabajo === 'Horas' && Number(i.cantidad) > 0).map(i => dia10(i.fecha))).size;
     const tarifa = Number(maq.valorHoraMaquina) || 0;
     const cliente = faena.cliente || faena.nombreObra || '—';
 
     const ultimo = cortes[cortes.length - 1];
     const desde = ultimo ? diaSiguiente(ultimo.fechaFin) : dia10(faena.fechaInicio);
     const hasta = hoyISO();
-    const curso = resumenTramo(ingresos, desde, null);
+    const itemsCurso = ingresos.filter(i => !cortes.some(c => enRango(i.fecha, c.fechaInicio, c.fechaFin)));
+    const curso = resumenTramo(itemsCurso, desde, null);
     const gasCurso = resumenGastosTramo(gastos, desde, null, contarOp);
     const numCurso = cortes.length + 1;
 
@@ -48,6 +55,33 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
         return { c, nombre: nombreCorte(c, i + 1), t, util: t.total - g.total, estado };
     });
 
+    const resumenItems = (items) => ({
+        items: [...items].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha))),
+        horas: items.filter(i => i.tipoTrabajo === 'Horas').reduce((a, i) => a + (Number(i.cantidad) || 0), 0),
+        dias: new Set(items.filter(i => i.tipoTrabajo === 'Horas' && Number(i.cantidad) > 0).map(i => dia10(i.fecha))).size,
+    });
+    const grupos = [
+        ...filas.map(f => ({
+            key: `c${f.c.id}`, corte: f.c, nombre: f.nombre, estado: f.estado, total: f.t.total, util: f.util,
+            fechas: `${fmtFecha(f.c.fechaInicio)} al ${fmtFecha(f.c.fechaFin)}`,
+            ...resumenItems(ingresos.filter(i => enRango(i.fecha, f.c.fechaInicio, f.c.fechaFin))),
+        })),
+        {
+            key: 'curso', curso: true, nombre: nombreCorte(null, numCurso), estado: ['amarillo', 'EN CURSO (ACTIVO)'],
+            total: curso.total, util: curso.total - gasCurso.total, fechas: `${fmtFecha(desde)} al ${fmtFecha(hasta)}`,
+            ...resumenItems(itemsCurso),
+        },
+    ];
+    const alternar = (key) => setAbiertos(a => ({ ...a, [key]: !a[key] }));
+    const guardarNombre = async (c) => {
+        try {
+            await renombrarCorte(c.id, nombreNuevo.trim());
+            setRenombrando(null);
+            toast(nombreNuevo.trim() ? 'Nombre del corte guardado' : 'Se quitó el nombre del corte');
+            cargar();
+        } catch { toast('No se pudo cambiar el nombre. Intenta de nuevo.', 'e'); }
+    };
+
     return (
         <>
             <section className="fc-hero">
@@ -58,6 +92,8 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
                 </div>
                 <div className="fc-hero-datos">
                     <div><span>Horas facturables</span><b className="am">{fmtHoras(horasTot)} h</b></div>
+                    <div><span>Días trabajados</span><b>{diasTrab}</b></div>
+                    <div><span>Promedio por día</span><b>{diasTrab ? fmtHoras(horasTot / diasTrab) : '—'} h</b></div>
                     <div><span>Tarifa pactada</span><b className="vd">{fmt(tarifa)}/h</b></div>
                     <div><span>Cliente principal</span><b>{cliente}</b></div>
                 </div>
@@ -73,26 +109,42 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
                 </header>
 
                 <div className="fc-lista">
-                    {filas.map(f => (
-                        <div className="fc-fila" key={f.c.id}>
-                            <div className="fc-nombre">
-                                <b>{f.nombre}</b><span className={`fc-chip ${f.estado[0]}`}>{f.estado[1]}</span>
-                                <small>{fmtFecha(f.c.fechaInicio)} al {fmtFecha(f.c.fechaFin)}{faena.cliente ? ` · ${faena.cliente}` : ''}</small>
+                    {grupos.map(g => {
+                        const ab = !!abiertos[g.key];
+                        const edita = g.corte && renombrando === g.corte.id;
+                        return (
+                            <div key={g.key} className={`fc-grupo ${g.curso ? 'curso' : ''} ${ab ? 'open' : ''}`}>
+                                <div className="fc-fila" role="button" tabIndex={0} aria-expanded={ab}
+                                    onClick={() => { if (!edita) alternar(g.key); }}
+                                    onKeyDown={e => { if (!edita && (e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); alternar(g.key); } }}>
+                                    <div className="fc-nombre">
+                                        <ChevronRight size={16} className="fc-chev" aria-hidden="true" />
+                                        <div>
+                                            {edita ? (
+                                                <span className="fc-ren" onClick={e => e.stopPropagation()}>
+                                                    <input autoFocus maxLength={60} value={nombreNuevo} aria-label="Nombre del corte" onChange={e => setNombreNuevo(e.target.value)}
+                                                        onKeyDown={e => { if (e.key === 'Enter') guardarNombre(g.corte); if (e.key === 'Escape') setRenombrando(null); }} />
+                                                    <button type="button" aria-label="Guardar nombre" onClick={() => guardarNombre(g.corte)}><Check size={14} /></button>
+                                                    <button type="button" aria-label="Cancelar" onClick={() => setRenombrando(null)}><X size={14} /></button>
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <b>{g.nombre}</b>
+                                                    {g.corte && <button type="button" className="fc-lapiz" aria-label={`Cambiar el nombre de ${g.nombre}`} onClick={e => { e.stopPropagation(); setNombreNuevo(g.corte.nombre || g.nombre); setRenombrando(g.corte.id); }}><Pencil size={12} /></button>}
+                                                    <span className={`fc-chip ${g.estado[0]}`}>{g.estado[1]}</span>
+                                                </>
+                                            )}
+                                            <small>{g.fechas}{faena.cliente ? ` · ${faena.cliente}` : ''}</small>
+                                        </div>
+                                    </div>
+                                    <Dato etq="Horas" v={`${fmtHoras(g.horas)} h`} sub={`${g.dias} día${g.dias === 1 ? '' : 's'}${g.dias > 0 && g.horas > 0 ? ` · ${fmtHoras(g.horas / g.dias)} h/día` : ''}`} />
+                                    <Dato etq="Valor facturado" v={fmt(g.total)} cls="vd" />
+                                    <Dato etq="Utilidad neta" v={fmt(g.util)} cls={g.util < 0 ? 'rj' : 'na'} />
+                                </div>
+                                {ab && <TablaIngresos items={g.items} horas={g.horas} total={g.total} onEditar={onEditar} onEliminar={onEliminar} />}
                             </div>
-                            <Dato etq="Horas" v={`${fmtHoras(f.t.horas)} h`} />
-                            <Dato etq="Valor facturado" v={fmt(f.t.total)} cls="vd" />
-                            <Dato etq="Utilidad neta" v={fmt(f.util)} cls={f.util < 0 ? 'rj' : 'na'} />
-                        </div>
-                    ))}
-                    <div className="fc-fila curso">
-                        <div className="fc-nombre">
-                            <b>{nombreCorte(null, numCurso)}</b><span className="fc-chip amarillo">EN CURSO (ACTIVO)</span>
-                            <small>{fmtFecha(desde)} al {fmtFecha(hasta)}{faena.cliente ? ` · ${faena.cliente}` : ''}</small>
-                        </div>
-                        <Dato etq="Horas" v={`${fmtHoras(curso.horas)} h`} />
-                        <Dato etq="Valor facturado" v={fmt(curso.total)} cls="vd" />
-                        <Dato etq="Utilidad neta" v={fmt(curso.total - gasCurso.total)} cls={curso.total - gasCurso.total < 0 ? 'rj' : 'na'} />
-                    </div>
+                        );
+                    })}
                 </div>
 
                 <footer><span>Total facturación acumulada del periodo:</span><b>{fmt(totalTot)}</b></footer>
@@ -108,8 +160,38 @@ export default function FacturacionPorCorte({ maq, faena, ingresos, gastos, onCa
     );
 }
 
-function Dato({ etq, v, cls = '' }) {
-    return <div className="fc-dato"><span>{etq}</span><b className={cls}>{v}</b></div>;
+function Dato({ etq, v, cls = '', sub }) {
+    return <div className="fc-dato"><span>{etq}</span><b className={cls}>{v}</b>{sub && <small>{sub}</small>}</div>;
+}
+
+const DSEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const diaSemana = (f) => { const [y, m, d] = dia10(f).split('-').map(Number); return DSEM[new Date(y, m - 1, d).getDay()] || ''; };
+
+// Los ingresos de un corte, con editar y eliminar
+function TablaIngresos({ items, horas, total, onEditar, onEliminar }) {
+    if (!items.length) return <p className="fc-vacio fc-sinreg">Este corte no tiene ingresos todavía.</p>;
+    return (
+        <div className="fc-tabla">
+            <div className="fc-tr fc-th"><span>Fecha</span><span>Descripción</span><span>Horas</span><span>Horómetro</span><span className="r">Total</span><span /></div>
+            {items.map(i => {
+                const esHoras = i.tipoTrabajo === 'Horas';
+                return (
+                    <div className="fc-tr" key={i.id}>
+                        <span data-l="Fecha"><b>{fmtFecha(i.fecha)}</b> <small>{diaSemana(i.fecha)}</small></span>
+                        <span data-l="Descripción">{i.descripcion}{!esHoras && <small> · {i.tipoTrabajo}</small>}</span>
+                        <span data-l="Horas">{esHoras ? `${fmtHoras(i.cantidad)} h` : `${i.cantidad} ${i.tipoTrabajo}`}</span>
+                        <span data-l="Horómetro" className="fc-horo">{esHoras && i.horometroInicio != null ? `${fmtHoro(i.horometroInicio)} → ${fmtHoro(i.horometroFin)}` : ''}</span>
+                        <span data-l="Total" className="r vd">{fmt(i.total)}</span>
+                        <span className="fc-acc">
+                            {onEditar && <button type="button" aria-label="Editar ingreso" onClick={() => onEditar(i)}><Pencil size={14} /></button>}
+                            {onEliminar && <button type="button" aria-label="Eliminar ingreso" onClick={() => onEliminar(i)}><Trash2 size={14} /></button>}
+                        </span>
+                    </div>
+                );
+            })}
+            <div className="fc-tr fc-sub"><span><b>Subtotal</b></span><span /><span><b>{fmtHoras(horas)} h</b></span><span /><span className="r"><b>{fmt(total)}</b></span><span /></div>
+        </div>
+    );
 }
 
 function LiquidacionModal({ maq, faena, numero, desde, hasta, curso, gasCurso, tarifa, cliente, contarOp, onCerrar, onHecho }) {
