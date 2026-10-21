@@ -21,7 +21,7 @@ import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
 import CortesFaena from '../Faenas/CortesFaena';
 import AgrupadoPorCorte from '../Faenas/AgrupadoPorCorte';
-import { nombreCorte, fmtHoras } from '../../utils/cortes';
+import { nombreCorte } from '../../utils/cortes';
 import { pendientesDeCierre } from '../../utils/pendientesCierre';
 import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
@@ -31,6 +31,8 @@ import FacturacionPorCorte from './FacturacionPorCorte';
 import GastoModal from './GastoModal';
 import GastosPorCorte from './GastosPorCorte';
 import PagosClientesTab from './PagosClientesTab';
+import { PeriodoHero, SinPeriodo, PeriodosAnteriores } from './PeriodoMaquina';
+import './TrabajoMaquina.css';
 import { usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
@@ -38,7 +40,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, ChevronLeft,
+    Briefcase, StopCircle, Search, AlertTriangle, Share2, Copy, Trash, ChevronLeft,
     Eye, CreditCard, History,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
@@ -1066,9 +1068,17 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 <div><p style={{margin:0}}>Sin periodo activo — el registro se guardará pero no quedará en ningún periodo</p></div>
                             </div>
                         )}
-                        <div className="fc">
-                            <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><Settings size={18} /> {editandoIngresoId ? 'Editar ingreso' : 'Registrar trabajo'}</h3>
-                            <p className="fd">{maq.nombre}{editandoIngresoId ? ' — corrige los datos y guarda' : ' — selecciona cómo se midió el trabajo'}</p>
+                        <div className="tw">
+                        <div className="fc tw-card">
+                            <header className="tw-cab">
+                                <span className="tw-ico" aria-hidden="true"><Settings size={22} /></span>
+                                <div>
+                                    <h3>{editandoIngresoId ? 'Editar ingreso' : 'Registrar trabajo'}</h3>
+                                    <p>{maq.nombre}{editandoIngresoId ? ' — corrige los datos y guarda' : ' — elige cómo se midió el trabajo'}</p>
+                                </div>
+                            </header>
+                            <div className="tw-grid">
+                            <div className="tw-form">
                             <div className="tg">
                                 {TODOS_TIPOS.map(t => {
                                     const activo = tiposPermitidos.includes(t.key);
@@ -1103,6 +1113,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             <div className="fg2">
                                 <div style={{ gridColumn: '1 / -1' }}><label className="fl">Descripción (opcional)</label><input className="fi" value={descTrabajo} onChange={e => setDescTrabajo(e.target.value)} placeholder="Ej: Obra Av. 30" /></div>
                             </div>
+                            </div>
+                            <aside className="tw-resumen">
                             <div className="rsum">
                                 <h4 style={{display:'flex',alignItems:'center',gap:'6px'}}><ClipboardList size={16} /> Resumen antes de guardar</h4>
                                 <div className="rr"><span>Tipo</span><span>{tipoTrabajo}</span></div>
@@ -1123,6 +1135,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 </button>
                                 {editandoIngresoId && <button className="bs" onClick={cancelarEditarIngreso}>Cancelar</button>}
                             </div>
+                            </aside>
+                            </div>
+                        </div>
                         </div>
                     </>
                 )}
@@ -1264,45 +1279,11 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
                 {/* TAB 5 — FAENA */}
                 {tab === 5 && (
-                    <div>
+                    <div className="pm-zona">
                         {faenaActiva ? (
                             <>
                                 {/* Faena activa: info + resumen + cerrar */}
-                                <div className="mq-job-card" style={{ marginBottom: '14px' }}>
-                                    <div className="mq-job-top">
-                                        <div>
-                                            <div className="mq-job-name">
-                                                <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#27ae60', display: 'inline-block' }}></span>
-                                                {faenaActiva.nombreObra}
-                                            </div>
-                                            <div className="mq-job-meta">
-                                                {faenaActiva.cliente && <span>Cliente: {faenaActiva.cliente}</span>}
-                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                    <Calendar size={11} /> Inicio: {fmtFecha(faenaActiva.fechaInicio)}
-                                                </span>
-                                            </div>
-                                            {faenaActiva.nota && <p style={{ fontSize: '12px', color: '#6b7a8d', marginTop: '4px' }}>{faenaActiva.nota}</p>}
-                                        </div>
-                                        <span className="mq-pill ok">En campo</span>
-                                    </div>
-
-                                    {/* Resumen en tiempo real */}
-                                    <div className="mq-job-grid">
-                                        <div className="mq-job-tile good"><div className="mq-job-tile-l">Ingresos</div><div className="mq-job-tile-v mq-num" style={{ color: '#1c8a4b' }}>{fmt(totalIngresos)}</div></div>
-                                        <div className="mq-job-tile bad"><div className="mq-job-tile-l">Gastos</div><div className="mq-job-tile-v mq-num" style={{ color: '#c0392b' }}>{fmt(totalGastos)}</div></div>
-                                        <div className="mq-job-tile info"><div className="mq-job-tile-l">Horas</div><div className="mq-job-tile-v mq-num" style={{ color: '#1f6491' }}>{fmtHoras(horasFaena)}</div></div>
-                                        <div className="mq-job-tile gold"><div className="mq-job-tile-l">Utilidad</div><div className="mq-job-tile-v mq-num" style={{ color: totalIngresos - totalGastos >= 0 ? '#1c8a4b' : '#c0392b' }}>{fmt(totalIngresos - totalGastos)}</div></div>
-                                    </div>
-
-                                    {promedioDiasCampo && (
-                                        <>
-                                            <div className="mq-progress-track"><div className="mq-progress-fill" style={{ width: `${Math.min((diasCampoActual / promedioDiasCampo) * 100, 100)}%` }} /></div>
-                                            <div className={`mq-progress-note ${diasCampoActual > promedioDiasCampo ? '' : 'calm'}`}>
-                                                {diasCampoActual > promedioDiasCampo ? '⚠ ' : ''}{diasCampoActual} días en campo — {diasCampoActual > promedioDiasCampo ? 'por encima del' : 'dentro del'} promedio histórico de {promedioDiasCampo} días para esta máquina
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
+                                <PeriodoHero faena={faenaActiva} ingresos={totalIngresos} gastos={totalGastos} horas={horasFaena} diasCampo={diasCampoActual} promedioDias={promedioDiasCampo} />
 
                                 <CortesFaena faena={faenaActiva} ingresos={ingFaena} gastos={gasFaena} onCambio={cargarDatos} onCompartir={abrirCompartir} />
 
@@ -1326,21 +1307,9 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </>
                         ) : (
                             <>
-                                <div className="ale blue">
-                                    <Briefcase size={18} color="#2980b9" />
-                                    <div>
-                                        <p>No hay periodo activo para {maq.nombre}</p>
-                                        <span className="ale-desc">Cuando la máquina salga a trabajar, abre un periodo. Todos los ingresos, gastos y horas quedarán registrados en ese periodo hasta que se rindan cuentas.</span>
-                                    </div>
-                                </div>
+                                <SinPeriodo maquina={maq.nombre} mostrando={mostrarFormFaena} onAbrir={() => setMostrarFormFaena(true)} />
 
-                                {!mostrarFormFaena ? (
-                                    <button className="bp" style={{ width: '100%', justifyContent: 'center', padding: '13px', marginTop: '10px' }}
-                                        onClick={() => setMostrarFormFaena(true)}>
-                                        <Plus size={15} style={{ marginRight: '7px', verticalAlign: 'middle' }} />
-                                        Abrir nuevo periodo
-                                    </button>
-                                ) : (
+                                {!mostrarFormFaena ? null : (
                                     <div className="fc" style={{ marginTop: '10px' }}>
                                         <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <Briefcase size={18} /> Abrir periodo para {maq.nombre}
@@ -1383,6 +1352,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 )}
                             </>
                         )}
+                        <PeriodosAnteriores faenas={faenasMaq} />
                     </div>
                 )}
 
@@ -1390,6 +1360,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                 {/* TAB 7 — HISTORIA */}
                 {tab === 7 && (
                     <HistoriaMaquina
+                        maquina={maq.nombre}
                         ingresos={ingresos}
                         gastos={gastos}
                         combustibles={combustibles}
