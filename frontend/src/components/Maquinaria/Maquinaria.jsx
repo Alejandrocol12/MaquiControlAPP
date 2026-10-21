@@ -30,14 +30,15 @@ import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
 import { TarjetasPeriodo, PronosticoMes } from './ResumenMaquina';
 import FacturacionPorCorte from './FacturacionPorCorte';
-import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
-import DestinoGasto, { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
+import GastoModal from './GastoModal';
+import { usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
+import { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
     TrendingUp, TrendingDown, Fuel, Clock, Leaf, Box, FileText, Paperclip, X,
-    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, Sparkles, Loader, ChevronLeft,
+    Briefcase, StopCircle, Search, AlertTriangle, Calendar, Share2, Copy, Trash, ChevronLeft,
     Eye, CreditCard, History,
 } from 'lucide-react';
 import { GiBulldozer } from 'react-icons/gi';
@@ -133,7 +134,6 @@ const hoy = () => new Date().toISOString().split('T')[0];
 
 // Sugerencias fijas del selector de categoría — no crece con categorías personalizadas
 // que el usuario haya escrito antes
-const CATEGORIAS_SUGERIDAS_GASTO = ['Reparación', 'Repuestos', 'Combustible', 'Lubricantes'];
 const CATEGORIA_CLASE = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'orange', 'Mantenimiento': 'golddeep', 'Lubricantes': 'purple', 'Otros': 'neutral', 'Otro': 'neutral' };
 const claseCategoria = (cat) => CATEGORIA_CLASE[cat] || 'neutral';
 
@@ -457,7 +457,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     };
 
     // Gastos
-    const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Reparación', fecha: hoy(), pagadoPor: '' };
+    const GASTO_VACIO = { descripcion: '', monto: '', categoria: 'Combustible', fecha: hoy(), pagadoPor: '', proveedor: '', numeroFactura: '' };
     const { pagadores, recargar: recargarPagadores, crear: crearPagador } = usePagadores();
     const [adminPag, setAdminPag] = useState(false);
     const [gastoDestino, setGastoDestino] = useState(''); // '' = el que corresponda por defecto
@@ -468,7 +468,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const [cargandoIA, setCargandoIA] = useState(false);
 
     const editarGasto = (g) => {
-        setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha, pagadoPor: g.pagadoPor || '' });
+        setGastoForm({ descripcion: g.descripcion, monto: String(g.monto || ''), categoria: g.categoria || 'Reparación', fecha: g.fecha, pagadoPor: g.pagadoPor || '', proveedor: g.proveedor || '', numeroFactura: g.numeroFactura || '' });
         setGastoDestino(destinoDeGasto(g));
         setEditandoGastoId(g.id);
         setGastoFactura(null);
@@ -489,7 +489,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
             const monto = data.monto != null ? String(data.monto) : '';
             const cat   = data.categoria ?? 'Reparación';
             const fecha = data.fecha ?? hoy();
-            setGastoForm({ descripcion: desc, monto, categoria: cat, fecha });
+            setGastoForm(f => ({ ...f, descripcion: desc, monto, categoria: cat, fecha }));
             if (desc || monto) {
                 toast(`Formulario llenado con IA — revisa y guarda`, 's');
             } else {
@@ -573,6 +573,34 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         const prev = pagos;
         setPagos(p => p.filter(x => x.id !== id));
         deletePago(id).catch(() => { setPagos(prev); toast('Error al eliminar', 'e'); });
+    };
+
+    const guardarGasto = async () => {
+                            if (!errGasto.validar([
+                                { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
+                                { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
+                            ])) return;
+    setFormGastoAbierto(false); // el modal se cierra al guardar
+                            if (editandoGastoId) {
+                                const fidU = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidU !== undefined ? { faenaId: fidU } : {}) };
+                                const gastoLocal = { ...gastoActualizado, faenaId: fidU === undefined ? (gastos.find(x => x.id === editandoGastoId)?.faenaId ?? null) : (fidU === -1 ? null : fidU) };
+                                setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoLocal : g));
+                                cancelarEditar(); toast('Gasto actualizado');
+                                updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
+                                if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
+                            } else {
+                                const tempId = `tmp_${Date.now()}`;
+                                const fidC = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
+                                const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: fidC === undefined ? (faenaActiva?.id ?? null) : (fidC === -1 ? null : fidC) };
+                                setGastos(prev => [...prev, gastoOptimista]);
+                                const facturaCapturada = gastoFactura;
+                                setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
+                                createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidC !== undefined ? { faenaId: fidC } : {}) }).then(res => {
+                                    if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
+                                    if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
+                                }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
+                            }
     };
 
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
@@ -1101,108 +1129,18 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </button>
                         </div>
                         {(formGastoAbierto || editandoGastoId) && (
-                            <>
-                            <label className="mq-ai-drop" style={{ cursor: cargandoIA ? 'wait' : 'pointer' }}>
-                                <span className="mq-ai-ico">{cargandoIA ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={16} />}</span>
-                                <span className="mq-ai-text">
-                                    <b>{cargandoIA ? 'Leyendo con IA...' : 'Leer con IA'}</b>
-                                    <p>Sube la foto o el PDF de la factura y el formulario se llena solo — descripción, monto, categoría y fecha.</p>
-                                </span>
-                                <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={leerConIA} disabled={cargandoIA} />
-                            </label>
-                            <div className="fc">
-                                <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                                    <TrendingDown size={18} /> {editandoGastoId ? 'Editar gasto' : 'Registrar gasto'}
-                                </h3>
-                                <div><label className="fl">Descripción *</label><input className={errGasto.clase('fi', 'gsDesc')} {...errGasto.props('gsDesc')} value={gastoForm.descripcion} onChange={e => { setGastoForm({ ...gastoForm, descripcion: e.target.value }); errGasto.limpiar('gsDesc'); }} placeholder="Ej: Cambio de manguera" /><ErrorCampo msg={errGasto.errores.gsDesc} /></div>
-                                <div>
-                                    <label className="fl">Categoría</label>
-                                    <div className="mq-catpick">
-                                        {CATEGORIAS_SUGERIDAS_GASTO.map(c => (
-                                            <span key={c}
-                                                className={`mq-catopt mq-cat-${claseCategoria(c)} ${gastoForm.categoria === c ? 'sel' : ''}`}
-                                                onClick={() => setGastoForm({ ...gastoForm, categoria: c })}>{c}</span>
-                                        ))}
-                                    </div>
-                                    <input className="fi" style={{ marginTop: '8px' }} value={gastoForm.categoria}
-                                        onChange={e => setGastoForm({ ...gastoForm, categoria: e.target.value })}
-                                        placeholder="O escribe una categoría distinta" />
-                                </div>
-                                <div><label className="fl">Monto ($) *</label><MoneyInput className={errGasto.clase('fi', 'gsMonto')} {...errGasto.props('gsMonto')} value={gastoForm.monto} onChange={e => { setGastoForm({ ...gastoForm, monto: e.target.value }); errGasto.limpiar('gsMonto'); }} placeholder="Ej: 250.000" /><ErrorCampo msg={errGasto.errores.gsMonto} /></div>
-                                <QuienPago id="mq-quien" value={gastoForm.pagadoPor || ''} onChange={v => setGastoForm({ ...gastoForm, pagadoPor: v })} pagadores={pagadores} onCrear={crearPagador} onAdministrar={() => setAdminPag(true)} />
-                                <DestinoGasto id="mq-destino" faenas={faenasMaq} maquina={maq.nombre} value={gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre)} onChange={setGastoDestino}
-                                    onAbrir={async (nombre) => { const r = await createFaena({ maquinaNombre: maq.nombre, nombreObra: nombre, tipo: 'gastos' }); cargarFaena(); setGastoDestino(String(r.data.id)); toast('Periodo de gastos externos abierto'); }} />
-                                <Opcional label="Fecha y factura (opcional)" abierto={!!gastoFactura || (!!editandoGastoId && facturasIds.has(String(editandoGastoId)))}>
-                                <div><label className="fl">Fecha</label><input className="fi" type="date" value={gastoForm.fecha} onChange={e => setGastoForm({ ...gastoForm, fecha: e.target.value })} /></div>
-                                <div>
-                                    <label className="fl">Factura (PDF)</label>
-                                    {editandoGastoId && facturasIds.has(String(editandoGastoId)) && !gastoFactura ? (
-                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                            <div className="fi" style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                                                <FileText size={14} style={{ color: '#e74c3c', flexShrink: 0 }} />
-                                                <span style={{ fontSize: '13px', flex: 1 }}>Factura adjunta</span>
-                                                <button type="button" className="icon-btn" title="Ver factura" onClick={() => abrirFactura(editandoGastoId)}>
-                                                    <FileText size={13} style={{ color: '#e74c3c' }} />
-                                                </button>
-                                            </div>
-                                            <label className="bs" style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                                                <Paperclip size={13} /> Cambiar
-                                                <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => setGastoFactura(e.target.files[0] || null)} />
-                                            </label>
-                                            <button className="bs" style={{ padding: '6px 10px', fontSize: '12px', color: '#e74c3c', whiteSpace: 'nowrap' }}
-                                                onClick={async () => { await eliminarFactura(editandoGastoId).catch(() => {}); setFacturasIds(prev => { const s = new Set(prev); s.delete(String(editandoGastoId)); return s; }); }}>
-                                                × Quitar
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <label className="fi" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <Paperclip size={14} style={{ color: gastoFactura ? '#2980b9' : '#9aa5b4', flexShrink: 0 }} />
-                                            <span style={{ color: gastoFactura ? 'inherit' : '#9aa5b4', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                                                {gastoFactura ? gastoFactura.name : 'Adjuntar factura (opcional)'}
-                                            </span>
-                                            {gastoFactura && (
-                                                <span style={{ color: '#e74c3c', fontSize: '18px', lineHeight: 1, flexShrink: 0 }}
-                                                    onClick={e => { e.preventDefault(); setGastoFactura(null); }}>×</span>
-                                            )}
-                                            <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={e => setGastoFactura(e.target.files[0] || null)} />
-                                        </label>
-                                    )}
-                                </div>
-                                </Opcional>
-                                <div className="fa">
-                                    <button className="bp" style={{ flex: 1, justifyContent: 'center', padding: '12px' }} onClick={async () => {
-                                        if (!errGasto.validar([
-                                            { campo: 'gsDesc', ok: !!gastoForm.descripcion?.trim(), msg: 'Escribe qué se compró o se pagó' },
-                                            { campo: 'gsMonto', ok: !!gastoForm.monto, msg: 'Escribe el valor del gasto' },
-                                        ])) return;
-                                        if (editandoGastoId) {
-                                            const fidU = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
-                                            const gastoActualizado = { ...gastoForm, id: editandoGastoId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidU !== undefined ? { faenaId: fidU } : {}) };
-                                            const gastoLocal = { ...gastoActualizado, faenaId: fidU === undefined ? (gastos.find(x => x.id === editandoGastoId)?.faenaId ?? null) : (fidU === -1 ? null : fidU) };
-                                            setGastos(prev => prev.map(g => g.id === editandoGastoId ? gastoLocal : g));
-                                            cancelarEditar(); toast('Gasto actualizado');
-                                            updateGasto(editandoGastoId, gastoActualizado).catch(() => { refreshGastos(); toast('Error al guardar', 'e'); });
-                                            if (gastoFactura) guardarFactura(editandoGastoId, gastoFactura).then(() => setFacturasIds(prev => new Set([...prev, String(editandoGastoId)]))).catch(console.error);
-                                        } else {
-                                            const tempId = `tmp_${Date.now()}`;
-                                            const fidC = faenaIdDeDestino(gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre));
-                                            const gastoOptimista = { ...gastoForm, id: tempId, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), faenaId: fidC === undefined ? (faenaActiva?.id ?? null) : (fidC === -1 ? null : fidC) };
-                                            setGastos(prev => [...prev, gastoOptimista]);
-                                            const facturaCapturada = gastoFactura;
-                                            setGastoForm(GASTO_VACIO); setGastoFactura(null); toast('Gasto registrado');
-                                            createGasto({ ...gastoForm, maquinaNombre: maq.nombre, monto: parseFloat(gastoForm.monto), ...(fidC !== undefined ? { faenaId: fidC } : {}) }).then(res => {
-                                                if (res?.data) setGastos(prev => prev.map(g => g.id === tempId ? res.data : g));
-                                                if (facturaCapturada && res?.data?.id) guardarFactura(res.data.id, facturaCapturada).then(() => setFacturasIds(prev => new Set([...prev, String(res.data.id)]))).catch(console.error);
-                                            }).catch(() => { setGastos(prev => prev.filter(g => g.id !== tempId)); toast('Error al guardar', 'e'); });
-                                        }
-                                    }}>
-                                        <Check size={14} style={{marginRight:'6px',verticalAlign:'middle'}} />
-                                        {editandoGastoId ? 'Guardar cambios' : 'Registrar gasto'}
-                                    </button>
-                                    {editandoGastoId && <button className="bs" onClick={cancelarEditar}>Cancelar</button>}
-                                </div>
-                            </div>
-                                </>
+                            <GastoModal editando={!!editandoGastoId} form={gastoForm} setForm={setGastoForm} errores={errGasto}
+                                cargandoIA={cargandoIA} onLeerIA={leerConIA}
+                                pagadores={pagadores} onCrearPagador={crearPagador} onAdministrarPagadores={() => setAdminPag(true)}
+                                faenas={faenasMaq} maquina={maq.nombre} faenaActiva={faenaActiva}
+                                destino={gastoDestino || destinoPorDefecto(faenasMaq, maq.nombre)} onDestino={setGastoDestino}
+                                onAbrirDestino={async (nombre) => { const r = await createFaena({ maquinaNombre: maq.nombre, nombreObra: nombre, tipo: 'gastos' }); cargarFaena(); setGastoDestino(String(r.data.id)); toast('Periodo de gastos externos abierto'); }}
+                                factura={gastoFactura} setFactura={setGastoFactura}
+                                tieneFacturaGuardada={!!editandoGastoId && facturasIds.has(String(editandoGastoId))}
+                                onVerFactura={() => abrirFactura(editandoGastoId)}
+                                onQuitarFacturaGuardada={async () => { await eliminarFactura(editandoGastoId).catch(() => {}); setFacturasIds(prev => { const q = new Set(prev); q.delete(String(editandoGastoId)); return q; }); }}
+                                onGuardar={guardarGasto}
+                                onCerrar={() => { cancelarEditar(); setFormGastoAbierto(false); }} />
                         )}
                         <FiltroRango rangoFiltro={rangoFiltro} setRangoFiltro={setRangoFiltro}
                             fechaDesde={fechaDesdeMaq} setFechaDesde={setFechaDesdeMaq}
