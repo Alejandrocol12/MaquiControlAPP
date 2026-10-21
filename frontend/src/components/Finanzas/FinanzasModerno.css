@@ -87,3 +87,23 @@ body.dark .fin-lrow-head{background:#162033;}
 body.dark .fin-lrow:hover{background:#243244;}
 body.dark .fin-filters .fchip.on{background:#f5a623;border-color:#f5a623;}
 body.dark .fin-note{background:#16223a;border-color:#27406e;}
+
+/* ── Formularios en modal, como en Maquinaria ── */
+.fin-layout.split{grid-template-columns:1fr;}
+.fin-fondo{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;}
+.fin-fondo .fin-compose{position:static;width:100%;max-width:560px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);display:flex;flex-direction:column;border-radius:20px;overflow:hidden;box-shadow:0 24px 60px rgba(15,23,42,.35);order:0;}
+.fin-fondo .fin-compose-head,.fin-fondo .fin-compose-actions{flex-shrink:0;}
+.fin-fondo .fin-compose-head h2{font-size:20px;}
+.fin-fondo .fin-compose-body{max-height:none;overflow-y:auto;min-height:0;flex:1 1 auto;padding:20px 22px;}
+.fin-fondo .fin-compose-actions{position:static;bottom:auto;box-shadow:none;border-radius:0;background:#f8fafc;border-top:1px solid #eef2f7;justify-content:flex-end;align-items:center;}
+.fin-fondo .fin-compose-actions .fin-btn{flex:0 0 auto;padding:0 20px;}
+.fin-fondo .fin-compose-actions .fin-btn:not(.pri){border:0;background:transparent;color:#334155;}
+.fin-fondo .fin-compose-actions .fin-btn.pri{min-height:46px;font-weight:700;}
+.fin-fondo button:focus-visible,.fin-fondo .fin-input:focus-visible,.fin-fondo .fin-select:focus-visible{outline:3px solid #4C8DFF;outline-offset:1px;}
+@media (max-width:760px){
+    .fin-fondo{padding:10px;}
+    .fin-fondo .fin-compose{max-height:calc(100dvh - 20px);border-radius:18px;}
+    .fin-fondo .fin-compose-actions{padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));}
+}
+body.dark .fin-fondo .fin-compose-actions{background:#1e293b;border-top-color:#334155;}
+body.dark .fin-fondo .fin-compose-actions .fin-btn:not(.pri){background:transparent;color:#cbd5e1;}

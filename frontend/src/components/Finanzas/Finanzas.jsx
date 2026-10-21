@@ -650,7 +650,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
                     {/* ── COMPOSE PANEL ── */}
                     {mostrarForm && (
-                        <div className="fin-panel fin-compose">
+                        <div className="fin-fondo" onMouseDown={e => { if (e.target === e.currentTarget) cerrarCompose(); }}>
+                        <div className="fin-panel fin-compose" role="dialog" aria-modal="true">
                             <div className="fin-compose-head">
                                 <h2>{editandoId ? 'Editar' : 'Nuevo'} {tab === 'ingresos' ? 'ingreso' : tab === 'gastos' ? 'gasto' : tab === 'salarios' ? 'salario' : 'pago'}</h2>
                                 <button className="fin-compose-x" onClick={cerrarCompose}><X size={14} /></button>
@@ -768,6 +769,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <button className="fin-btn" onClick={cerrarCompose}>Cancelar</button>
                                 <button className="fin-btn pri" onClick={guardar}><Check size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{editandoId ? 'Guardar cambios' : `Registrar ${tab === 'ingresos' ? 'ingreso' : tab === 'gastos' ? 'gasto' : tab === 'salarios' ? 'salario' : 'pago'}`}</button>
                             </div>
+                        </div>
                         </div>
                     )}
                 </div>

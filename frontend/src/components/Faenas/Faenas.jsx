@@ -9,7 +9,7 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import {
     Briefcase, Plus, Check, Trash2, StopCircle, RotateCcw, ChevronDown, ChevronUp,
-    BarChart2, Calendar, Tractor, Pencil,
+    BarChart2, Calendar, Tractor, Pencil, X,
     Clock, Info, TrendingUp, TrendingDown, User,
 } from 'lucide-react';
 
@@ -22,6 +22,7 @@ import { pendientesDeCierre } from '../../utils/pendientesCierre';
 import { fmtHoras } from '../../utils/cortes';
 import FiltroChips from '../../utils/FiltroChips';
 import './Faenas.css';
+import './PeriodosModerno.css';
 
 const fmt = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');
 const hoy = () => new Date().toISOString().split('T')[0];
@@ -249,10 +250,17 @@ function Faenas() {
 
                 {/* FORM */}
                 {mostrarForm && (
-                    <div className="fc">
-                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Briefcase size={18} /> {editandoId ? 'Editar periodo' : 'Abrir nuevo periodo'}
-                        </h3>
+                    <div className="pr-fondo" onMouseDown={e => { if (e.target === e.currentTarget) { setMostrarForm(false); setEditandoId(null); } }}>
+                    <div className="pr-modal" role="dialog" aria-modal="true" aria-labelledby="pr-titulo">
+                        <header className="pr-cab">
+                            <span className="pr-ico" aria-hidden="true"><Briefcase size={20} /></span>
+                            <div>
+                                <h3 id="pr-titulo">{editandoId ? 'Editar periodo' : 'Abrir nuevo periodo'}</h3>
+                                <p>{editandoId ? 'Corrige el nombre, el cliente o la nota' : 'Cuando la máquina sale a trabajar, ahí se juntan sus ingresos, gastos y horas'}</p>
+                            </div>
+                            <button type="button" className="pr-x" aria-label="Cerrar" onClick={() => { setMostrarForm(false); setEditandoId(null); }}><X size={18} /></button>
+                        </header>
+                        <div className="pr-cuerpo">
                         {!editandoId && (
                             <div style={{ marginBottom: '12px' }}>
                                 <label className="fl">Tipo de periodo</label>
@@ -301,13 +309,14 @@ function Faenas() {
                                 onChange={e => setForm({ ...form, nota: e.target.value })}
                                 placeholder="Observaciones adicionales" />
                         </div>
-                        <div className="fa">
-                            <button className="bp" onClick={guardar}>
-                                <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                {editandoId ? 'Guardar cambios' : form.tipo === 'gastos' ? 'Abrir periodo de gastos' : 'Abrir periodo'}
-                            </button>
-                            <button className="bs" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
                         </div>
+                        <footer className="pr-pie">
+                            <button type="button" className="pr-cancelar" onClick={() => { setMostrarForm(false); setEditandoId(null); }}>Cancelar</button>
+                            <button type="button" className="pr-guardar" onClick={guardar}>
+                                <Check size={16} aria-hidden="true" /> {editandoId ? 'Guardar cambios' : form.tipo === 'gastos' ? 'Abrir periodo de gastos' : 'Abrir periodo'}
+                            </button>
+                        </footer>
+                    </div>
                     </div>
                 )}
 
