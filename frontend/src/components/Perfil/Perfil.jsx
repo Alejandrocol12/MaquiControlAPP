@@ -563,7 +563,7 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
                 <div className="pf-sec">
                     <div className="pf-sec-head">
                         <span className="pf-sec-ico info"><PlayCircle size={16} /></span>
-                        <div><div className="pf-sec-title">Ayuda y tutorial</div><div className="pf-sec-desc">Recorre todos los módulos de MaquiControl con una guía paso a paso.</div></div>
+                        <div><div className="pf-sec-title">Ayuda y tutorial</div><div className="pf-sec-desc">Recorre todos los módulos de Moventra con una guía paso a paso.</div></div>
                     </div>
                     <button className="bp" onClick={onIniciarTour}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content' }}>

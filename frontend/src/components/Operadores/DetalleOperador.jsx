@@ -1101,7 +1101,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                         </div>
                                         {operadorLocal.telefono && (
                                             <a
-                                                href={`https://wa.me/57${operadorLocal.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${operadorLocal.nombre}, toca este enlace para vincular tu Telegram con MaquiControl y registrar tus horas desde el celular:\n${tgDeepLink}`)}`}
+                                                href={`https://wa.me/57${operadorLocal.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(`Hola ${operadorLocal.nombre}, toca este enlace para vincular tu Telegram con Moventra y registrar tus horas desde el celular:\n${tgDeepLink}`)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 style={{ display: 'block', background: '#27ae60', color: '#fff', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', fontWeight: '600', textDecoration: 'none', textAlign: 'center' }}

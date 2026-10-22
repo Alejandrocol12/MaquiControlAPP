@@ -128,7 +128,7 @@ function Operadores() {
                 try {
                     await createUsuario({
                         nombre,
-                        empresa: 'MaquiControl Operaciones',
+                        empresa: 'Moventra Operaciones',
                         email,
                         password: form.password,
                         rol: 'operador',

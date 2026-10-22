@@ -69,7 +69,7 @@ function OfflinePage({ onReintentar }) {
                 </div>
             </div>
             <div className="offline-brand">
-                <span style={{ color: '#f5a623' }}>Maqui</span><span style={{ color: '#fff' }}>Control</span>
+                <span style={{ color: '#f5a623' }}>M</span><span style={{ color: '#fff' }}>OVENTRA</span>
             </div>
             <h2 className="offline-title">Sin conexión</h2>
             <p className="offline-sub">No se pudo conectar con el servidor.<br />Verifica tu internet e intenta de nuevo.</p>
@@ -261,8 +261,9 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
         <div className="auth-shell">
             <div className="auth-left">
                 <div>
-                    <div className="auth-brand-big"><span className="am">Maqui</span><span className="ac">Control</span></div>
-                    <p className="auth-tagline">Control total de tu maquinaria pesada</p>
+                    <div className="auth-brand-big"><span className="am">M</span><span className="ac">OVENTRA</span></div>
+                    <div className="auth-brand-sub">Finanzas</div>
+                    <p className="auth-tagline">Finanzas y control de tu maquinaria pesada</p>
                 </div>
                 <div className="auth-features">
                     {[
@@ -422,7 +423,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                         <form onSubmit={handleRegister}>
                             {[
                                 { key: 'nombre',  label: 'Nombre',  placeholder: 'Alejandro Ruiz',      type: 'text'  },
-                                { key: 'empresa', label: 'Empresa', placeholder: 'MaquiControl SAS',    type: 'text'  },
+                                { key: 'empresa', label: 'Empresa', placeholder: 'Mi empresa SAS',    type: 'text'  },
                                 { key: 'email',   label: 'Correo',  placeholder: 'correo@empresa.com',  type: 'email' },
                             ].map(({ key, label, placeholder, type }) => (
                                 <div key={key}>
@@ -675,7 +676,7 @@ function App() {
                         <div className="sb-head">
                             {sbCol ? (
                                 <>
-                                    <div className="sb-monogram">M<span>C</span></div>
+                                    <div className="sb-monogram">M</div>
                                     <button className="col-btn" onClick={() => setSbCol(false)} title="Expandir">
                                         <ChevronRight size={13} />
                                     </button>
@@ -683,7 +684,7 @@ function App() {
                             ) : (
                                 <>
                                     <div>
-                                        <div className="logo">Maqui<span>Control</span></div>
+                                        <div className="logo"><span className="mv-m">M</span>OVENTRA</div>
                                         <div className="sb-badge">{user.rol || 'Admin'}</div>
                                     </div>
                                     <button className="col-btn" onClick={() => setSbCol(true)} title="Colapsar">
@@ -763,7 +764,7 @@ function App() {
                             </div>
                         )}
                         {installPrompt && !appInstalada && (
-                            <button className="dark-btn" onClick={instalarApp} title="Instalar MaquiControl como app de escritorio" style={{ color: '#f5a623', borderColor: '#f5a623' }}>
+                            <button className="dark-btn" onClick={instalarApp} title="Instalar Moventra como app de escritorio" style={{ color: '#f5a623', borderColor: '#f5a623' }}>
                                 <span className="ico"><Download size={17} /></span>
                                 <span className="sb-label">Instalar app</span>
                             </button>

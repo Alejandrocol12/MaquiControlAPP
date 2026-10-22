@@ -1126,3 +1126,13 @@ body.dark .dop-uh{border-color:#334155;} body.dark .dop-uh b{color:#f1f5f9;}
 .po-saldo{margin:8px 0 0;font-size:13px;color:#5c7086;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .po-saldo b{color:#16283b;}
 body.dark .po-saldo{color:#94a3b8;} body.dark .po-saldo b{color:#f1f5f9;}
+
+/* ── Marca Moventra: la M en ámbar y el resto en blanco, con "Finanzas" debajo ── */
+.logo{color:#fff;letter-spacing:.02em;}
+.logo .mv-m{color:#f5a623;font-size:1.28em;}
+.sb .logo::after{content:'FINANZAS';display:block;margin-top:3px;font:600 9px 'Barlow',sans-serif;letter-spacing:.42em;color:#6b8aaa;}
+.sb.col .logo::after{display:none;}
+.auth-brand-big{letter-spacing:.01em;}
+.auth-brand-big .am{font-size:1.2em;}
+.auth-brand-sub{margin-top:6px;font:600 13px 'Barlow',sans-serif;letter-spacing:.5em;text-transform:uppercase;color:#8fa0b8;}
+.vc-brand span:first-child{font-size:1.2em;}

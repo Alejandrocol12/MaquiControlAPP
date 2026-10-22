@@ -238,7 +238,7 @@ export function pie(doc, texto) {
         doc.setFontSize(7);
         doc.setTextColor(...GRIS);
         doc.setFont(MONO, 'normal');
-        doc.text(`MaquiControl · ${texto}`, 14, 291);
+        doc.text(`Moventra · ${texto}`, 14, 291);
         doc.text(`Pág. ${i} de ${pages}`, 196, 291, { align: 'right' });
     }
 }

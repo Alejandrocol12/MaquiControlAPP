@@ -8,8 +8,8 @@ const esc = (t) => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 function empresaYFirma() {
     try {
         const u = JSON.parse(localStorage.getItem('mc_auth_user') || '{}');
-        return { firma: u.nombre || 'Gerencia de Operaciones', empresa: u.empresa || 'MaquiControl' };
-    } catch { return { firma: 'Gerencia de Operaciones', empresa: 'MaquiControl' }; }
+        return { firma: u.nombre || 'Gerencia de Operaciones', empresa: u.empresa || 'Moventra' };
+    } catch { return { firma: 'Gerencia de Operaciones', empresa: 'Moventra' }; }
 }
 
 // Constancia del operador con las horas y los pagos del periodo en curso, lista para imprimir

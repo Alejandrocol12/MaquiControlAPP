@@ -205,7 +205,7 @@ function PortalOperador({ user, onLogout }) {
     if (cargando) return (
         <div className="operator-shell">
             <aside className="operator-side">
-                <div><div className="logo">Maqui<span>Control</span></div><div className="sb-badge">Operador</div></div>
+                <div><div className="logo"><span className="mv-m">M</span>OVENTRA</div><div className="sb-badge">Operador</div></div>
             </aside>
             <main className="operator-main">
                 <div className="content"><div className="pad" style={{ color: '#6b7a8d', padding: '40px 0' }}>Cargando...</div></div>
@@ -216,7 +216,7 @@ function PortalOperador({ user, onLogout }) {
     if (!operador) return (
         <div className="operator-shell">
             <aside className="operator-side">
-                <div><div className="logo">Maqui<span>Control</span></div><div className="sb-badge">Operador</div></div>
+                <div><div className="logo"><span className="mv-m">M</span>OVENTRA</div><div className="sb-badge">Operador</div></div>
                 <div className="operator-user">
                     <div className="av">{inicial}</div>
                     <div className="sb-uinfo"><p>{user?.nombre}</p><span>{user?.email}</span></div>
@@ -252,7 +252,7 @@ function PortalOperador({ user, onLogout }) {
 
             <aside className={`operator-side${mobSide ? ' op-mob-open' : ''}`}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div><div className="logo">Maqui<span>Control</span></div><div className="sb-badge">Operador</div></div>
+                    <div><div className="logo"><span className="mv-m">M</span>OVENTRA</div><div className="sb-badge">Operador</div></div>
                     <button className="op-close-btn" onClick={() => setMobSide(false)} aria-label="Cerrar"><X size={15} /></button>
                 </div>
 

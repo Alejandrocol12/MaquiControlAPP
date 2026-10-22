@@ -265,7 +265,7 @@ export async function xlsMensual(mes, ingresos, gastos, salarios) {
     const utilidad = totIng - totGas;
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
 
     // Hoja resumen
     const ws = wb.addWorksheet('Resumen');
@@ -347,7 +347,7 @@ export async function xlsMaquina(maq, ingresos, gastos, combustibles, mantenimie
     const utilidad = totIng - totEgr;
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 6;
 
     // Hoja Resumen
@@ -436,7 +436,7 @@ export async function xlsOperadores(horas, salarios, maquinas) {
     const totSal = salarios.reduce((a,s)=>a+(s.totalNeto||0),0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 5;
 
     const ws = wb.addWorksheet('Resumen');
@@ -496,7 +496,7 @@ export async function xlsMantenimientos(mantenimientos) {
     const pend    = mantenimientos.filter(m=>m.estado==='Pendiente').length;
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 6;
 
     const ws = wb.addWorksheet('Mantenimientos');
@@ -530,7 +530,7 @@ export async function xlsCombustible(combustibles) {
     const galTot = combustibles.reduce((a,c)=>a+(c.galones||0),0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
 
     // Hoja resumen por máquina
     const ws = wb.addWorksheet('Por Máquina');
@@ -586,7 +586,7 @@ export async function xlsPagos(pagos) {
     const pendiente = pagos.filter(p=>p.estado!=='Pagado').reduce((a,p)=>a+(p.monto||0),0);
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 6;
 
     const ws = wb.addWorksheet('Pagos');
@@ -630,7 +630,7 @@ export async function xlsResumenFlota(maquinas, ingresos, gastos, combustibles, 
     const totUtil = totIng-totGas;
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 8;
 
     const ws = wb.addWorksheet('Flota');
@@ -680,7 +680,7 @@ export async function xlsGastosPorPeriodo(maqNombre, gastos, faenas, faenaIdFilt
     ];
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
 
     if (filtrando && faenasMaq.length) {
         // Periodo específico seleccionado → una sola hoja limpia
@@ -795,7 +795,7 @@ export async function xlsPeriodoMaquina(maqNombre, ingresos, gastos, faenas, fae
     ];
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const N = 4;
 
     const buildHoja = (nombreHoja, f) => {
@@ -871,7 +871,7 @@ export async function xlsIngresosPorPeriodo(maqNombre, ingresos, faenas, faenaId
     ];
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
 
     if (filtrando && faenasMaq.length) {
         // Periodo específico seleccionado → una sola hoja limpia
@@ -971,7 +971,7 @@ export async function xlsGastosPorPersona(grupos, o) {
     const slugN = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const cols = [
         { header: 'Fecha', width: 13 },
         { header: 'Descripción', width: 36 },
@@ -1043,7 +1043,7 @@ export async function xlsReporteCorte({ maquina, faena, grupos, incluir }) {
     const N = colsIng.length;
 
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'MaquiControl';
+    wb.creator = 'Moventra';
     const usados = new Set();
     const nombreHoja = (t) => {
         const limpio = String(t).replace(/[\[\]:*?/\\]/g, '-').slice(0, 31) || 'Corte';

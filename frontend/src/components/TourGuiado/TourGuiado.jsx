@@ -108,7 +108,7 @@ export default function TourGuiado({ onCerrar, onIrModulo }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <GiBulldozer size={18} color="#f5a623" />
                         <span style={{ color: '#fff', fontWeight: '700', fontSize: '14px' }}>
-                            Tour de <span style={{ color: '#f5a623' }}>MaquiControl</span>
+                            Tour de <span style={{ color: '#f5a623' }}>Moventra</span>
                         </span>
                     </div>
                     <button onClick={terminar} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9aa5b4', display: 'flex' }}>

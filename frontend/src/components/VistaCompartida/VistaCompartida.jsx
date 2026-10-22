@@ -120,7 +120,7 @@ export default function VistaCompartida({ token }) {
             <div className="vc-header">
                 <div className="vc-brand">
                     <GiBulldozer size={24} color="#f5a623" />
-                    Maqui<span>Control</span>
+                    <span>M</span>OVENTRA
                 </div>
                 <div className="vc-lock"><Lock size={12} /> Solo lectura</div>
             </div>
@@ -223,7 +223,7 @@ export default function VistaCompartida({ token }) {
                     </div>
                 )}
 
-                <p className="vc-footer">Vista de solo lectura generada por MaquiControl · Los datos son confidenciales</p>
+                <p className="vc-footer">Vista de solo lectura generada por Moventra · Los datos son confidenciales</p>
             </div>
         </div>
     );
