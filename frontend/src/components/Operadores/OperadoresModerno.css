@@ -237,3 +237,66 @@ body.dark .op-zona .op-hero .op-kpi-val{color:#f1f5f9;}
 body.dark .op-zona .op-hero .op-kpi.bad .op-kpi-val{color:#ff6b86;}
 body.dark .op-zona .op-hero .op-kpi.profit{background:linear-gradient(135deg,#f79a0b,#c2570a);border:0;}
 body.dark .opm-stats>div.deuda{background:#3b1520;}
+
+/* ═══ Botones nuevos: pagar, certificado, Telegram, modales de pago y certificado ═══ */
+.op-tg{margin-left:6px;color:#0ea5e9;vertical-align:-1px;}
+.op-unit{font-size:.62em;font-weight:700;color:#94a3b8;}
+.op-zona .op-ros-head,.op-zona .op-ros-row{grid-template-columns:1.7fr 1.2fr 1.2fr 1.5fr 2.1fr;}
+.op-zona .op-ros-row .op-pill.pend{background:#fff6e0;color:#9a6200;border:1px solid #f6d98d;}
+.op-zona .op-ros-row .op-actions{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end;}
+.opm-pagar.chico{min-height:34px;padding:0 12px;border-radius:10px;font-size:12.5px;gap:4px;}
+.opm-izq{display:inline-flex;align-items:center;gap:6px;}
+.opm-cert-btn{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border:1px solid #dbe1e9;border-radius:12px;background:#fff;color:#334155;font:600 13px 'Barlow',sans-serif;cursor:pointer;}
+.opm-cert-btn svg{color:#e8710a;}
+.opm-cert-btn:hover{background:#f8fafc;}
+.opm-cert-btn:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+.opm-seg button svg{color:#0ea5e9;margin-right:4px;vertical-align:-1px;}
+
+.opm-modal.ancho{max-width:680px;}
+.opm-saldos{display:flex;justify-content:space-between;gap:14px;padding:16px 18px;border:1px solid #e3e8ef;border-radius:14px;background:#f8fafc;flex-wrap:wrap;}
+.opm-saldos span{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px;}
+.opm-saldos b{font:700 24px 'IBM Plex Mono',monospace;color:#0f1b2d;}
+.opm-saldos .der{text-align:right;}
+.opm-saldos .der b{font-size:19px;}
+.opm-saldos b.vd{color:#12a05b;}
+.opm-monto{font:700 20px 'IBM Plex Mono',monospace !important;}
+.opm-rapido{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.opm-rapido>span{font-size:12.5px;font-weight:600;color:#94a3b8;}
+.opm-rapido button{min-height:36px;padding:0 12px;border:1px solid #dbe1e9;border-radius:10px;background:#f1f5f9;color:#334155;font:700 12.5px 'IBM Plex Mono',monospace;cursor:pointer;}
+.opm-rapido button.tot{background:#fff6e0;border-color:#f6d98d;color:#9a5b00;}
+.opm-nota{margin:0;font-size:12.5px;color:#64748b;}
+.opm-error{margin:0;padding:10px 12px;border-radius:12px;background:#fdecea;color:#8c1d18;font-size:13.5px;font-weight:500;}
+.opm-giro{animation:opm-vuelta 1s linear infinite;}
+@keyframes opm-vuelta{to{transform:rotate(360deg);}}
+.opm-cuerpo select.fi{background:#fff;}
+
+.opm-cuerpo.opm-cert{padding:26px 30px;gap:18px;}
+.opm-cert-cab{display:flex;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid #e3e8ef;flex-wrap:wrap;}
+.opm-cert-cab b{display:block;font:800 20px 'Barlow Condensed',sans-serif;letter-spacing:.02em;}
+.opm-cert-cab small{font-size:12px;color:#64748b;}
+.opm-cert-cab .der{text-align:right;font:500 12px 'IBM Plex Mono',monospace;color:#64748b;display:flex;flex-direction:column;}
+.opm-cuerpo.opm-cert p{margin:0;font-size:14px;line-height:1.65;color:#334155;}
+.opm-cert .mono{font-family:'IBM Plex Mono',monospace;}
+.opm-cert-tabla{border:1px solid #e3e8ef;border-radius:14px;background:#f8fafc;padding:6px 16px;}
+.opm-cert-tabla>div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #e8edf3;font-size:13.5px;color:#475569;}
+.opm-cert-tabla>div:last-child{border-bottom:0;}
+.opm-cert-tabla b{font:700 14px 'IBM Plex Mono',monospace;color:#0f1b2d;}
+.opm-cert-tabla .tot span{font-weight:700;color:#0f1b2d;}
+.opm-cert-tabla .tot b{color:#e8710a;}
+.opm-cert-firmas{display:grid;grid-template-columns:1fr 1fr;gap:30px;padding-top:34px;text-align:center;}
+.opm-cert-firmas>div{border-top:1px solid #94a3b8;padding-top:8px;}
+.opm-cert-firmas b{display:block;font-size:13px;}
+.opm-cert-firmas small{font-size:12px;color:#64748b;}
+@media (max-width:760px){
+    .op-zona .op-ros-head,.op-zona .op-ros-row{grid-template-columns:1fr;}
+    .opm-cuerpo.opm-cert{padding:18px;}
+    .opm-saldos{flex-direction:column;}
+    .opm-saldos .der{text-align:left;}
+    .opm-card-pie{flex-wrap:wrap;}
+}
+body.dark .opm-saldos,body.dark .opm-cert-tabla{background:#162033;border-color:#334155;}
+body.dark .opm-saldos b,body.dark .opm-cert-tabla b{color:#f1f5f9;}
+body.dark .opm-cert{color:#e2e8f0;}
+body.dark .opm-cert-cab,body.dark .opm-cert-tabla>div{border-color:#334155;}
+body.dark .opm-cuerpo.opm-cert p{color:#cbd5e1;}
+body.dark .opm-cert-btn,body.dark .opm-cert:hover{background:#0f172a;}

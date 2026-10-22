@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { getHoras, getSalarios, getMaquinas, deleteHora, deleteSalario, createOperadorAPI, deleteOperadorAPI, createUsuario, getOperadoresAPI, getPeriodoActivoAPI, getUsuarios } from '../../api';
 import { useSortable } from '../../utils/useSortable';
 import DetalleOperador from './DetalleOperador';
+import PagarOperadorModal from './PagarOperadorModal';
+import CertificadoOperadorModal from './CertificadoOperadorModal';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
-import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search, X, List, LayoutGrid } from 'lucide-react';
+import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search, X, List, LayoutGrid, Award, Download, Send, DollarSign } from 'lucide-react';
 import Monto from '../../utils/Monto';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -47,9 +49,11 @@ function Operadores() {
     const [periodosActivos, setPeriodosActivos] = useState({});
     const [buscar, setBuscar]           = useState('');
     const [opTab, setOpTab]             = useState(0);
-    const [vista, setVista]             = useState('tarjetas');
+    const [vista, setVista]             = useState('lista');
     const [filtro, setFiltro]           = useState('todos');
     const [orden, setOrden]             = useState('saldo');
+    const [pagando, setPagando]         = useState(null);
+    const [certificando, setCertificando] = useState(null);
 
     const cargar = async () => {
         try {
@@ -195,7 +199,8 @@ function Operadores() {
 
         const iniciales     = op.nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-        return { ...op, maq, totalHoras, horasPeriodo, valorHora, salarioBruto, anticipos, salarioNeto, hayPendiente, iniciales };
+        const desdePeriodo = periodoActivo?.fechaInicio ?? periodoActivo?.fecha_inicio ?? null;
+        return { ...op, desdePeriodo, maq, totalHoras, horasPeriodo, valorHora, salarioBruto, anticipos, salarioNeto, hayPendiente, iniciales };
     });
 
     // Stats globales
@@ -209,14 +214,31 @@ function Operadores() {
     const q = buscar.toLowerCase();
     const porPagar = (o) => (o.hayPendiente ? Math.max(0, o.salarioNeto) : 0);
     const opsFiltrados = ops
-        .filter(o => !q || o.nombre.toLowerCase().includes(q) || (o.cedula || '').includes(q))
-        .filter(o => filtro === 'todos' || (filtro === 'saldo' ? o.hayPendiente : !o.hayPendiente))
+        .filter(o => !q || o.nombre.toLowerCase().includes(q) || (o.cedula || '').includes(q)
+            || (o.maq?.nombre || '').toLowerCase().includes(q) || (o.telefono || '').includes(q))
+        .filter(o => filtro === 'todos' || (filtro === 'telegram' ? !!o.telegramChatId : filtro === 'saldo' ? o.hayPendiente : !o.hayPendiente))
         .sort((a, b) => orden === 'nombre' ? a.nombre.localeCompare(b.nombre, 'es')
+            : orden === 'tarifa' ? b.valorHora - a.valorHora
             : orden === 'horas' ? b.horasPeriodo - a.horasPeriodo
             : porPagar(b) - porPagar(a) || a.nombre.localeCompare(b.nombre, 'es'));
 
     const { sorted: salOrdenados, Th: ThSal } = useSortable(salarios, 'operadorNombre', 'asc');
 
+    // Planilla del roster en CSV, con lo que se está viendo (filtros y orden incluidos)
+    const exportarPlanilla = () => {
+        const cab = 'Nombre,Cedula,Telefono,Maquina,Tarifa_Hora,Horas_Periodo,Bruto,Pagado,Saldo,Estado,Telegram\n';
+        const filas = opsFiltrados.map(o => [
+            `"${o.nombre}"`, `"${o.cedula || ''}"`, `"${o.telefono || ''}"`, `"${o.maq?.nombre || 'Sin asignar'}"`,
+            o.valorHora, o.horasPeriodo, Math.round(o.salarioBruto), Math.round(o.anticipos), Math.round(porPagar(o)),
+            `"${o.hayPendiente ? 'Con saldo' : 'Al dia'}"`, o.telegramChatId ? 'Si' : 'No',
+        ].join(',')).join('\n');
+        const url = URL.createObjectURL(new Blob(['\ufeff' + cab + filas], { type: 'text/csv;charset=utf-8;' }));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `planilla-operadores-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
     const abrirFicha = (op, tab = 0) => { setOpTab(tab); setOpSel(op); };
 
     if (opSel) return <DetalleOperador operador={opSel} tabInicial={opTab} onVolver={() => { cargar(); setOpSel(null); }} />;
@@ -225,8 +247,11 @@ function Operadores() {
         <>{ConfirmUI}
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
-                <div><h1>Operadores</h1><p>Personal registrado y su estado operativo</p></div>
-                <button className="bp" onClick={() => setMostrarForm(!mostrarForm)}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nuevo Operador</button>
+                <div><h1>Operadores</h1><p>Personal certificado, turnos de maquinaria y liquidación de haberes</p></div>
+                <div className="tb-r">
+                    <button className="bs" onClick={exportarPlanilla} disabled={opsFiltrados.length === 0}><Download size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /><span className="tb-label">Exportar planilla</span></button>
+                    <button className="bp" onClick={() => setMostrarForm(!mostrarForm)}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nuevo Operador</button>
+                </div>
             </div>
 
             <div className="content"><div className="pad op-zona">
@@ -234,14 +259,14 @@ function Operadores() {
                 {/* HERO KPIs */}
                 <div className="op-hero">
                     <div className="op-kpi gold">
-                        <div className="op-kpi-top"><span className="op-kpi-label">Personal</span><span className="op-kpi-ico"><HardHat size={14} /></span></div>
+                        <div className="op-kpi-top"><span className="op-kpi-label">Personal activo</span><span className="op-kpi-ico"><HardHat size={14} /></span></div>
                         <div className="op-kpi-val">{operadores.length}</div>
-                        <div className="op-kpi-sub">{sinMaquina > 0 ? `${sinMaquina} sin máquina asignada` : 'todos asignados'}</div>
+                        <div className="op-kpi-sub">{sinMaquina > 0 ? `${sinMaquina} sin máquina asignada` : 'todos asignados a equipos en faena'}</div>
                     </div>
                     <div className="op-kpi info">
-                        <div className="op-kpi-top"><span className="op-kpi-label">Horas del periodo</span><span className="op-kpi-ico"><Clock size={14} /></span></div>
-                        <div className="op-kpi-val op-num">{totalHorasGlobal.toLocaleString('es-CO')}</div>
-                        <div className="op-kpi-sub">en periodos activos</div>
+                        <div className="op-kpi-top"><span className="op-kpi-label">Horas acumuladas</span><span className="op-kpi-ico"><Clock size={14} /></span></div>
+                        <div className="op-kpi-val op-num">{totalHorasGlobal.toLocaleString('es-CO')}<span className="op-unit"> h</span></div>
+                        <div className="op-kpi-sub">~{(totalHorasGlobal / (operadores.length || 1)).toFixed(1).replace('.', ',')} h/operador promedio</div>
                     </div>
                     <div className="op-kpi bad">
                         <div className="op-kpi-top"><span className="op-kpi-label">Nómina pendiente</span><span className="op-kpi-ico"><TrendingDown size={14} /></span></div>
@@ -354,16 +379,17 @@ function Operadores() {
                             </div>
                             <div className="opm-rh-f">
                                 <div className="opm-seg" role="group" aria-label="Filtrar por saldo">
-                                    {[['todos', 'Todos'], ['saldo', 'Con saldo'], ['dia', 'Al día']].map(([k, l]) => (
-                                        <button key={k} type="button" className={filtro === k ? 'on' : ''} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>{l}</button>
+                                    {[['todos', 'Todos'], ['saldo', 'Con saldo'], ['dia', 'Al día'], ['telegram', 'Telegram']].map(([k, l]) => (
+                                        <button key={k} type="button" className={filtro === k ? 'on' : ''} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>{k === 'telegram' && <Send size={12} aria-hidden="true" />}{l}</button>
                                     ))}
                                 </div>
                                 <select className="opm-sel" aria-label="Ordenar" value={orden} onChange={e => setOrden(e.target.value)}>
                                     <option value="saldo">Mayor saldo pendiente</option>
-                                    <option value="horas">Más horas</option>
-                                    <option value="nombre">Nombre</option>
+                                    <option value="horas">Más horas trabajadas</option>
+                                    <option value="tarifa">Mayor tarifa/hora</option>
+                                    <option value="nombre">Nombre (A-Z)</option>
                                 </select>
-                                <div className="op-search"><Search size={14} color="#93a2b3" /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por nombre o cédula" aria-label="Buscar operador" /></div>
+                                <div className="op-search"><Search size={14} color="#93a2b3" /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por nombre, cédula o máquina..." aria-label="Buscar operador" /></div>
                             </div>
                         </header>
 
@@ -376,7 +402,7 @@ function Operadores() {
                                             <div className="opm-card-top">
                                                 <div className={`op-avatar ${!op.maq ? 'dim' : ''}`}>{op.iniciales}</div>
                                                 <div className="opm-card-id">
-                                                    <b>{op.nombre}</b>
+                                                    <b>{op.nombre}{op.telegramChatId && <Send size={12} className="op-tg" aria-label="Telegram vinculado" />}</b>
                                                     <small>{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</small>
                                                 </div>
                                                 <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Con saldo' : 'Al día'}</span>
@@ -392,9 +418,12 @@ function Operadores() {
                                                 <div className={porPagar(op) > 0 ? 'deuda' : ''}><span>Por pagar</span><b className={porPagar(op) > 0 ? 'rj' : ''}><Monto v={porPagar(op)} /></b></div>
                                             </div>
                                             <div className="opm-card-pie">
-                                                <button type="button" className="opm-del" aria-label={`Eliminar a ${op.nombre}`} onClick={() => eliminar(op.id)}><Trash2 size={15} /></button>
+                                                <span className="opm-izq">
+                                                    <button type="button" className="opm-cert-btn" onClick={() => setCertificando(op)}><Award size={14} aria-hidden="true" /> Certificado</button>
+                                                    <button type="button" className="opm-del" aria-label={`Eliminar a ${op.nombre}`} onClick={() => eliminar(op.id)}><Trash2 size={15} /></button>
+                                                </span>
                                                 <span className="opm-acc">
-                                                    {porPagar(op) > 0 && <button type="button" className="opm-pagar" onClick={() => abrirFicha(op, 3)}>$ Pagar</button>}
+                                                    {porPagar(op) > 0 && <button type="button" className="opm-pagar" onClick={() => setPagando(op)}>$ Pagar</button>}
                                                     <button type="button" className="opm-ficha" onClick={() => abrirFicha(op)}>Ficha</button>
                                                 </span>
                                             </div>
@@ -412,7 +441,7 @@ function Operadores() {
                                 <div className={`op-ros-row ${!op.maq ? 'empty' : ''}`} key={op.id} onClick={() => abrirFicha(op)}>
                                     <div className="op-who">
                                         <div className={`op-avatar ${!op.maq ? 'dim' : ''}`}>{op.iniciales}</div>
-                                        <div><div className="op-who-name">{op.nombre}</div><div className="op-who-sub">{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</div></div>
+                                        <div><div className="op-who-name">{op.nombre}{op.telegramChatId && <Send size={12} className="op-tg" aria-label="Telegram vinculado" />}</div><div className="op-who-sub">{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}{op.telefono ? ` · ${op.telefono}` : ''}</div></div>
                                     </div>
                                     <div className="op-maq">
                                         <span className="op-flabel">Máquina asignada</span>
@@ -445,9 +474,11 @@ function Operadores() {
                                         )}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
-                                        <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Pendiente' : 'Al día'}</span>
+                                        <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? `Con saldo (${fmt(porPagar(op))})` : 'Al día'}</span>
                                         <div className="op-actions" onClick={e => e.stopPropagation()}>
-                                            <button className="op-iconbtn" title="Ver detalle" onClick={() => abrirFicha(op)}><Eye size={14} /></button>
+                                            {porPagar(op) > 0 && <button className="opm-pagar chico" title="Registrar pago a este operador" onClick={() => setPagando(op)}><DollarSign size={13} aria-hidden="true" /> Pagar</button>}
+                                            <button className="op-iconbtn" title="Certificado del operador" aria-label="Certificado del operador" onClick={() => setCertificando(op)}><Award size={14} /></button>
+                                            <button className="op-iconbtn" title="Ver ficha completa" onClick={() => abrirFicha(op)}><Eye size={14} /></button>
                                             <button className="op-iconbtn" title="Eliminar" onClick={() => eliminar(op.id)}><Trash2 size={14} /></button>
                                         </div>
                                     </div>
@@ -456,6 +487,14 @@ function Operadores() {
                             {opsFiltrados.length === 0 && <p className="vacio">Sin resultados para "{buscar}"</p>}
                         </div>
                     </div>
+                )}
+
+                {pagando && (
+                    <PagarOperadorModal operador={pagando} saldo={porPagar(pagando)} onCerrar={() => setPagando(null)}
+                        onPagado={() => { setPagando(null); cargar(); }} />
+                )}
+                {certificando && (
+                    <CertificadoOperadorModal operador={certificando} desde={certificando.desdePeriodo} saldo={porPagar(certificando)} onCerrar={() => setCertificando(null)} />
                 )}
 
                 {/* HISTORIAL DE LIQUIDACIONES */}
