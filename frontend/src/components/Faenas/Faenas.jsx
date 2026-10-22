@@ -3,7 +3,6 @@ import {
     getFaenas, createFaena, updateFaena, cerrarFaena, reabrirFaena, deleteFaena,
     getMaquinas,
     getIngresos, getGastos, getSalarios, getMantenimientos, getCombustible,
-    createIngreso, createGasto,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -419,51 +418,10 @@ function TarjetaGastosExternos({ f, gastos, expandida, onToggle, onEditar, onCer
 }
 
 function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, onToggle, onEditar, onCerrar, onReabrir, onEliminar, onRefrescar }) {
-    const toast = useToast();
-    const errRapido = useErrores();
     const abierta = expandida === f.id;
     const det = detalle[f.id];
     const activa = f.estado === 'activa';
 
-    const [formRapido, setFormRapido] = useState(null); // null | 'ingreso' | 'gasto'
-    const [datoRapido, setDatoRapido] = useState({ fecha: hoy(), descripcion: '', monto: '' });
-    const [guardandoRapido, setGuardandoRapido] = useState(false);
-
-    const abrirFormRapido = (tipo) => {
-        setFormRapido(tipo);
-        setDatoRapido({ fecha: hoy(), descripcion: '', monto: '' });
-    };
-
-    const guardarRapido = async () => {
-        if (!errRapido.validar([
-            { campo: `rqDesc${f.id}`, ok: !!datoRapido.descripcion.trim(), msg: 'Escribe qué fue' },
-            { campo: `rqMonto${f.id}`, ok: !!datoRapido.monto, msg: 'Escribe el monto' },
-        ])) return;
-        setGuardandoRapido(true);
-        try {
-            if (formRapido === 'ingreso') {
-                await createIngreso({
-                    maquinaNombre: f.maquinaNombre, faenaId: f.id,
-                    tipoTrabajo: 'Otro', cantidad: 1, valorUnitario: parseFloat(datoRapido.monto),
-                    total: parseFloat(datoRapido.monto),
-                    descripcion: datoRapido.descripcion, fecha: datoRapido.fecha,
-                });
-            } else {
-                await createGasto({
-                    maquinaNombre: f.maquinaNombre, faenaId: f.id,
-                    categoria: 'Otro', monto: parseFloat(datoRapido.monto),
-                    descripcion: datoRapido.descripcion, fecha: datoRapido.fecha,
-                });
-            }
-            toast(formRapido === 'ingreso' ? 'Ingreso registrado' : 'Gasto registrado');
-            setFormRapido(null);
-            await onRefrescar(f);
-        } catch (e) {
-            console.error(e);
-            toast('Error al guardar — intenta de nuevo', 'e');
-        }
-        setGuardandoRapido(false);
-    };
 
     // "Salario" es un gasto que el backend genera automáticamente por cada registro de
     // Salarios (para que aparezca en el P&L de Finanzas) — se excluye de Gastos aquí para
@@ -585,46 +543,6 @@ function TarjetaFaena({ f, agg, promedioDias, expandida, detalle, cargandoDet, o
                             </div>
 
                             <CortesFaena faena={f} ingresos={det.ingresos} gastos={det.gastos || []} onCambio={() => onRefrescar(f)} />
-
-                            {/* Registrar ingreso/gasto olvidado — funciona con el periodo activo o cerrado */}
-                            <div style={{ marginBottom: '14px' }}>
-                                {!formRapido && (
-                                    <div className="pe-quickrow">
-                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => abrirFormRapido('ingreso')}>
-                                            <Plus size={12} style={{ verticalAlign: 'middle' }} /> Ingreso olvidado
-                                        </button>
-                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => abrirFormRapido('gasto')}>
-                                            <Plus size={12} style={{ verticalAlign: 'middle' }} /> Gasto olvidado
-                                        </button>
-                                    </div>
-                                )}
-                                {formRapido && (
-                                    <div className="pe-quickform">
-                                        <div>
-                                            <label className="fl">Fecha</label>
-                                            <input className="fi" type="date" value={datoRapido.fecha}
-                                                onChange={e => setDatoRapido({ ...datoRapido, fecha: e.target.value })} />
-                                        </div>
-                                        <div style={{ flex: 1, minWidth: '160px' }}>
-                                            <label className="fl">Descripción</label>
-                                            <input className={errRapido.clase('fi', `rqDesc${f.id}`)} {...errRapido.props(`rqDesc${f.id}`)} value={datoRapido.descripcion}
-                                                placeholder={formRapido === 'ingreso' ? 'Ej: Trabajo del 12' : 'Ej: Repuesto'}
-                                                onChange={e => { setDatoRapido({ ...datoRapido, descripcion: e.target.value }); errRapido.limpiar(`rqDesc${f.id}`); }} />
-                                            <ErrorCampo msg={errRapido.errores[`rqDesc${f.id}`]} />
-                                        </div>
-                                        <div>
-                                            <label className="fl">Monto</label>
-                                            <input className={errRapido.clase('fi', `rqMonto${f.id}`)} {...errRapido.props(`rqMonto${f.id}`)} type="number" value={datoRapido.monto}
-                                                onChange={e => { setDatoRapido({ ...datoRapido, monto: e.target.value }); errRapido.limpiar(`rqMonto${f.id}`); }} />
-                                            <ErrorCampo msg={errRapido.errores[`rqMonto${f.id}`]} />
-                                        </div>
-                                        <button className="bp" style={{ fontSize: '12px' }} disabled={guardandoRapido} onClick={guardarRapido}>
-                                            <Check size={12} style={{ verticalAlign: 'middle' }} /> Guardar
-                                        </button>
-                                        <button className="bs" style={{ fontSize: '12px' }} onClick={() => setFormRapido(null)}>Cancelar</button>
-                                    </div>
-                                )}
-                            </div>
 
                             {det.ingresos.length === 0 && gastosSinNomina.length === 0 && det.salarios.length === 0
                                 && det.mantenimientos.length === 0 && det.combustible.length === 0 && (

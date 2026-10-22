@@ -1,0 +1,59 @@
+/* Tarjetas de corte: etiqueta, horas, tres cifras y pie con el botón Acta. El corte en curso va oscuro. */
+.ctn-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:20px;align-items:stretch;}
+.ctn-card{display:flex;flex-direction:column;gap:6px;min-width:0;padding:22px 24px 18px;background:#fff;border:1px solid #d6dde7;border-radius:20px;box-shadow:0 1px 2px rgba(16,32,49,.05);font-family:'Barlow',sans-serif;}
+.ctn-card *{box-sizing:border-box;}
+.ctn-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.ctn-n{display:inline-flex;align-items:center;gap:6px;font:600 12.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:#5b6b82;}
+.ctn-chip{padding:3px 12px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.04em;white-space:nowrap;}
+.ctn-chip.verde{background:#d3f6e6;color:#0a6b43;}
+.ctn-chip.azul{background:#dbeafe;color:#1d4ed8;}
+.ctn-chip.gris{background:#e5e7eb;color:#475569;}
+.ctn-chip.amarillo{background:#ffb81c;color:#1a1305;}
+.ctn-big{margin-top:10px;font:700 clamp(32px,3vw,40px)/1.05 'IBM Plex Mono',monospace;letter-spacing:-.03em;color:#0f1b2d;}
+.ctn-f{font-size:13px;color:#64748b;}
+.ctn-card .ct-cambio{margin-top:2px;}
+.ctn-filas{margin-top:14px;padding-top:14px;border-top:1px solid #e8edf3;display:flex;flex-direction:column;gap:8px;}
+.ctn-filas>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13.5px;color:#475569;}
+.ctn-filas b{font:600 13px 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ctn-filas b.vd{color:#0fa37f;}
+.ctn-filas b.rj{color:#f43f5e;}
+.ctn-filas b.na{color:#e8710a;}
+.ctn-filas .neta{margin-top:4px;padding-top:2px;}
+.ctn-filas .neta span{font-weight:700;color:#0f1b2d;}
+.ctn-filas .neta b{font-size:17px;font-weight:700;}
+.ctn-pie{margin-top:auto;padding-top:14px;border-top:1px solid #1e293b;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.ctn-obra{font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.ctn-acc{display:inline-flex;align-items:center;gap:6px;margin-left:auto;}
+.ctn-acta{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#475569;font:700 13.5px 'Barlow',sans-serif;cursor:pointer;}
+.ctn-acta:hover{background:#f1f5f9;color:#0f1b2d;}
+.ctn-acta:disabled{opacity:.6;cursor:wait;}
+.ctn-ico{width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:#94a3b8;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
+.ctn-ico:hover{background:#f1f5f9;color:#0f1b2d;}
+.ctn-cerrar{min-height:36px;padding:0 6px;border:0;background:transparent;color:#ffb81c;font:800 14px 'Barlow',sans-serif;cursor:pointer;}
+.ctn-cerrar:hover{color:#ffd166;}
+.ctn-card button:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+
+/* corte en curso */
+.ctn-card.curso{background:#030614;border-color:#7a5a12;color:#cbd5e1;box-shadow:0 14px 30px -18px rgba(3,6,20,.8);}
+.ctn-card.curso .ctn-n{color:#ffb81c;}
+.ctn-card.curso .ctn-big{color:#fff;}
+.ctn-card.curso .ctn-f{color:#9fb0c6;}
+.ctn-card.curso .ctn-filas{border-top-color:#1d2a44;}
+.ctn-card.curso .ctn-filas>div{color:#c9d5e4;}
+.ctn-card.curso .ctn-filas .neta span{color:#fff;}
+.ctn-card.curso .ctn-filas b.vd{color:#22d39a;}
+.ctn-card.curso .ctn-filas b.rj{color:#ff4d6d;}
+.ctn-card.curso .ctn-filas b.na{color:#ffb81c;}
+.ctn-card.curso .ctn-pie{border-top-color:#1d2a44;}
+.ctn-card.curso .ctn-obra{color:#8fa0b8;}
+.ctn-card.curso .ctn-acta,.ctn-card.curso .ctn-ico{color:#b8c6d8;}
+.ctn-card.curso .ctn-acta:hover,.ctn-card.curso .ctn-ico:hover{background:rgba(255,255,255,.08);color:#fff;}
+
+@media (max-width:760px){
+    .ctn-card{padding:18px 18px 14px;}
+    .ctn-cards{gap:14px;}
+}
+body.dark .ctn-card:not(.curso){background:#1e293b;border-color:#334155;}
+body.dark .ctn-card:not(.curso) .ctn-big,body.dark .ctn-card:not(.curso) .ctn-filas .neta span{color:#f1f5f9;}
+body.dark .ctn-card:not(.curso) .ctn-filas>div,body.dark .ctn-card:not(.curso) .ctn-acta{color:#cbd5e1;}
+body.dark .ctn-card:not(.curso) .ctn-pie{border-top-color:#334155;}

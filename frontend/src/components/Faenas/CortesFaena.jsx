@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X } from 'lucide-react';
+import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X, Printer } from 'lucide-react';
+import { gruposDeCortes, pdfReporteCorte } from '../../utils/reporteCorte';
+import './CortesNuevo.css';
 import { getCortes, createCorte, deleteCorte, getPagos, getHoras, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { fmtFecha } from '../../utils/fmtFecha';
-import Estado from '../../utils/Estado';
 import CalendarioCorte from './CalendarioCorte';
 import {
     hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, resumenOperador, sinCortarAntesDe, fmtHoras,
@@ -12,7 +13,6 @@ import {
 } from '../../utils/cortes';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
-const ESTADO_PAGO = { Pagado: 'Pagado', Parcial: 'Parcial', Deuda: 'Pendiente' };
 
 // Cortes de un periodo: tramos entre dos fechas que digita el admin. De cada corte salen las
 // horas y la plata a cobrar al cliente; las mismas fechas sirven para liquidar al operador.
@@ -30,7 +30,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     const [error, setError] = useState('');
     const [guardando, setGuardando] = useState(false);
     const [contarOp, setContarOp] = useState(leerContarOperador);
-    const [abierta, setAbierta] = useState(null); // corte (id) o 'curso' con el detalle de gastos a la vista
+    const [generandoActa, setGenerandoActa] = useState('');
     const cambiarOp = (v) => { setContarOp(v); guardarContarOperador(v); };
     const [renombrando, setRenombrando] = useState(null); // id del corte que se está renombrando
     const [nombreNuevo, setNombreNuevo] = useState('');
@@ -99,6 +99,18 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
         setGuardando(false);
     };
 
+    // Acta del corte: el mismo reporte por corte (ingresos y gastos) que se genera en Reportes
+    const acta = async (idGrupo) => {
+        const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === idGrupo);
+        if (!g) { toast('Este corte no tiene movimientos para el acta.', 'e'); return; }
+        setGenerandoActa(idGrupo);
+        try {
+            await pdfReporteCorte({ maquina: faena.maquinaNombre, faena, grupos: [g], incluir: 'amb' });
+            toast('Acta generada');
+        } catch (e) { console.error(e); toast('No se pudo generar el acta. Intenta de nuevo.', 'e'); }
+        setGenerandoActa('');
+    };
+
     const deshacer = async (c, pago) => {
         const aviso = pago && Number(pago.valorPagado) > 0
             ? ' El cobro de este corte ya tiene abonos, así que se conserva en Pagos Clientes.'
@@ -128,7 +140,6 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     const baseTotal = cobrado + porCobrar + sinCortar;
     const pct = (v) => (baseTotal > 0 ? (v / baseTotal) * 100 : 0);
     const hayAlgo = cortes.length > 0 || enCurso.registros > 0 || gasEnCurso.n > 0;
-    const tonoPago = (pago) => (!pago ? 'neutral' : pago.estado === 'Pagado' ? 'ok' : pago.estado === 'Parcial' ? 'warn' : 'bad');
 
     return (
         <div className="ct-box">
@@ -186,14 +197,15 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
 
             {!hayAlgo && <div className="ct-vacio">Todavía no hay cortes ni trabajos en este periodo.</div>}
 
-            <div className="ct-cards">
+            <div className="ctn-cards">
                 {filas.map(({ c, i, vivo, pago, gas, pagado }) => {
                     const util = vivo.total - gas.total;
                     const cambio = Math.round(vivo.total) !== Math.round(Number(c.total) || 0);
                     const saldo = Math.max(0, vivo.total - pagado);
+                    const chip = !pago ? ['gris', 'SIN COBRO'] : pago.estado === 'Pagado' ? ['verde', 'COBRADO'] : ['azul', 'SALDO PENDIENTE'];
                     return (
-                        <div key={c.id} className={`ct-card ${tonoPago(pago)}`}>
-                            <div className="ct-card-top">
+                        <article key={c.id} className="ctn-card">
+                            <div className="ctn-top">
                                 {renombrando === c.id ? (
                                     <span className="ct-ren">
                                         <input className="fi" autoFocus maxLength={60} value={nombreNuevo} aria-label="Nombre del corte" placeholder="Nombre del corte"
@@ -203,67 +215,55 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                                         <button type="button" className="ct-link" aria-label="Cancelar" onClick={() => setRenombrando(null)}><X size={13} /></button>
                                     </span>
                                 ) : (
-                                    <b>{nombreCorte(c, i + 1)}
+                                    <span className="ctn-n">{nombreCorte(c, i + 1).toUpperCase().replace(/^CORTE (\d+)$/, 'CORTE #$1')}
                                         <button type="button" className="ct-pen" aria-label="Cambiar el nombre del corte" title="Cambiar el nombre" onClick={() => { setNombreNuevo(c.nombre || nombreCorte(c, i + 1)); setRenombrando(c.id); }}><Pencil size={12} /></button>
-                                    </b>
+                                    </span>
                                 )}
-                                {renombrando === c.id ? null : pago ? <Estado valor={ESTADO_PAGO[pago.estado] || pago.estado} /> : <Estado valor="Sin cobro" tono="neutral" />}
+                                {renombrando === c.id ? null : <span className={`ctn-chip ${chip[0]}`}>{chip[1]}</span>}
                             </div>
-                            <div className="ct-card-f">{fmtFecha(c.fechaInicio)} a {fmtFecha(c.fechaFin)}</div>
-                            <div className="ct-card-big">{fmt(vivo.total)}</div>
+                            <div className="ctn-big">{fmtHoras(vivo.horas)} h</div>
+                            <div className="ctn-f">{fmtFecha(c.fechaInicio)} al {fmtFecha(c.fechaFin)}</div>
                             {cambio && <small className="ct-cambio" title="Se registraron o corrigieron trabajos de estas fechas después de hacer el corte.">cambió, antes {fmt(c.total)}</small>}
-                            <div className="ct-card-r"><span>Horas</span><b>{fmtHoras(vivo.horas)} h</b></div>
-                            <div className="ct-card-r"><span>Gastos</span><b className="neg">{fmt(gas.total)}</b></div>
-                            <div className="ct-card-r"><span>Utilidad</span><b className={util < 0 ? 'neg' : 'pos'}>{fmt(util)}</b></div>
-                            {pago && saldo > 0 && <div className="ct-card-r"><span>Falta por cobrar</span><b className="ct-pend">{fmt(saldo)}</b></div>}
-                            <div className="ct-card-a">
-                                <button type="button" className="ct-link" onClick={() => setAbierta(abierta === c.id ? null : c.id)} aria-expanded={abierta === c.id}>{abierta === c.id ? 'Ocultar gastos' : `Ver gastos (${gas.n})`}</button>
-                                {onCompartir && <button type="button" className="ct-link" onClick={() => onCompartir('c:' + c.id)}><Share2 size={12} /> Compartir</button>}
-                                {i === cortes.length - 1 && (
-                                    <button type="button" className="ct-link" onClick={() => deshacer(c, pago)}><RotateCcw size={12} /> Deshacer</button>
-                                )}
+                            <div className="ctn-filas">
+                                <div><span>Facturado Cliente:</span><b className="vd">{fmt(vivo.total)}</b></div>
+                                <div><span>Gastos Deducibles ({gas.n}):</span><b className="rj">-{fmt(gas.total)}</b></div>
+                                <div className="neta"><span>Utilidad Neta:</span><b className={util < 0 ? 'rj' : 'na'}>{fmt(util)}</b></div>
+                                {pago && saldo > 0 && <div><span>Falta por cobrar:</span><b className="na">{fmt(saldo)}</b></div>}
                             </div>
-                            {abierta === c.id && <DetalleGastos gas={gas} />}
-                        </div>
+                            <div className="ctn-pie">
+                                <span className="ctn-obra">{faena.nombreObra}</span>
+                                <span className="ctn-acc">
+                                    {onCompartir && <button type="button" className="ctn-ico" aria-label="Compartir este corte" title="Compartir" onClick={() => onCompartir('c:' + c.id)}><Share2 size={14} /></button>}
+                                    {i === cortes.length - 1 && <button type="button" className="ctn-ico" aria-label="Deshacer el último corte" title="Deshacer corte" onClick={() => deshacer(c, pago)}><RotateCcw size={14} /></button>}
+                                    <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('c' + c.id)}><Printer size={14} aria-hidden="true" /> {generandoActa === 'c' + c.id ? 'Generando…' : 'Acta'}</button>
+                                </span>
+                            </div>
+                        </article>
                     );
                 })}
                 {(enCurso.registros > 0 || gasEnCurso.n > 0) && (
-                    <div className="ct-card curso">
-                        <div className="ct-card-top">
-                            <b>{faena.estado === 'activa' ? 'En curso' : 'Sin cortar'}</b>
-                            <Estado valor="Sin cortar" tono="neutral" />
+                    <article className="ctn-card curso">
+                        <div className="ctn-top">
+                            <span className="ctn-n">CORTE #{cortes.length + 1}</span>
+                            <span className="ctn-chip amarillo">{faena.estado === 'activa' ? 'ACTIVO / EN CURSO' : 'SIN CORTAR'}</span>
                         </div>
-                        <div className="ct-card-f">{fmtFecha(sigue)} a {faena.estado === 'activa' ? 'hoy' : fmtFecha(finPeriodo)}</div>
-                        <div className="ct-card-big">{fmt(enCurso.total)}</div>
-                        <div className="ct-card-r"><span>Horas</span><b>{fmtHoras(enCurso.horas)} h</b></div>
-                        <div className="ct-card-r"><span>Gastos</span><b className="neg">{fmt(gasEnCurso.total)}</b></div>
-                        <div className="ct-card-r"><span>Utilidad</span><b className={enCurso.total - gasEnCurso.total < 0 ? 'neg' : 'pos'}>{fmt(enCurso.total - gasEnCurso.total)}</b></div>
-                        <div className="ct-card-a">
-                            {!abierto && <button type="button" className="bp ct-btn" onClick={abrir}><Scissors size={13} /> Hacer corte</button>}
-                            <button type="button" className="ct-link" onClick={() => setAbierta(abierta === 'curso' ? null : 'curso')} aria-expanded={abierta === 'curso'}>{abierta === 'curso' ? 'Ocultar gastos' : `Ver gastos (${gasEnCurso.n})`}</button>
-                            {onCompartir && faena.estado === 'activa' && <button type="button" className="ct-link" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={12} /> Compartir</button>}
+                        <div className="ctn-big">{fmtHoras(enCurso.horas)} h</div>
+                        <div className="ctn-f">{fmtFecha(sigue)} al {faena.estado === 'activa' ? 'hoy' : fmtFecha(finPeriodo)}</div>
+                        <div className="ctn-filas">
+                            <div><span>Facturado Cliente:</span><b className="vd">{fmt(enCurso.total)}</b></div>
+                            <div><span>Gastos Deducibles ({gasEnCurso.n}):</span><b className="rj">-{fmt(gasEnCurso.total)}</b></div>
+                            <div className="neta"><span>Utilidad Neta:</span><b className={enCurso.total - gasEnCurso.total < 0 ? 'rj' : 'na'}>{fmt(enCurso.total - gasEnCurso.total)}</b></div>
                         </div>
-                        {abierta === 'curso' && <DetalleGastos gas={gasEnCurso} />}
-                    </div>
+                        <div className="ctn-pie">
+                            <span className="ctn-obra">{faena.nombreObra}</span>
+                            <span className="ctn-acc">
+                                {onCompartir && faena.estado === 'activa' && <button type="button" className="ctn-ico" aria-label="Compartir el corte en curso" title="Compartir" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={14} /></button>}
+                                <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('curso')}><Printer size={14} aria-hidden="true" /> {generandoActa === 'curso' ? 'Generando…' : 'Acta'}</button>
+                                {!abierto && <button type="button" className="ctn-cerrar" onClick={abrir}>Cerrar Corte →</button>}
+                            </span>
+                        </div>
+                    </article>
                 )}
-            </div>
-        </div>
-    );
-}
-
-// Gastos de un corte, uno por uno y en dos columnas para ahorrar espacio
-function DetalleGastos({ gas }) {
-    if (gas.n === 0) return <div className="ct-det"><p className="ct-vacio" style={{ margin: 0 }}>No hay gastos en estas fechas.</p></div>;
-    return (
-        <div className="ct-det">
-            <div className="ct-glist">
-                {gas.lista.map(g => (
-                    <div className="ct-gl" key={g.id}>
-                        <span className="ct-gf">{fmtFecha(g.fecha)}</span>
-                        <span>{g.descripcion}<small>{g.categoria}{g.pagadoPor ? ` · pagó ${g.pagadoPor}` : ''}</small></span>
-                        <b className="ct-num">{fmt(g.monto)}</b>
-                    </div>
-                ))}
             </div>
         </div>
     );
