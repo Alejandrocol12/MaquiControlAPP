@@ -451,3 +451,27 @@ body.dark .hcl li{background:#1e293b;border-color:#334155;}
 body.dark .hcl-f{color:#f1f5f9;}
 body.dark .hcl-horo{background:#0f172a;color:#cbd5e1;}
 body.dark .do-zona .ct-cards.ancho .ct-card.curso{background:#162033;}
+
+/* ═══ Corte en curso dentro de la ficha: textos oscuros sobre fondo claro (no heredan los de la tarjeta oscura de Periodos) ═══ */
+.do-zona .ct-box .ct-card.curso{background:#f8fafc;border-color:#e3e8ef;color:#475569;box-shadow:none;}
+.do-zona .ct-box .ct-card.curso .ct-card-top b,.do-zona .ct-box .ct-card.curso .ct-card-big{color:#0f1b2d;}
+.do-zona .ct-box .ct-card.curso .ct-card-f{color:#94a3b8;}
+.do-zona .ct-box .ct-card.curso .ct-card-lb{color:#94a3b8;}
+.do-zona .ct-box .ct-card.curso .ct-card-r{color:#64748b;border-bottom-color:#eef2f7;}
+.do-zona .ct-box .ct-card.curso .ct-card-r b{color:#0f1b2d;}
+.do-zona .ct-box .ct-card.curso .ct-card-r b.pos{color:#0f9d76;}
+.do-zona .ct-box .ct-card.curso .ct-card-r b.neg{color:#e11d48;}
+.do-zona .ct-box .ct-card.curso .ct-link{background:#fff;border-color:#dbe1e9;color:#334155;}
+.do-zona .ct-box .ct-card.curso .ct-link:hover{color:#0f1b2d;border-color:#94a3b8;}
+.do-zona .ct-box .ct-card.curso .ct-bar{background:#e6ebf1;}
+
+/* "Cuenta desde el 26 sep 2026 ✎": un texto con la fecha editable, no un botón ancho */
+.do-zona .dop-corte-desde .ct-card-f{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:13px;color:#94a3b8;}
+.do-zona .dop-corte-desde .ct-link{width:auto !important;min-height:0 !important;padding:0 !important;border:0 !important;background:transparent !important;border-radius:6px;display:inline-flex;align-items:center;gap:4px;color:#0f1b2d !important;font:700 13px 'Barlow',sans-serif;cursor:pointer;}
+.do-zona .dop-corte-desde .ct-link:hover{text-decoration:underline;}
+.do-zona .ct-curso-edit{display:flex;flex-wrap:wrap;align-items:center;gap:8px;}
+.do-zona .ct-curso-edit .fi{width:auto;min-height:40px;}
+body.dark .do-zona .ct-box .ct-card.curso{background:#162033;border-color:#334155;}
+body.dark .do-zona .ct-box .ct-card.curso .ct-card-top b,body.dark .do-zona .ct-box .ct-card.curso .ct-card-big,body.dark .do-zona .ct-box .ct-card.curso .ct-card-r b{color:#f1f5f9;}
+body.dark .do-zona .dop-corte-desde .ct-link{color:#f1f5f9 !important;}
+body.dark .do-zona .ct-box .ct-card.curso .ct-link{background:#0f172a;border-color:#334155;color:#cbd5e1;}

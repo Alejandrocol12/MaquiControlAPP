@@ -73,3 +73,11 @@ body.dark .rv-prev{background:#0f172a;}
 body.dark .rv-select,body.dark .rv-chip,body.dark .rv-btn{background:#1e293b;border-color:#334155;color:#f1f5f9;}
 body.dark .rv-btn.pri{background:#F2A31B;border-color:#F2A31B;color:#151A21;}
 body.dark .rv-error{background:#3b1512;color:#fecaca;}
+
+/* Cada reporte con su propia separación */
+.rv-lista{gap:8px;}
+.rv-item{border:1px solid #eceff3;}
+.rv-item:hover{border-color:#d9dee6;}
+.rv-item.on{border-color:#151A21;}
+body.dark .rv-item{border-color:#334155;}
+body.dark .rv-item.on{border-color:#F2A31B;}
