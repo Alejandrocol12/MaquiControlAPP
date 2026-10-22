@@ -18,8 +18,8 @@ export const montoCorto = (v) => {
 export default function Monto({ v }) {
     return (
         <>
-            <span className="monto-completo">{completo(v)}</span>
-            <span className="monto-corto" aria-hidden="true">{montoCorto(v)}</span>
+            <bdi className="monto-completo">{completo(v)}</bdi>
+            <bdi className="monto-corto" aria-hidden="true">{montoCorto(v)}</bdi>
         </>
     );
 }

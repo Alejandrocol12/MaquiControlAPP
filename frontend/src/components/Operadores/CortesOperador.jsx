@@ -6,7 +6,7 @@ const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
 // Los cortes del operador como tarjetas (el mismo diseño de los cortes de Periodo en Maquinaria),
 // con lo que se ganó, lo que se le pagó y lo que se le debe en cada uno. Los pagos se aplican
 // primero al corte más viejo que tenga deuda.
-function CortesOperador({ filas, resumen = true, onVerHoras, extraEnCurso }) {
+function CortesOperador({ filas, resumen = true, ancho = false, onVerHoras, extraEnCurso }) {
     if (!filas.length) return null;
     const pagado = filas.reduce((a, f) => a + f.pagado, 0);
     const porPagar = filas.filter(f => f.id !== 'curso').reduce((a, f) => a + f.debe, 0);
@@ -20,8 +20,8 @@ function CortesOperador({ filas, resumen = true, onVerHoras, extraEnCurso }) {
                 <>
                     <div className="ct-sum">
                         <div className="ct-sum-t ok"><span>Pagado</span><b>{fmt(pagado)}</b><small>{Math.round(pct(pagado))}% de lo ganado</small></div>
-                        <div className="ct-sum-t warn"><span>Por pagar</span><b>{fmt(porPagar)}</b><small>cortes ya hechos</small></div>
-                        <div className="ct-sum-t"><span>En curso</span><b>{fmt(enCurso)}</b><small>corte sin cerrar</small></div>
+                        <div className={`ct-sum-t ${porPagar > 0 ? 'warn' : 'zero'}`}><span>Por pagar</span><b>{fmt(porPagar)}</b><small>cortes ya hechos</small></div>
+                        <div className="ct-sum-t curso"><span>En curso</span><b>{fmt(enCurso)}</b><small>corte sin cerrar</small></div>
                     </div>
                     <div className="ct-sbar" role="img" aria-label="Pagado, por pagar y en curso">
                         <i className="ok" style={{ width: `${pct(pagado)}%` }} />
@@ -30,7 +30,7 @@ function CortesOperador({ filas, resumen = true, onVerHoras, extraEnCurso }) {
                     </div>
                 </>
             )}
-            <div className="ct-cards">
+            <div className={`ct-cards ${ancho ? 'ancho' : ''}`}>
                 {filas.map(f => {
                     const curso = f.id === 'curso';
                     const tono = curso ? 'curso' : f.debe <= 0 ? 'ok' : f.pagado > 0 ? 'warn' : 'bad';

@@ -41,8 +41,12 @@ import {
     CheckCircle,
     CreditCard,
     Scissors,
+    DollarSign,
+    X,
+    Plus,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
@@ -110,6 +114,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     const PAGO_OP_VACIO = { descripcion: '', monto: '', total: '', fecha: hoy() };
     const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
     const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
+    const [formPagoAbierto, setFormPagoAbierto] = useState(false);
 
     const refrescarPagosOperador = () =>
         getPagosOperador().then(r => setPagosOperador((r.data || []).filter(p => p.operadorNombre === operador.nombre))).catch(() => {});
@@ -143,6 +148,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         }
         setEditandoPagoOpId(null);
         setPagoOpForm(PAGO_OP_VACIO);
+        setFormPagoAbierto(false);
         refrescarPagosOperador();
     };
     const pasarPagosViejos = async () => {
@@ -162,7 +168,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), total: '', fecha: p.fecha || hoy() });
         setEditandoPagoOpId(p.id);
     };
-    const cancelarPagoOperador = () => { setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
+    const cancelarPagoOperador = () => { setFormPagoAbierto(false); setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
     const eliminarPagoOperador = async (id) => {
         if (!await confirm('¿Eliminar este registro de pago?')) return;
         const prev = pagosOperador;
@@ -629,8 +635,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 );
                                 return (
                                     <div className="ct-box">
-                                        <div className="ct-head"><b><Scissors size={14} /> Cortes con saldo</b><button type="button" className="ct-link" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
-                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} onVerHoras={() => setTab(1)} extraEnCurso={controlCorte} />
+                                        <div className="ct-head"><b><DollarSign size={16} className="ct-ico" /> Cortes con saldo pendiente</b><button type="button" className="ct-link plano" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
+                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} ancho onVerHoras={() => setTab(1)} extraEnCurso={controlCorte} />
                                     </div>
                                 );
                             })()}
@@ -865,7 +871,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
 
                             {!modoPortal && periodoActivo && (
                                 <div className="ct-box">
-                                    <div className="ct-head"><b><Scissors size={14} /> Cortes del periodo activo</b><span className="ct-sub">Mismas fechas del corte con el cliente</span></div>
+                                    <div className="ct-head"><b><Calendar size={16} className="ct-ico" /> Cortes del periodo activo</b><span className="ct-sub">Mismas fechas del corte con el cliente</span></div>
                                     <CortesOperador filas={filasCorte} onVerHoras={() => setTab(1)} />
                                     <p className="ct-nota">Cada pago se aplica primero al corte más viejo que tenga deuda; lo que sobra pasa al siguiente.</p>
                                 </div>
@@ -929,6 +935,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 </div>
                             </div>
 
+                            <div className="dpo-tarjetas">
+                                <div className="dpo-t"><span>Pagado</span><b className="vd"><Monto v={totalPagadoOperador} /></b><small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} registrado{pagosOperador.length === 1 ? '' : 's'}</small></div>
+                                <div className="dpo-t"><span>Se le debe</span><b className={debeTotal > 0 ? 'na' : ''}><Monto v={debeTotal} /></b><small>{debeTotal > 0 ? 'saldo por pagar' : 'está al día'}</small></div>
+                                <div className="dpo-t"><span>Ganado en el periodo</span><b><Monto v={salarioBruto} /></b><small>{fmtHoras(horasPeriodo)} h × {fmt(valorHora)}</small></div>
+                            </div>
+
                             {pagosSinGasto.length > 0 && (
                                 <div className="ct-box ct-migrar">
                                     <div className="ct-head"><b><AlertTriangle size={14} /> Pagos anteriores que todavía no están en Gastos</b></div>
@@ -949,6 +961,14 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 </div>
                             )}
 
+                            <div className="dpo-fold">
+                                <button type="button" className={`dpo-fold-btn ${formPagoAbierto || editandoPagoOpId ? 'on' : ''}`} aria-expanded={!!(formPagoAbierto || editandoPagoOpId)}
+                                    onClick={() => { if (editandoPagoOpId || formPagoAbierto) cancelarPagoOperador(); else setFormPagoAbierto(true); }}>
+                                    {formPagoAbierto || editandoPagoOpId ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />} {formPagoAbierto || editandoPagoOpId ? 'Cerrar formulario' : 'Registrar pago o adelanto'}
+                                </button>
+                            </div>
+
+                            {(formPagoAbierto || editandoPagoOpId) && (
                             <div className="fc">
                                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago o adelanto'}
@@ -979,9 +999,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                     <button className="bp" onClick={guardarPagoOperador}>
                                         <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {editandoPagoOpId ? 'Guardar cambios' : 'Registrar pago'}
                                     </button>
-                                    {editandoPagoOpId && <button className="bs" onClick={cancelarPagoOperador}>Cancelar</button>}
+                                    <button className="bs" onClick={cancelarPagoOperador}>Cancelar</button>
                                 </div>
                             </div>
+                            )}
 
                             <div className="tbl">
                                 <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
@@ -990,7 +1011,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                         icono={<CreditCard size={20} />}
                                         titulo="Aún no hay pagos registrados"
                                         texto={`Anota aquí los pagos y adelantos que le das a ${operadorLocal.nombre}. Cada uno queda también en Gastos.`}
-                                        accion={{ label: 'Registrar el primero', onClick: () => document.querySelector('[data-campo="poMonto"]')?.focus() }}
+                                        accion={{ label: 'Registrar el primero', onClick: () => setFormPagoAbierto(true) }}
                                     />
                                 ) : (
                                     <>

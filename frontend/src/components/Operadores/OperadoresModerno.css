@@ -51,7 +51,7 @@
 .opm-maq-v{font:600 13px 'IBM Plex Mono',monospace;color:#475569;}
 .opm-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
 .opm-stats>div{padding:12px 8px;border-radius:14px;background:#f8fafc;text-align:center;min-width:0;}
-.opm-stats span{display:block;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;}
+.opm-stats>div>span{display:block;font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#94a3b8;margin-bottom:4px;}
 .opm-stats b{font:700 13.5px 'IBM Plex Mono',monospace;color:#0f1b2d;overflow-wrap:anywhere;}
 .opm-stats b.vd{color:#12a05b;}
 .opm-stats b.na{color:#e8710a;}
@@ -300,3 +300,83 @@ body.dark .opm-cert{color:#e2e8f0;}
 body.dark .opm-cert-cab,body.dark .opm-cert-tabla>div{border-color:#334155;}
 body.dark .opm-cuerpo.opm-cert p{color:#cbd5e1;}
 body.dark .opm-cert-btn,body.dark .opm-cert:hover{background:#0f172a;}
+
+/* ═══ Resumen y Periodos de la ficha, como en el diseño ═══ */
+.do-zona .ct-head{align-items:center;margin-bottom:16px;}
+.do-zona .ct-head b{font-size:18px;display:inline-flex;align-items:center;gap:10px;}
+.do-zona .ct-ico{color:#f59300;}
+.do-zona .ct-link.plano{border:0;background:transparent;color:#64748b;font-weight:600;font-size:13px;padding:0;min-height:0;}
+.do-zona .ct-link.plano:hover{color:#0f1b2d;}
+
+/* tres recuadros: pagado, por pagar y en curso */
+.do-zona .ct-sum{gap:16px;margin:0 0 14px;}
+.do-zona .ct-sum-t{background:#f8fafc;border:1px solid #e8edf3;border-radius:16px;padding:16px 20px;gap:6px;}
+.do-zona .ct-sum-t span{font-size:11.5px;letter-spacing:.07em;color:#64748b;}
+.do-zona .ct-sum-t b{font:700 clamp(22px,2.2vw,30px) 'IBM Plex Mono',monospace;letter-spacing:-.02em;}
+.do-zona .ct-sum-t small{font-size:13px;color:#94a3b8;}
+.do-zona .ct-sum-t.ok b{color:#0f9d76;}
+.do-zona .ct-sum-t.zero b{color:#0f1b2d;}
+.do-zona .ct-sum-t.warn b{color:#e8710a;}
+.do-zona .ct-sum-t.curso b{color:#e8710a;}
+.do-zona .ct-sbar{height:10px;margin-bottom:18px;}
+.do-zona .ct-sbar i.ok{background:#10b981;}
+.do-zona .ct-sbar i.gold{background:#ffb81c;}
+
+/* tarjetas de cada corte */
+.do-zona .ct-card{background:#fff;border:1px solid #e3e8ef;border-top:1px solid #e3e8ef;border-radius:18px;padding:18px 20px;box-shadow:none;}
+.do-zona .ct-card.curso{background:#fffdf5;border-color:#fcd34d;}
+.do-zona .ct-card-top b{font:600 16px 'Barlow',sans-serif;text-transform:none;letter-spacing:0;color:#0f1b2d;}
+.do-zona .ct-card-f{font-size:13px;color:#94a3b8;}
+.do-zona .ct-card-big{display:flex;align-items:baseline;gap:10px;margin:6px 0 4px;font:700 clamp(24px,2.2vw,30px) 'IBM Plex Mono',monospace;color:#0f1b2d;}
+.do-zona .ct-card.curso .ct-card-big{color:#e8710a;}
+.do-zona .ct-card-lb{font:500 12px 'IBM Plex Mono',monospace;color:#94a3b8;}
+.do-zona .ct-card-r{font-size:13.5px;}
+.do-zona .ct-card-r b{font:600 13px 'IBM Plex Mono',monospace;}
+.do-zona .ct-card-r b.pos{color:#0f9d76;}
+.do-zona .ct-card .ct-link{width:100%;justify-content:center;min-height:38px;border-radius:10px;font-weight:600;}
+.do-zona .ct-card.curso .ct-link{background:#fff4cc;border-color:#fcd34d;color:#3b2a05;}
+
+/* formato ancho (Resumen): una franja por corte */
+.do-zona .ct-cards.ancho{grid-template-columns:1fr;gap:14px;}
+.do-zona .ct-cards.ancho .ct-card{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 24px;padding:22px 26px;align-items:start;}
+.do-zona .ct-cards.ancho .ct-card-top{grid-column:1 / 3;justify-content:flex-start;gap:12px;}
+.do-zona .ct-cards.ancho .ct-card-f{grid-column:1 / 3;}
+.do-zona .ct-cards.ancho .ct-card-big{grid-column:3;grid-row:1 / span 2;justify-content:flex-end;align-self:center;margin:0;}
+.do-zona .ct-cards.ancho .ct-card-r{flex-direction:column;align-items:flex-start;gap:3px;border:0;padding:14px 0 0;margin-top:10px;border-top:1px solid #eef2f7;}
+.do-zona .ct-cards.ancho .ct-card-r span{font-size:12px;color:#94a3b8;}
+.do-zona .ct-cards.ancho .ct-card-r b{font-size:15px;color:#0f1b2d;}
+.do-zona .ct-cards.ancho .ct-card-r b.pos{color:#0f9d76;}
+.do-zona .ct-cards.ancho .ct-bar{display:none;}
+.do-zona .ct-cards.ancho .ct-card-a{grid-column:1 / -1;justify-content:flex-end;}
+.do-zona .ct-cards.ancho .ct-card-a .ct-link{width:auto;padding:0 16px;}
+.do-zona .ct-cards.ancho .ct-card>:not(.ct-card-top):not(.ct-card-f):not(.ct-card-big):not(.ct-card-r):not(.ct-bar):not(.ct-card-a){grid-column:1 / -1;}
+
+/* Pago operador: tarjetas y formulario que se abre y se cierra */
+.dpo-tarjetas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px;}
+.dpo-t{background:#fff;border:1px solid #e3e8ef;border-radius:18px;padding:18px 22px;display:flex;flex-direction:column;gap:6px;min-width:0;}
+.dpo-t span{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#64748b;}
+.dpo-t b{font:700 clamp(24px,2.4vw,32px) 'IBM Plex Mono',monospace;letter-spacing:-.02em;color:#0f1b2d;overflow-wrap:anywhere;}
+.dpo-t b.vd{color:#0f9d76;}
+.dpo-t b.na{color:#e8710a;}
+.dpo-t small{font-size:13px;color:#94a3b8;}
+.dpo-fold{margin:0 0 14px;}
+.dpo-fold-btn{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 20px;border:1.5px solid #ffb81c;border-radius:12px;background:#fff8e1;color:#7a4a05;font:700 14.5px 'Barlow',sans-serif;cursor:pointer;}
+.dpo-fold-btn:hover{background:#ffefc2;}
+.dpo-fold-btn.on{background:#ffb81c;color:#1a1305;}
+.dpo-fold-btn:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+.do-zona .ale.purple{border-radius:16px;}
+
+@media (max-width:760px){
+    .do-zona .ct-sum{grid-template-columns:1fr;gap:10px;}
+    .do-zona .ct-cards.ancho .ct-card{grid-template-columns:repeat(2,minmax(0,1fr));padding:18px;}
+    .do-zona .ct-cards.ancho .ct-card-big{grid-column:1 / -1;grid-row:auto;justify-content:flex-start;margin:8px 0 4px;}
+    .do-zona .ct-cards.ancho .ct-card-top,.do-zona .ct-cards.ancho .ct-card-f{grid-column:1 / -1;}
+    .dpo-tarjetas{grid-template-columns:1fr;gap:10px;}
+    .dpo-t{padding:16px;}
+}
+body.dark .do-zona .ct-sum-t,body.dark .dpo-t{background:#1e293b;border-color:#334155;}
+body.dark .do-zona .ct-sum-t.zero b,body.dark .dpo-t b,body.dark .do-zona .ct-card-top b,body.dark .do-zona .ct-cards.ancho .ct-card-r b{color:#f1f5f9;}
+body.dark .do-zona .ct-card.curso{background:#2a2418;border-color:#6b4a12;}
+body.dark .do-zona .ct-card.curso .ct-link{background:#3a2d0f;color:#f5c97a;}
+body.dark .dpo-fold-btn{background:#2a2418;color:#f5c97a;}
+body.dark .dpo-fold-btn.on{background:#ffb81c;color:#1a1305;}
