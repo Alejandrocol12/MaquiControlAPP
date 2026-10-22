@@ -1136,3 +1136,11 @@ body.dark .po-saldo{color:#94a3b8;} body.dark .po-saldo b{color:#f1f5f9;}
 .auth-brand-big .am{font-size:1.2em;}
 .auth-brand-sub{margin-top:6px;font:600 13px 'Barlow',sans-serif;letter-spacing:.5em;text-transform:uppercase;color:#8fa0b8;}
 .vc-brand span:first-child{font-size:1.2em;}
+
+/* ── Logo de Moventra (la excavadora con la flecha) junto al nombre ── */
+.logo-fila{display:flex;align-items:center;gap:10px;}
+.logo-img{height:38px;width:auto;flex-shrink:0;}
+.sb-logo-mini{width:38px;height:auto;display:block;}
+.auth-logo{display:block;height:76px;width:auto;margin-bottom:16px;}
+.offline-logo{display:block;height:72px;width:auto;margin:0 auto 10px;}
+.vc-logo{height:28px;width:auto;}

@@ -119,7 +119,7 @@ export default function VistaCompartida({ token }) {
             {/* Header */}
             <div className="vc-header">
                 <div className="vc-brand">
-                    <GiBulldozer size={24} color="#f5a623" />
+                    <img className="vc-logo" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="" />
                     <span>M</span>OVENTRA
                 </div>
                 <div className="vc-lock"><Lock size={12} /> Solo lectura</div>

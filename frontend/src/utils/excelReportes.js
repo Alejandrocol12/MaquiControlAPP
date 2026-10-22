@@ -1,4 +1,5 @@
 import { esSueldoOperador } from './nomina';
+import { LOGO_CLARO, LOGO_PROPORCION } from './logoMoventra';
 import { filaIngreso, filaGasto } from './reporteCorte';
 
 // ExcelJS y file-saver se cargan dinámicamente para no romper el bundle principal
@@ -86,6 +87,7 @@ function applyTotal(cell, value, halign = 'right') {
 
 // ── Cabecera del libro ─────────────────────────────────────────
 function addCabecera(ws, titulo, subtitulo, ncols) {
+    const idLogo = ws.workbook.addImage({ base64: LOGO_CLARO, extension: 'png' });
     ws.getColumn(1).width = 2.5;
     const last = C0 + ncols - 1;
     const negro = (r, c) => { const x = ws.getCell(r, c); x.fill = fill(C.AZUL); return x; };
@@ -98,8 +100,9 @@ function addCabecera(ws, titulo, subtitulo, ncols) {
     ] };
     c1.fill = fill(C.AZUL);
     c1.font = { bold: true, size: 20, color: { argb: C.DORADO }, name: 'Calibri' };
-    c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+    c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 6 };
     ws.getRow(1).height = 36;
+    ws.addImage(idLogo, { tl: { col: C0 - 1 + 0.1, row: 0.08 }, ext: { width: 44, height: 44 / LOGO_PROPORCION } });
 
     ws.mergeCells(2, C0, 2, last);
     const c2 = ws.getCell(2, C0);

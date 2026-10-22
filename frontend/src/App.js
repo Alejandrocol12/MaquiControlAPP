@@ -68,6 +68,7 @@ function OfflinePage({ onReintentar }) {
                     <GiBulldozer size={52} color="#f5a623" />
                 </div>
             </div>
+            <img className="offline-logo" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="Moventra" />
             <div className="offline-brand">
                 <span style={{ color: '#f5a623' }}>M</span><span style={{ color: '#fff' }}>OVENTRA</span>
             </div>
@@ -261,6 +262,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
         <div className="auth-shell">
             <div className="auth-left">
                 <div>
+                    <img className="auth-logo" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="Moventra" />
                     <div className="auth-brand-big"><span className="am">M</span><span className="ac">OVENTRA</span></div>
                     <div className="auth-brand-sub">Finanzas</div>
                     <p className="auth-tagline">Finanzas y control de tu maquinaria pesada</p>
@@ -676,7 +678,7 @@ function App() {
                         <div className="sb-head">
                             {sbCol ? (
                                 <>
-                                    <div className="sb-monogram">M</div>
+                                    <img className="sb-logo-mini" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="Moventra" />
                                     <button className="col-btn" onClick={() => setSbCol(false)} title="Expandir">
                                         <ChevronRight size={13} />
                                     </button>
@@ -684,7 +686,7 @@ function App() {
                             ) : (
                                 <>
                                     <div>
-                                        <div className="logo"><span className="mv-m">M</span>OVENTRA</div>
+                                        <div className="logo-fila"><img className="logo-img" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="" /><div className="logo"><span className="mv-m">M</span>OVENTRA</div></div>
                                         <div className="sb-badge">{user.rol || 'Admin'}</div>
                                     </div>
                                     <button className="col-btn" onClick={() => setSbCol(true)} title="Colapsar">

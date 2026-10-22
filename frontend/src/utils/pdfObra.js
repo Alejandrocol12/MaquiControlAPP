@@ -1,4 +1,5 @@
 import autoTable from 'jspdf-autotable';
+import { LOGO_CLARO, LOGO_PROPORCION } from './logoMoventra';
 
 export const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
 export const fmtNum = (v) => (v || 0).toLocaleString('es-CO');
@@ -32,13 +33,16 @@ export function cabecera(doc, titulo, subtitulo) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
     // Moventra: la M en amarillo y el resto en blanco, como el logo
+    const altoLogo = 13, anchoLogo = altoLogo * LOGO_PROPORCION;
+    try { doc.addImage(LOGO_CLARO, 'PNG', 14, 6, anchoLogo, altoLogo); } catch { /* sin logo si la imagen no carga */ }
+    const x0 = 14 + anchoLogo + 3;
     doc.setTextColor(...AMARILLO);
     doc.setFontSize(18);
-    doc.text('M', 14, 15.5);
+    doc.text('M', x0, 15.5);
     const w = doc.getTextWidth('M');
     doc.setFontSize(15);
     doc.setTextColor(255, 255, 255);
-    doc.text('OVENTRA', 14 + w, 15.5);
+    doc.text('OVENTRA', x0 + w, 15.5);
 
     const hoy = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
     doc.setFont(MONO, 'normal');

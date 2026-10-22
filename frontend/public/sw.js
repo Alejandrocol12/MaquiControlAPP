@@ -1,4 +1,4 @@
-const CACHE = 'maquicontrol-v1';
+const CACHE = 'moventra-v2';
 
 self.addEventListener('install', e => {
   e.waitUntil(
