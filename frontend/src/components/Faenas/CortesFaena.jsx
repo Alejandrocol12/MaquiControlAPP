@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X, Printer } from 'lucide-react';
-import { gruposDeCortes, pdfReporteCorte } from '../../utils/reporteCorte';
+import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X, Printer, Clock } from 'lucide-react';
+import { gruposDeCortes, pdfReporteCorte, pdfActaHoras } from '../../utils/reporteCorte';
 import './CortesNuevo.css';
 import { getCortes, createCorte, deleteCorte, getPagos, getHoras, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
@@ -108,6 +108,18 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
             await pdfReporteCorte({ maquina: faena.maquinaNombre, faena, grupos: [g], incluir: 'amb' });
             toast('Acta generada');
         } catch (e) { console.error(e); toast('No se pudo generar el acta. Intenta de nuevo.', 'e'); }
+        setGenerandoActa('');
+    };
+
+    // Acta de horas: cada día del corte con sus horas y el horómetro de inicio y fin, para firmar
+    const actaHoras = async (idGrupo) => {
+        const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === idGrupo);
+        if (!g) { toast('Este corte no tiene horas para el acta.', 'e'); return; }
+        setGenerandoActa('h' + idGrupo);
+        try {
+            await pdfActaHoras({ maquina: faena.maquinaNombre, faena, grupo: g });
+            toast('Acta de horas generada');
+        } catch (e) { console.error(e); toast('No se pudo generar el acta de horas. Intenta de nuevo.', 'e'); }
         setGenerandoActa('');
     };
 
@@ -235,6 +247,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                                 <span className="ctn-acc">
                                     {onCompartir && <button type="button" className="ctn-ico" aria-label="Compartir este corte" title="Compartir" onClick={() => onCompartir('c:' + c.id)}><Share2 size={14} /></button>}
                                     {i === cortes.length - 1 && <button type="button" className="ctn-ico" aria-label="Deshacer el último corte" title="Deshacer corte" onClick={() => deshacer(c, pago)}><RotateCcw size={14} /></button>}
+                                    <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => actaHoras('c' + c.id)}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hc' + c.id ? 'Generando…' : 'Acta de horas'}</button>
                                     <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('c' + c.id)}><Printer size={14} aria-hidden="true" /> {generandoActa === 'c' + c.id ? 'Generando…' : 'Acta'}</button>
                                 </span>
                             </div>
@@ -258,6 +271,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                             <span className="ctn-obra">{faena.nombreObra}</span>
                             <span className="ctn-acc">
                                 {onCompartir && faena.estado === 'activa' && <button type="button" className="ctn-ico" aria-label="Compartir el corte en curso" title="Compartir" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={14} /></button>}
+                                <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => actaHoras('curso')}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hcurso' ? 'Generando…' : 'Acta de horas'}</button>
                                 <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('curso')}><Printer size={14} aria-hidden="true" /> {generandoActa === 'curso' ? 'Generando…' : 'Acta'}</button>
                                 {!abierto && <button type="button" className="ctn-cerrar" onClick={abrir}>Cerrar Corte →</button>}
                             </span>

@@ -114,3 +114,68 @@ export async function pdfReporteCorte({ maquina, faena, grupos, incluir }) {
     pie(doc, `Reporte por corte — ${maquina}`);
     doc.save(`reporte-corte-${slug(maquina)}-${slug(faena.nombreObra)}.pdf`);
 }
+
+// Acta de horas de un corte: por cada día trabajado, las horas y el horómetro de inicio y fin, con espacio para firmas.
+// grupo es uno de los que devuelve gruposDeCortes.
+export async function pdfActaHoras({ maquina, faena, grupo }) {
+    const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    const porDia = {};
+    grupo.ingresos.filter(i => i.tipoTrabajo === 'Horas').forEach(i => {
+        const k = dia(i.fecha);
+        const d = porDia[k] = porDia[k] || { horas: 0, ini: null, fin: null, desc: [] };
+        d.horas += Number(i.cantidad) || 0;
+        if (i.horometroInicio != null) d.ini = d.ini == null ? Number(i.horometroInicio) : Math.min(d.ini, Number(i.horometroInicio));
+        if (i.horometroFin != null) d.fin = d.fin == null ? Number(i.horometroFin) : Math.max(d.fin, Number(i.horometroFin));
+        const t = String(i.descripcion || '').trim();
+        if (t && !d.desc.includes(t)) d.desc.push(t);
+    });
+    const fechas = Object.keys(porDia).sort();
+    const totHoras = fechas.reduce((a, k) => a + porDia[k].horas, 0);
+    const inicios = fechas.map(k => porDia[k].ini).filter(v => v != null);
+    const fines = fechas.map(k => porDia[k].fin).filter(v => v != null);
+    const horoIni = inicios.length ? Math.min(...inicios) : null;
+    const horoFin = fines.length ? Math.max(...fines) : null;
+
+    const doc = new jsPDF();
+    let y = cabecera(doc, 'Acta de horas', `${maquina}  ·  ${faena.nombreObra || 'Periodo'}  ·  ${grupo.nombre} (${grupo.fechas})`);
+    y = cajaResumen(doc, y, [
+        { label: 'Corte', valor: grupo.nombre, tipo: 'neu' },
+        { label: 'Días trabajados', valor: String(fechas.length), tipo: 'neu' },
+        { label: 'Horas totales', valor: `${fmtHoras(totHoras)} h`, tipo: 'neu' },
+        { label: 'Promedio por día', valor: fechas.length ? `${fmtHoras(totHoras / fechas.length)} h` : '—', tipo: 'neu' },
+    ]);
+
+    y = seccion(doc, y, `Horas por día · ${grupo.fechas}`);
+    if (fechas.length) {
+        const fila = (k) => {
+            const d = porDia[k];
+            const [a, m, di] = k.split('-').map(Number);
+            const sem = DIAS[new Date(a, m - 1, di).getDay()];
+            return [`${k} (${sem})`, `${fmtHoras(d.horas)} h`, d.ini != null ? fmtHoro(d.ini) : '', d.fin != null ? fmtHoro(d.fin) : '', d.desc.join(' · ').slice(0, 70) || '—'];
+        };
+        y = tabla(doc, y, ['Fecha', 'Horas', 'Horómetro inicio', 'Horómetro fin', 'Actividad'], fechas.map(fila),
+            { 1: { halign: 'right', cellWidth: 22 }, 2: { halign: 'right', cellWidth: 30 }, 3: { halign: 'right', cellWidth: 30 } },
+            { totalRow: ['TOTAL DEL CORTE', `${fmtHoras(totHoras)} h`, horoIni != null ? fmtHoro(horoIni) : '', horoFin != null ? fmtHoro(horoFin) : '', `${fechas.length} día${fechas.length === 1 ? '' : 's'}`] });
+    } else {
+        doc.setFontSize(9); doc.setTextColor(...GRIS);
+        doc.text('Este corte no tiene horas registradas.', 17, y + 4); y += 12;
+    }
+
+    // Firmas
+    if (y > 232) { doc.addPage(); y = 30; }
+    y += 10;
+    doc.setFontSize(8); doc.setTextColor(...GRIS);
+    doc.text('Certificamos que las horas y los horómetros de esta acta corresponden al trabajo realizado en el corte indicado.', 14, y);
+    y += 26;
+    doc.setDrawColor(60, 60, 60); doc.setLineWidth(0.3);
+    doc.line(20, y, 90, y); doc.line(120, y, 190, y);
+    doc.setFontSize(8); doc.setTextColor(30, 30, 30);
+    doc.text('Operador', 55, y + 5, { align: 'center' });
+    doc.text(faena.cliente ? `Interventoría · ${faena.cliente}` : 'Interventoría / Cliente', 155, y + 5, { align: 'center' });
+    doc.setTextColor(...GRIS);
+    doc.text('Nombre y C.C.', 55, y + 9.5, { align: 'center' });
+    doc.text('Nombre y C.C.', 155, y + 9.5, { align: 'center' });
+
+    pie(doc, `Acta de horas — ${maquina}`);
+    doc.save(`acta-horas-${slug(maquina)}-${slug(grupo.nombre)}.pdf`);
+}
