@@ -8,7 +8,9 @@ import { useCountUp } from '../../utils/useCountUp';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta } from '../../utils/nomina';
 import RegistroRapido from './RegistroRapido';
+import Monto from '../../utils/Monto';
 import './Dashboard.css';
+import './DashboardModerno.css';
 
 // #8: color único por tipo de máquina
 const TIPO_COLOR = {
@@ -28,8 +30,9 @@ const IcoMaquina = ({ tipo, size = 22 }) => {
 // #9: número que anima desde 0 al valor objetivo
 function AnimatedNumber({ value, prefix = '', suffix = '', style }) {
     const animated = useCountUp(value);
-    const display  = prefix + animated.toLocaleString('es-CO') + suffix;
-    return <span style={style}>{display}</span>;
+    // Con $ se muestra como monto: completo en pantalla ancha y abreviado en el celular
+    if (prefix === '$') return <span style={style}><Monto v={animated} /></span>;
+    return <span style={style}>{prefix + animated.toLocaleString('es-CO') + suffix}</span>;
 }
 
 const fmt    = (v) => '$' + (Number(v) || 0).toLocaleString('es-CO');

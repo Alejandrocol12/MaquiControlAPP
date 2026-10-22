@@ -1,0 +1,105 @@
+/* Dashboard con el mismo estilo que Maquinaria y Finanzas. Se carga después de Dashboard.css. */
+
+/* ── Entrada rápida ── */
+.rr-wrap{margin-bottom:18px;}
+.rr-bar{border-radius:18px;padding:8px 8px 8px 18px;border:1.5px solid #ffb81c;box-shadow:0 10px 24px -16px rgba(201,121,15,.6);}
+.rr-bar input{font-size:15px;padding:10px 0;}
+.rr-bar button{min-height:44px;border-radius:12px;background:#ffb81c;font-size:14px;padding:0 20px;}
+.rr-ej button{min-height:32px;padding:0 13px;}
+.rr-card{border-radius:20px;padding:20px;}
+.rr-f input,.rr-f select{min-height:44px;border-radius:12px;border-color:#cfd8e3;font-size:14px;}
+.rr-tipo button{min-height:40px;padding:0 16px;}
+.rr-tipo button.on{background:#0f1a2b;border-color:#0f1a2b;}
+.rr-acts .bp{min-height:44px;border-radius:12px;background:#ffb81c;}
+.rr-acts .bs{min-height:44px;border-radius:12px;}
+
+/* ── Filtros ── */
+.db-filtros .fchip{min-height:36px;padding:0 16px;font-size:13px;}
+.db-filtros .fchip.on{background:#0f1a2b;border-color:#0f1a2b;}
+.db-filtros .fchip:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+
+/* ── Resumen oscuro ── */
+.db-hero{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:0;margin-bottom:22px;padding:24px 8px;background:#0f1a2b;border-radius:22px;position:relative;overflow:hidden;box-shadow:0 12px 28px -18px rgba(5,10,26,.7);}
+.db-hero::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#f59300,#ffb81c 55%,#22d39a);}
+.db-hero .db-kpi,.db-hero .db-kpi.good,.db-hero .db-kpi.bad,.db-hero .db-kpi.profit{background:transparent;border:0;border-radius:0;box-shadow:none;padding:6px 26px;border-left:1px solid #26354d;color:inherit;}
+.db-hero .db-kpi:first-child{border-left:0;}
+.db-hero .db-kpi-label,.db-hero .db-kpi.profit .db-kpi-label{color:#94a3b8;font-size:11.5px;letter-spacing:.07em;}
+.db-hero .db-kpi-ico{width:32px;height:32px;border-radius:10px;}
+.db-hero .db-kpi.good .db-kpi-ico{background:rgba(34,211,154,.14);color:#22d39a;}
+.db-hero .db-kpi.bad .db-kpi-ico{background:rgba(255,84,112,.14);color:#ff6b86;}
+.db-hero .db-kpi.profit .db-kpi-ico{background:rgba(255,184,28,.16);color:#ffb81c;}
+.db-hero .db-kpi-val{font-family:'IBM Plex Mono',monospace;font-size:clamp(20px,2.4vw,32px);font-weight:700;letter-spacing:-.02em;}
+.db-hero .db-kpi.good .db-kpi-val{color:#22d39a;}
+.db-hero .db-kpi.bad .db-kpi-val{color:#ff6b86;}
+.db-hero .db-kpi.profit .db-kpi-val{color:#ffb81c;font-size:clamp(22px,2.8vw,38px);}
+.db-hero .db-kpi-sub,.db-hero .db-kpi.profit .db-kpi-sub{color:#8fa0b8;font-size:12.5px;}
+.db-hero .db-trend{background:rgba(34,211,154,.14);color:#22d39a;}
+.db-hero .db-trend.down{background:rgba(255,84,112,.14);color:#ff6b86;}
+
+/* ── Paneles ── */
+.db-sechead h2{font-size:20px;}
+.db-panel{border-radius:20px;border-color:#e3e8ef;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.db-panel-head{padding:18px 22px;border-bottom-color:#eef2f7;}
+.db-panel-head h2{font-size:18px;}
+.db-panel-head .meta{font-size:12.5px;color:#94a3b8;}
+.db-panel-body{padding:10px;display:flex;flex-direction:column;gap:8px;}
+.db-panel-empty{padding:28px 18px;font-size:13.5px;}
+
+.db-field-row{padding:14px 16px;border:1px solid #e8edf3;border-radius:14px;background:#f8fafc;position:relative;}
+.db-field-row::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:4px;border-radius:0 4px 4px 0;background:#22c55e;}
+.db-field-name{font:700 19px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.02em;}
+.db-field-meta{font-size:12.5px;}
+.db-field-num .l{font-size:10.5px;letter-spacing:.06em;}
+.db-field-num .v{font-size:14px;}
+.db-field-num.ing .v{color:#12a05b;}
+.db-field-num.gas .v{color:#e11d48;}
+
+.db-alert-row{padding:14px 16px;border-radius:14px;border:1px solid transparent;}
+.db-alert-row.crit{background:#fff1f3;border-color:#fdd3da;}
+.db-alert-row.warn{background:#fff8e6;border-color:#f8e0a8;}
+.db-alert-row.info{background:#f1f6ff;border-color:#d3e2fb;}
+.db-alert-row.clickable:hover{filter:brightness(.98);}
+.db-alert-row.clickable:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+.db-alert-text p{font-size:14px;}
+.db-alert-text span{font-size:12.5px;}
+.db-alert-tag{font-size:10.5px;padding:3px 9px;border-radius:99px;}
+
+/* ── Flota ── */
+.db-fleet-head-row{background:#f8fafc;padding:12px 22px;border-bottom-color:#eef2f7;}
+.db-fleet-row{padding:16px 22px;border-bottom-color:#eef2f7;}
+.db-fleet-row:hover{background:#fafbfd;}
+.db-fleet-ico{width:44px;height:44px;border-radius:13px;background:linear-gradient(145deg,#16253b,#0b1425) !important;color:#ffb81c;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.db-fleet-name{font:700 19px 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.02em;}
+.db-fleet-sub{font:500 11.5px 'IBM Plex Mono',monospace;}
+.db-pill{padding:4px 11px;border:1px solid transparent;}
+.db-pill.act{background:#e8f8ef;color:#12803f;border-color:#bfe8cf;}
+.db-pill.mant{background:#fff6e0;color:#a35f00;border-color:#f6d98d;}
+.db-util-track{height:8px;background:#eef2f7;border:0;}
+.db-util-fill{background:linear-gradient(90deg,#f59300,#ffb81c);}
+.db-util-label{font-size:12px;}
+
+@media (max-width:980px){
+  .db-hero{grid-template-columns:1fr 1fr;gap:16px 0;padding:18px 4px;}
+  .db-hero .db-kpi.profit{grid-column:1 / -1;border-left:0;border-top:1px solid #26354d;padding-top:14px;}
+  .db-hero .db-kpi{padding:4px 18px;}
+}
+@media (max-width:760px){
+  .db-hero .db-kpi-val{font-size:clamp(18px,5.6vw,24px);}
+  .db-hero .db-kpi.profit .db-kpi-val{font-size:clamp(22px,7vw,30px);}
+  .db-field-row{flex-wrap:wrap;}
+  .db-field-nums{width:100%;justify-content:space-between;}
+  .db-fleet-row{padding:16px;gap:12px;}
+  .db-panel-head{padding:14px 16px;}
+  .rr-bar{padding-left:14px;}
+}
+
+/* ── Modo oscuro ── */
+body.dark .db-field-row{background:#162033;border-color:#334155;}
+body.dark .db-alert-row.crit{background:#3b1520;border-color:#5c2230;}
+body.dark .db-alert-row.warn{background:#2a2418;border-color:#4a3410;}
+body.dark .db-alert-row.info{background:#16223a;border-color:#27406e;}
+body.dark .db-fleet-head-row{background:#162033;}
+body.dark .db-fleet-row:hover{background:#243244;}
+body.dark .db-pill.act{background:#12301f;color:#6ee7a3;border-color:#1f5a38;}
+body.dark .db-filtros .fchip.on{background:#f5a623;border-color:#f5a623;}
+body.dark .db-util-track{background:#0f172a;}
