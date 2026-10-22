@@ -12,8 +12,6 @@ import {
     getTelegramCodeAPI,
     unlinkTelegramAPI,
     getPagosOperador,
-    createPagoOperador,
-    updatePagoOperador,
     deletePagoOperador,
     getPagosOperadorSinGasto,
     pasarPagosOperadorAGastos,
@@ -42,20 +40,22 @@ import {
     CreditCard,
     Scissors,
     DollarSign,
-    X,
     Plus,
+    ChevronDown,
+    Printer,
 } from 'lucide-react';
-import MoneyInput from '../../utils/MoneyInput';
 import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
-import Opcional from '../../utils/Opcional';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { diaSiguiente, enRango, ordenarCortes, repartirPagos, fmtHoras, nombreCorte } from '../../utils/cortes';
 import { fmtHoro } from '../../utils/horometro';
 import CortesOperador from './CortesOperador';
+import PagarOperadorModal from './PagarOperadorModal';
+import CertificadoOperadorModal from './CertificadoOperadorModal';
+import HorasCorteLista from './HorasCorteLista';
 import HorasPorCorte from './HorasPorCorte';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
@@ -108,7 +108,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     // Pago Operador -- la plata que se le entrega al operador (pagos de corte y adelantos).
     // Cada pago crea su gasto "Pago operador" en el backend; solo admin (no visible en el portal).
     const [pagosOperador, setPagosOperador] = useState([]);
-    const [pagoRapido, setPagoRapido] = useState({ abierto: false, monto: '', descripcion: '', guardando: false });
+    const [verDesglose, setVerDesglose] = useState(false);
+    const [horasAbiertas, setHorasAbiertas] = useState(null);
+    const [certificando, setCertificando] = useState(false);
     const errPagoOp = useErrores();
     const errEdit = useErrores();
     const PAGO_OP_VACIO = { descripcion: '', monto: '', total: '', fecha: hoy() };
@@ -131,26 +133,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [operador.id, modoPortal]);
 
-    const guardarPagoOperador = async () => {
-        const monto = parseFloat(pagoOpForm.monto);
-        if (!errPagoOp.validar([{ campo: 'poMonto', ok: monto > 0, msg: 'Escribe cuánto le pagaste' }])) return;
-        const payload = { operadorNombre: operadorLocal.nombre, descripcion: pagoOpForm.descripcion, monto, fecha: pagoOpForm.fecha };
-        try {
-            if (editandoPagoOpId) {
-                await updatePagoOperador(editandoPagoOpId, payload);
-                toast('Pago actualizado');
-            } else {
-                await createPagoOperador(payload);
-                toast('Pago registrado');
-            }
-        } catch {
-            return toast('No se pudo guardar el pago', 'e');
-        }
-        setEditandoPagoOpId(null);
-        setPagoOpForm(PAGO_OP_VACIO);
-        setFormPagoAbierto(false);
-        refrescarPagosOperador();
-    };
     const pasarPagosViejos = async () => {
         const total = pagosSinGasto.reduce((a, p) => a + (Number(p.monto) || 0), 0);
         if (!await confirm(`¿Pasar a Gastos ${pagosSinGasto.length} pago${pagosSinGasto.length === 1 ? '' : 's'} por ${fmt(total)}? Cada uno queda con su fecha original y empieza a contar en los egresos.`)) return;
@@ -176,20 +158,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         deletePagoOperador(id).catch(() => { setPagosOperador(prev); toast('Error al eliminar', 'e'); });
     };
 
-    const registrarPagoRapido = async () => {
-        const monto = parseFloat(pagoRapido.monto);
-        if (!(monto > 0)) return toast('Escribe cuánto le vas a pagar', 'e');
-        setPagoRapido(p => ({ ...p, guardando: true }));
-        try {
-            await createPagoOperador({ operadorNombre: operadorLocal.nombre, descripcion: pagoRapido.descripcion, monto, fecha: hoy() });
-            toast('Pago registrado');
-            setPagoRapido({ abierto: false, monto: '', descripcion: '', guardando: false });
-            refrescarPagosOperador();
-        } catch {
-            toast('No se pudo registrar el pago', 'e');
-            setPagoRapido(p => ({ ...p, guardando: false }));
-        }
-    };
 
     const [editForm, setEditForm] = useState({
         nombre: operador.nombre || '',
@@ -332,6 +300,19 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         { id: 'curso', nombre: 'En curso', fechas: `${fmtFecha(corteDesde)} a hoy`, horas: horasCorteEnCurso, ganado: horasCorteEnCurso * valorHora },
     ], anticipos);
     const filaCurso = filasCorte[filasCorte.length - 1];
+    // Las horas que cuentan en cada fila de corte, de la más reciente a la más antigua
+    const horasDeFila = (f) => {
+        let lista = [];
+        if (f.id === 'curso') lista = horas.filter(h => enRango(h.fecha, corteDesde, null));
+        else if (f.id === 'antes') {
+            const tope = String(cortesOp[0]?.fechaInicio || corteDesde).slice(0, 10);
+            lista = horas.filter(h => String(h.fecha).slice(0, 10) < tope && String(h.fecha).slice(0, 10) >= inicioPeriodo);
+        } else {
+            const c = cortesOp.find(x => String(x.id) === String(f.id));
+            lista = c ? horas.filter(h => enRango(h.fecha, c.fechaInicio, c.fechaFin)) : [];
+        }
+        return [...lista].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
+    };
     const totalHorasAcumuladas = horas.reduce((acc, h) => acc + getHrs(h), 0);
     const totalPagadoOperador = pagosOperador.reduce((a, p) => a + (Number(p.monto) || 0), 0);
     const pagosOperadorOrdenados = pagosOperador.slice().sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
@@ -553,10 +534,30 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                     <div className="dop-hero-main">
                                         <div className="dop-hero-k">{salarioNeto < 0 ? 'Le pagaste de más a' : 'Le debes a'} {operadorLocal.nombre}</div>
                                         <div className="dop-hero-big">{fmt(salarioNeto < 0 ? -salarioNeto : debeTotal)}</div>
-                                        <div className="dop-hero-sub">{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = {fmt(salarioBruto)} ganados · {fmt(anticipos)} pagados</div>
-                                        <div className="dop-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
                                         <div className="dop-hero-sub">
-                                            {salarioBruto > 0 ? `${Math.round(Math.min(100, anticipos / salarioBruto * 100))}% ya pagado · ` : ''}
+                                            <span>{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = <b>{fmt(salarioBruto)}</b> ganados</span>
+                                            <span aria-hidden="true">·</span>
+                                            <span className="vd">{fmt(anticipos)} pagados</span>
+                                            <button type="button" className="dop-desglose" aria-expanded={verDesglose} onClick={() => setVerDesglose(v => !v)}>
+                                                (Ver desglose) <ChevronDown size={12} aria-hidden="true" className={verDesglose ? 'gira' : ''} />
+                                            </button>
+                                        </div>
+                                        {verDesglose && (
+                                            <div className="dop-desg">
+                                                <div className="dop-desg-t">Liquidación consolidada por cortes</div>
+                                                {filasCorte.map(f => (
+                                                    <div key={f.id} className={`dop-desg-f ${f.id === 'curso' ? 'curso' : ''}`}>
+                                                        <span>{f.nombre}{f.id === 'curso' ? ' en curso' : ''} ({fmtHoras(f.horas)} h × {fmt(valorHora)}):</span>
+                                                        <span>{fmt(f.ganado)} <em className={f.debe <= 0 ? 'vd' : f.pagado > 0 ? 'am' : 'rj'}>({f.debe <= 0 ? '100% Pagado' : f.pagado > 0 ? 'Parcial' : 'Pendiente'})</em></span>
+                                                    </div>
+                                                ))}
+                                                <div className="dop-desg-f total"><span>Saldo neto pendiente a liquidar hoy:</span><span>{fmt(debeTotal)}</span></div>
+                                            </div>
+                                        )}
+                                        <div className="dop-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
+                                        <div className="dop-hero-sub dop-pct">
+                                            <span className="vd">{salarioBruto > 0 ? Math.round(Math.min(100, anticipos / salarioBruto * 100)) : 0}% ya pagado</span>
+                                            <span aria-hidden="true">·</span>
                                             {editandoFechaPeriodo ? (
                                                 <span className="dop-edit">
                                                     <input className="fi" type="date" aria-label="Fecha de inicio del periodo" value={fechaPeriodoInput} onChange={(e) => setFechaPeriodoInput(e.target.value)} />
@@ -564,43 +565,18 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                                     <button type="button" className="bs" onClick={() => setEditandoFechaPeriodo(false)}>Cancelar</button>
                                                 </span>
                                             ) : (
-                                                <>Periodo activo desde <b>{fmtFecha(periodoActivo.fechaInicio)}</b>
-                                                    <button type="button" className="dop-pen" title="Cambiar fecha de inicio del periodo" aria-label="Cambiar fecha de inicio del periodo"
-                                                        onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button>
-                                                </>
+                                                <button type="button" className="dop-pen" title={`Periodo activo desde ${fmtFecha(periodoActivo.fechaInicio)}. Toca para cambiar la fecha.`} aria-label="Cambiar la fecha de inicio del periodo"
+                                                    onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button>
                                             )}
                                         </div>
                                     </div>
-                                    {debeTotal > 0
-                                        ? <button type="button" className="dop-pagar" onClick={() => setPagoRapido(p => ({ ...p, abierto: !p.abierto, monto: p.abierto ? '' : String(Math.round(debeTotal)) }))}>{pagoRapido.abierto ? 'Cerrar' : 'Pagar'}</button>
-                                        : <span className="do-pill ok">Al día</span>}
+                                    <div className="dop-acciones">
+                                        <button type="button" className="dop-pagar" onClick={() => { cancelarPagoOperador(); setFormPagoAbierto(true); }}><DollarSign size={16} aria-hidden="true" /> Pagar Ahora</button>
+                                        <button type="button" className="dop-imprimir" onClick={() => setCertificando(true)}><Printer size={14} aria-hidden="true" /> Imprimir Comprobante</button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="ct-aviso"><AlertTriangle size={14} /> No hay un periodo activo para este operador.</div>
-                            )}
-
-                            {pagoRapido.abierto && periodoActivo && (
-                                <div className="dop-pagar-panel">
-                                    <b>Registrar pago o adelanto</b>
-                                    <div className="ic-filtros">
-                                        {[[debeTotal, 'Todo'], [filaCurso.debe, 'Solo el corte en curso']].filter(([v]) => v > 0).map(([v, l]) => (
-                                            <button key={l} type="button" className={Number(pagoRapido.monto) === Math.round(v) ? 'on' : ''}
-                                                onClick={() => setPagoRapido(p => ({ ...p, monto: String(Math.round(v)) }))}>{l} · {fmt(v)}</button>
-                                        ))}
-                                    </div>
-                                    <div className="dop-pagar-campos">
-                                        <MoneyInput className="fi" aria-label="Monto a pagar" placeholder="Otro monto" value={pagoRapido.monto}
-                                            onChange={(e) => setPagoRapido(p => ({ ...p, monto: e.target.value }))} />
-                                        <input className="fi" aria-label="Descripción del pago" placeholder="Descripción (opcional)" value={pagoRapido.descripcion}
-                                            onChange={(e) => setPagoRapido(p => ({ ...p, descripcion: e.target.value }))} />
-                                    </div>
-                                    <div className="ct-acts">
-                                        <button type="button" className="bs" onClick={() => setPagoRapido({ abierto: false, monto: '', descripcion: '', guardando: false })}>Cancelar</button>
-                                        <button type="button" className="bp" disabled={pagoRapido.guardando} onClick={registrarPagoRapido}>
-                                            <CheckCircle size={13} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{pagoRapido.guardando ? 'Guardando…' : 'Registrar pago'}
-                                        </button>
-                                    </div>
-                                </div>
                             )}
 
                             <div className="dop-stats">
@@ -636,7 +612,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 return (
                                     <div className="ct-box">
                                         <div className="ct-head"><b><DollarSign size={16} className="ct-ico" /> Cortes con saldo pendiente</b><button type="button" className="ct-link plano" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
-                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} ancho onVerHoras={() => setTab(1)} extraEnCurso={controlCorte} />
+                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} ancho extraEnCurso={controlCorte}
+                                            onVerHoras={(id) => setHorasAbiertas(a => (a === id ? null : id))} horasAbiertas={horasAbiertas}
+                                            renderHoras={(f) => <HorasCorteLista horas={horasDeFila(f)} valorHora={valorHora} getHrs={getHrs} />} />
                                     </div>
                                 );
                             })()}
@@ -962,47 +940,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                             )}
 
                             <div className="dpo-fold">
-                                <button type="button" className={`dpo-fold-btn ${formPagoAbierto || editandoPagoOpId ? 'on' : ''}`} aria-expanded={!!(formPagoAbierto || editandoPagoOpId)}
-                                    onClick={() => { if (editandoPagoOpId || formPagoAbierto) cancelarPagoOperador(); else setFormPagoAbierto(true); }}>
-                                    {formPagoAbierto || editandoPagoOpId ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />} {formPagoAbierto || editandoPagoOpId ? 'Cerrar formulario' : 'Registrar pago o adelanto'}
+                                <button type="button" className="dpo-fold-btn" onClick={() => { cancelarPagoOperador(); setFormPagoAbierto(true); }}>
+                                    <Plus size={16} aria-hidden="true" /> Registrar pago o adelanto
                                 </button>
                             </div>
-
-                            {(formPagoAbierto || editandoPagoOpId) && (
-                            <div className="fc">
-                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <CreditCard size={18} /> {editandoPagoOpId ? 'Editar pago' : 'Registrar pago o adelanto'}
-                                </h3>
-                                <div className="fg2-keep">
-                                    {!editandoPagoOpId && (
-                                        <div><label className="fl">Total ($)</label><MoneyInput className="fi" value={pagoOpForm.total} placeholder="Lo que se le debe"
-                                            onChange={e => setPagoOpForm({ ...pagoOpForm, total: e.target.value })} /></div>
-                                    )}
-                                    <div><label className="fl">Pagado ($) *</label><MoneyInput className={errPagoOp.clase('fi', 'poMonto')} {...errPagoOp.props('poMonto')} value={pagoOpForm.monto}
-                                        onChange={e => { setPagoOpForm({ ...pagoOpForm, monto: e.target.value }); errPagoOp.limpiar('poMonto'); }} placeholder="Ej: 200.000" />
-                                        <ErrorCampo msg={errPagoOp.errores.poMonto} /></div>
-                                </div>
-                                {!editandoPagoOpId && Number(pagoOpForm.total) > 0 && Number(pagoOpForm.monto) > 0 && (
-                                    <p className="po-saldo">
-                                        {Number(pagoOpForm.monto) >= Number(pagoOpForm.total)
-                                            ? <><Estado valor="Pagado" /> Con este pago queda al día.</>
-                                            : <><Estado valor="Parcial" /> Quedaría un saldo de <b>{fmt(Number(pagoOpForm.total) - Number(pagoOpForm.monto))}</b>.</>}
-                                    </p>
-                                )}
-                                <Opcional label="Fecha y descripción (opcional)" abierto={!!editandoPagoOpId && !!pagoOpForm.descripcion}>
-                                    <div className="fg2-keep">
-                                        <div><label className="fl">Fecha</label><input className="fi" type="date" value={pagoOpForm.fecha} onChange={e => setPagoOpForm({ ...pagoOpForm, fecha: e.target.value })} /></div>
-                                        <div><label className="fl">Descripción</label><input className="fi" value={pagoOpForm.descripcion} onChange={e => setPagoOpForm({ ...pagoOpForm, descripcion: e.target.value })} placeholder="Ej: Quincena" /></div>
-                                    </div>
-                                </Opcional>
-                                <div className="fa">
-                                    <button className="bp" onClick={guardarPagoOperador}>
-                                        <Check size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> {editandoPagoOpId ? 'Guardar cambios' : 'Registrar pago'}
-                                    </button>
-                                    <button className="bs" onClick={cancelarPagoOperador}>Cancelar</button>
-                                </div>
-                            </div>
-                            )}
 
                             <div className="tbl">
                                 <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
@@ -1174,6 +1115,20 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                         </>
                     )}
                 </div></div>
+
+                {!modoPortal && (formPagoAbierto || editandoPagoOpId) && (
+                    <PagarOperadorModal
+                        operador={{ nombre: operadorLocal.nombre, maq: maqAsignada, valorHora }}
+                        saldo={debeTotal}
+                        edicion={editandoPagoOpId ? { id: editandoPagoOpId, monto: pagoOpForm.monto, descripcion: pagoOpForm.descripcion, fecha: pagoOpForm.fecha } : null}
+                        onCerrar={cancelarPagoOperador}
+                        onPagado={() => { cancelarPagoOperador(); refrescarPagosOperador(); }} />
+                )}
+                {certificando && (
+                    <CertificadoOperadorModal
+                        operador={{ id: operadorLocal.id || operador.id, nombre: operadorLocal.nombre, cedula: operadorLocal.cedula, maq: maqAsignada, valorHora, horasPeriodo, salarioBruto, anticipos }}
+                        desde={periodoActivo?.fechaInicio} saldo={debeTotal} onCerrar={() => setCertificando(false)} />
+                )}
             </div>
         </>
     );
