@@ -584,7 +584,13 @@ function App() {
             toast(`Bienvenido, ${data.user.nombre}`, 's');
             if (!localStorage.getItem('mc_tour_done')) setTourActivo(true);
         } catch (err) {
-            toast(err.response?.data?.error || 'Correo o contrasena incorrectos', 'e');
+            // Solo un 401 es de verdad "datos incorrectos"; un fallo de red o de permisos del servidor no lo es
+            const estado = err.response?.status;
+            toast(err.response?.data?.error
+                || (!err.response ? 'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.'
+                    : estado === 403 ? 'El servidor no permite entrar desde esta dirección todavía. Avisa al administrador.'
+                    : estado >= 500 ? 'El servidor no está respondiendo bien. Intenta en unos minutos.'
+                    : 'Correo o contraseña incorrectos'), 'e');
         }
     };
 
