@@ -92,7 +92,10 @@ function addCabecera(ws, titulo, subtitulo, ncols) {
 
     ws.mergeCells(1, C0, 1, last);
     const c1 = ws.getCell(1, C0);
-    c1.value = 'MAQUICONTROL';
+    c1.value = { richText: [
+        { text: 'M', font: { bold: true, size: 24, color: { argb: C.DORADO }, name: 'Calibri' } },
+        { text: 'OVENTRA', font: { bold: true, size: 20, color: { argb: 'FFFFFFFF' }, name: 'Calibri' } },
+    ] };
     c1.fill = fill(C.AZUL);
     c1.font = { bold: true, size: 20, color: { argb: C.DORADO }, name: 'Calibri' };
     c1.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };

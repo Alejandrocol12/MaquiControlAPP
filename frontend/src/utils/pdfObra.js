@@ -31,11 +31,14 @@ export function cabecera(doc, titulo, subtitulo) {
     doc.rect(0, 4, 210, 17, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(15);
-    doc.setTextColor(255, 255, 255);
-    doc.text('MAQUI', 14, 15.5);
-    const w = doc.getTextWidth('MAQUI');
+    // Moventra: la M en amarillo y el resto en blanco, como el logo
     doc.setTextColor(...AMARILLO);
-    doc.text('CONTROL', 14 + w, 15.5);
+    doc.setFontSize(18);
+    doc.text('M', 14, 15.5);
+    const w = doc.getTextWidth('M');
+    doc.setFontSize(15);
+    doc.setTextColor(255, 255, 255);
+    doc.text('OVENTRA', 14 + w, 15.5);
 
     const hoy = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
     doc.setFont(MONO, 'normal');
