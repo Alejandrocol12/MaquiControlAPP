@@ -261,6 +261,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         : [];
 
     const horasPeriodo = horasDelPeriodo.reduce((acc, h) => acc + getHrs(h), 0);
+    // Jornada promedio: horas por día trabajado, y cuántos días seguidos lleva trabajando hasta el último registro
+    const horasPorDia = {};
+    horasDelPeriodo.forEach(h => { const k = String(h.fecha).slice(0, 10); horasPorDia[k] = (horasPorDia[k] || 0) + getHrs(h); });
+    const diasConHoras = Object.keys(horasPorDia).filter(k => horasPorDia[k] > 0).sort();
+    const jornadaPromedio = diasConHoras.length ? horasPeriodo / diasConHoras.length : 0;
+    let turnosSeguidos = diasConHoras.length ? 1 : 0;
+    for (let i = diasConHoras.length - 1; i > 0; i--) {
+        const dif = (new Date(diasConHoras[i] + 'T00:00:00') - new Date(diasConHoras[i - 1] + 'T00:00:00')) / 86400000;
+        if (Math.round(dif) === 1) turnosSeguidos++; else break;
+    }
 
     const salarioBruto = horasPeriodo * valorHora;
     // Lo entregado al operador en este periodo: los anticipos que venían anotados en el periodo
@@ -582,6 +592,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                             <div className="dop-stats">
                                 <div className="dop-stat"><span>Horas del periodo</span><b>{fmtHoras(horasPeriodo)}</b><small>desde {fmtFecha(periodoActivo?.fechaInicio)}</small></div>
                                 {maqAsignada && <div className="dop-stat"><span>Horómetro de {maqAsignada.nombre}</span><b>{fmtHoro(maqAsignada.horometroActual)}</b><small>horas acumuladas en la máquina</small></div>}
+                                <div className="dop-stat"><span>Jornada promedio</span>
+                                    <b>{diasConHoras.length ? fmtHoras(jornadaPromedio) : '—'}{diasConHoras.length > 0 && <i className="u">h/d</i>}</b>
+                                    <small>{diasConHoras.length ? `${turnosSeguidos} turno${turnosSeguidos === 1 ? '' : 's'} continuo${turnosSeguidos === 1 ? '' : 's'} sin paro` : 'sin horas en este periodo'}</small>
+                                </div>
                                 <div className="dop-stat">
                                     <span>Último pago</span>
                                     <b className={diasUltimoPago > 20 ? 'wr' : ''}>{diasUltimoPago == null ? 'Sin pagos' : diasUltimoPago === 0 ? 'Hoy' : `hace ${diasUltimoPago} día${diasUltimoPago === 1 ? '' : 's'}`}</b>

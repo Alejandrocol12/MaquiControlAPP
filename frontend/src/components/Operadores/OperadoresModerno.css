@@ -475,3 +475,5 @@ body.dark .do-zona .ct-box .ct-card.curso{background:#162033;border-color:#33415
 body.dark .do-zona .ct-box .ct-card.curso .ct-card-top b,body.dark .do-zona .ct-box .ct-card.curso .ct-card-big,body.dark .do-zona .ct-box .ct-card.curso .ct-card-r b{color:#f1f5f9;}
 body.dark .do-zona .dop-corte-desde .ct-link{color:#f1f5f9 !important;}
 body.dark .do-zona .ct-box .ct-card.curso .ct-link{background:#0f172a;border-color:#334155;color:#cbd5e1;}
+
+.do-zona .dop-stat b .u{margin-left:8px;font:700 .5em 'IBM Plex Mono',monospace;font-style:normal;color:#94a3b8;}
