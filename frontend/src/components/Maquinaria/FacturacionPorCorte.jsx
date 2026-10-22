@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Scissors, X, Printer, Loader, AlertTriangle, ChevronRight, Pencil, Trash2, Check } from 'lucide-react';
 import { getCortes, getPagos, createCorte, renombrarCorte } from '../../api';
 import { fmtHoro } from '../../utils/horometro';
+import { LOGO_GRANDE } from '../../utils/logoMoventra';
 import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
@@ -224,7 +225,8 @@ function LiquidacionModal({ maq, faena, numero, desde, hasta, curso, gasCurso, t
         if (!w) return setError('El navegador bloqueó la ventana de impresión.');
         const esc = (t) => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         const filas = gasCurso.lista.map(g => `<tr><td>${esc(g.descripcion)}</td><td>${esc(g.categoria)}</td><td>${esc(fmtFecha(g.fecha))}</td><td style="text-align:right">-${fmt(g.monto)}</td></tr>`).join('');
-        w.document.write(`<html><head><title>Liquidación corte ${numero}</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border-bottom:1px solid #ddd;padding:6px;font-size:13px;text-align:left}h1{font-size:20px;margin:0}</style></head><body>
+        w.document.write(`<html><head><title>Liquidación corte ${numero}</title><style>.marca{position:fixed;top:50%;left:50%;width:60%;transform:translate(-50%,-50%);opacity:.08;z-index:-1}body{font-family:Arial,sans-serif;padding:28px;color:#111}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border-bottom:1px solid #ddd;padding:6px;font-size:13px;text-align:left}h1{font-size:20px;margin:0}</style></head><body>
+<img class="marca" src="${LOGO_GRANDE}" alt="">
 <h1>Liquidación de corte ${numero} · ${esc(maq.nombre)}</h1><p>${esc(faena.nombreObra)} · Cliente: ${esc(cliente)}<br>Periodo: ${esc(fmtFecha(desde))} a ${esc(fmtFecha(hasta))} (${dias} días)</p>
 <p><b>Horas a liquidar:</b> ${fmtHoras(curso.horas)} h @ ${fmt(tarifa)}/h<br><b>Por cobrar (cliente):</b> ${fmt(curso.total)}<br><b>Gastos del corte:</b> ${fmt(gasCurso.total)}<br><b>Utilidad neta:</b> ${fmt(util)} (${pct(margen)} margen)</p>
 <h3>Gastos deducibles (${gasCurso.n})</h3><table><tr><th>Descripción</th><th>Categoría</th><th>Fecha</th><th style="text-align:right">Monto</th></tr>${filas}</table>

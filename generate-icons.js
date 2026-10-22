@@ -105,6 +105,8 @@ const ico = (pngs) => {
 export const LOGO_PROPORCION = ${(meta.width / meta.height).toFixed(4)}; // ancho / alto
 export const LOGO_CLARO = '${await b64(claro, 112)}';
 export const LOGO_COLOR = '${await b64(color, 112)}';
+// Más grande, para la marca de agua en el centro de cada hoja (se aclara al dibujarla)
+export const LOGO_GRANDE = '${await b64(color, 420)}';
 `;
     fs.writeFileSync(path.join(__dirname, 'frontend', 'src', 'utils', 'logoMoventra.js'), js);
     console.log('✅ src/utils/logoMoventra.js');

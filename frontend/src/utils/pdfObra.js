@@ -1,5 +1,5 @@
 import autoTable from 'jspdf-autotable';
-import { LOGO_CLARO, LOGO_PROPORCION } from './logoMoventra';
+import { LOGO_CLARO, LOGO_GRANDE, LOGO_PROPORCION } from './logoMoventra';
 
 export const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
 export const fmtNum = (v) => (v || 0).toLocaleString('es-CO');
@@ -237,6 +237,15 @@ export function pie(doc, texto) {
     const pages = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
         doc.setPage(i);
+        // Marca de agua: el logo con sus colores, muy suave, en el centro de la hoja
+        try {
+            const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+            const ancho = Math.min(W, H) * 0.62, alto = ancho / LOGO_PROPORCION;
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.09 }));
+            doc.addImage(LOGO_GRANDE, 'PNG', (W - ancho) / 2, (H - alto) / 2, ancho, alto, 'marca-moventra', 'FAST');
+            doc.restoreGraphicsState();
+        } catch { /* si la imagen no carga, el documento sale sin marca de agua */ }
         doc.setDrawColor(...NEGRO);
         doc.setLineWidth(0.6);
         doc.line(14, 284, 196, 284);
