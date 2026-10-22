@@ -5,10 +5,12 @@ import DetalleOperador from './DetalleOperador';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
-import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search } from 'lucide-react';
+import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search, X, List, LayoutGrid } from 'lucide-react';
+import Monto from '../../utils/Monto';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
 import './Operadores.css';
+import './OperadoresModerno.css';
 
 const TIPO_COLOR = { 'Excavadora': '#2980b9', 'Bulldozer': '#e67e22', 'Volqueta': '#8e44ad', 'Grúa': '#c0392b' };
 const tipoColor = (tipo) => TIPO_COLOR[tipo] || '#27ae60';
@@ -44,6 +46,9 @@ function Operadores() {
     const [opSel, setOpSel]             = useState(null);
     const [periodosActivos, setPeriodosActivos] = useState({});
     const [buscar, setBuscar]           = useState('');
+    const [vista, setVista]             = useState('tarjetas');
+    const [filtro, setFiltro]           = useState('todos');
+    const [orden, setOrden]             = useState('saldo');
 
     const cargar = async () => {
         try {
@@ -201,9 +206,13 @@ function Operadores() {
     const maxHorasPeriodo  = Math.max(1, ...ops.map(o => o.horasPeriodo));
 
     const q = buscar.toLowerCase();
-    const opsFiltrados = ops.filter(o =>
-        !q || o.nombre.toLowerCase().includes(q) || (o.cedula || '').includes(q)
-    );
+    const porPagar = (o) => (o.hayPendiente ? Math.max(0, o.salarioNeto) : 0);
+    const opsFiltrados = ops
+        .filter(o => !q || o.nombre.toLowerCase().includes(q) || (o.cedula || '').includes(q))
+        .filter(o => filtro === 'todos' || (filtro === 'saldo' ? o.hayPendiente : !o.hayPendiente))
+        .sort((a, b) => orden === 'nombre' ? a.nombre.localeCompare(b.nombre, 'es')
+            : orden === 'horas' ? b.horasPeriodo - a.horasPeriodo
+            : porPagar(b) - porPagar(a) || a.nombre.localeCompare(b.nombre, 'es'));
 
     const { sorted: salOrdenados, Th: ThSal } = useSortable(salarios, 'operadorNombre', 'asc');
 
@@ -217,7 +226,7 @@ function Operadores() {
                 <button className="bp" onClick={() => setMostrarForm(!mostrarForm)}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nuevo Operador</button>
             </div>
 
-            <div className="content"><div className="pad">
+            <div className="content"><div className="pad op-zona">
 
                 {/* HERO KPIs */}
                 <div className="op-hero">
@@ -233,12 +242,12 @@ function Operadores() {
                     </div>
                     <div className="op-kpi bad">
                         <div className="op-kpi-top"><span className="op-kpi-label">Nómina pendiente</span><span className="op-kpi-ico"><TrendingDown size={14} /></span></div>
-                        <div className="op-kpi-val op-num">{fmt(nominaPendiente)}</div>
+                        <div className="op-kpi-val op-num"><Monto v={nominaPendiente} /></div>
                         <div className="op-kpi-sub">{pendientes} operador{pendientes !== 1 ? 'es' : ''} por liquidar</div>
                     </div>
                     <div className="op-kpi profit">
                         <div className="op-kpi-top"><span className="op-kpi-label">Nómina neta del periodo</span><span className="op-kpi-ico"><HardHat size={14} /></span></div>
-                        <div className="op-kpi-val op-num">{fmt(nominaNeta)}</div>
+                        <div className="op-kpi-val op-num"><Monto v={nominaNeta} /></div>
                         <div className="op-kpi-sub">bruto − anticipos, los {operadores.length} operadores</div>
                     </div>
                 </div>
@@ -256,9 +265,17 @@ function Operadores() {
 
                 {/* FORM NUEVO */}
                 {mostrarForm && (
-                    <div className="fc">
-                        <h3 style={{display:'flex',alignItems:'center',gap:'8px'}}><HardHat size={18} /> Registrar operador</h3>
-                        <p className="fd">Solo datos personales — la máquina y valor/hora se asignan desde el módulo Maquinaria</p>
+                    <div className="opm-fondo" onMouseDown={e => { if (e.target === e.currentTarget) setMostrarForm(false); }}>
+                    <div className="opm-modal" role="dialog" aria-modal="true" aria-labelledby="opm-titulo">
+                        <header className="opm-cab">
+                            <span className="opm-ico" aria-hidden="true"><HardHat size={20} /></span>
+                            <div>
+                                <h3 id="opm-titulo">Registrar operador</h3>
+                                <p>Solo datos personales: la máquina y el valor por hora se asignan desde Maquinaria</p>
+                            </div>
+                            <button type="button" className="opm-x" aria-label="Cerrar" onClick={() => setMostrarForm(false)}><X size={18} /></button>
+                        </header>
+                        <div className="opm-cuerpo">
                         <div className="fg2">
                             <div><label className="fl">Nombre completo *</label>
                                 <input className={errOp.clase('fi', 'opNombre')} {...errOp.props('opNombre')} value={form.nombre} onChange={e => { setForm({ ...form, nombre: e.target.value }); errOp.limpiar('opNombre'); }} placeholder="Ej: Carlos Pérez" />
@@ -304,10 +321,12 @@ function Operadores() {
                                 </div>
                             </div>
                         )}
-                        <div className="fa">
-                            <button className="bp" onClick={registrar} disabled={registrando}><Check size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> {registrando ? 'Registrando...' : 'Registrar'}</button>
-                            <button className="bs" onClick={() => setMostrarForm(false)}>Cancelar</button>
                         </div>
+                        <footer className="opm-pie">
+                            <button type="button" className="opm-cancelar" onClick={() => setMostrarForm(false)}>Cancelar</button>
+                            <button type="button" className="opm-guardar" onClick={registrar} disabled={registrando}><Check size={16} aria-hidden="true" /> {registrando ? 'Registrando…' : 'Registrar operador'}</button>
+                        </footer>
+                    </div>
                     </div>
                 )}
 
@@ -320,12 +339,68 @@ function Operadores() {
 
                 {/* ROSTER DE OPERADORES */}
                 {operadores.length > 0 && (
+                    <section className="opm-roster">
+                        <header className="opm-rh">
+                            <div className="opm-rh-t">
+                                <h2>Roster de operadores</h2>
+                                <span className="opm-n">{operadores.length}</span>
+                                <div className="opm-vista" role="group" aria-label="Vista">
+                                    <button type="button" className={vista === 'lista' ? 'on' : ''} aria-pressed={vista === 'lista'} aria-label="Ver como lista" onClick={() => setVista('lista')}><List size={16} /></button>
+                                    <button type="button" className={vista === 'tarjetas' ? 'on' : ''} aria-pressed={vista === 'tarjetas'} aria-label="Ver como tarjetas" onClick={() => setVista('tarjetas')}><LayoutGrid size={16} /></button>
+                                </div>
+                            </div>
+                            <div className="opm-rh-f">
+                                <div className="opm-seg" role="group" aria-label="Filtrar por saldo">
+                                    {[['todos', 'Todos'], ['saldo', 'Con saldo'], ['dia', 'Al día']].map(([k, l]) => (
+                                        <button key={k} type="button" className={filtro === k ? 'on' : ''} aria-pressed={filtro === k} onClick={() => setFiltro(k)}>{l}</button>
+                                    ))}
+                                </div>
+                                <select className="opm-sel" aria-label="Ordenar" value={orden} onChange={e => setOrden(e.target.value)}>
+                                    <option value="saldo">Mayor saldo pendiente</option>
+                                    <option value="horas">Más horas</option>
+                                    <option value="nombre">Nombre</option>
+                                </select>
+                                <div className="op-search"><Search size={14} color="#93a2b3" /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por nombre o cédula" aria-label="Buscar operador" /></div>
+                            </div>
+                        </header>
+
+                        {vista === 'tarjetas' && (opsFiltrados.length === 0
+                            ? <p className="vacio">Sin resultados con esos filtros</p>
+                            : (
+                                <div className="opm-grid">
+                                    {opsFiltrados.map(op => (
+                                        <article className={`opm-card ${op.hayPendiente ? 'pend' : ''}`} key={op.id}>
+                                            <div className="opm-card-top">
+                                                <div className={`op-avatar ${!op.maq ? 'dim' : ''}`}>{op.iniciales}</div>
+                                                <div className="opm-card-id">
+                                                    <b>{op.nombre}</b>
+                                                    <small>{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</small>
+                                                </div>
+                                                <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Pendiente' : 'Al día'}</span>
+                                            </div>
+                                            <div className="opm-maq">
+                                                {op.maq
+                                                    ? <><span className="opm-maq-n"><IcoMaquina tipo={op.maq.tipo} size={15} /> {op.maq.nombre}</span><span className="opm-maq-v">{fmt(op.valorHora)}/hr</span></>
+                                                    : <span className="op-unassigned"><AlertTriangle size={11} />Sin máquina asignada</span>}
+                                            </div>
+                                            <div className="opm-stats">
+                                                <div><span>Horas</span><b>{op.maq ? `${op.horasPeriodo.toLocaleString('es-CO')} h` : '—'}</b></div>
+                                                <div><span>Ganado</span><b className="vd"><Monto v={op.salarioBruto} /></b></div>
+                                                <div><span>Por pagar</span><b className={porPagar(op) > 0 ? 'na' : ''}><Monto v={porPagar(op)} /></b></div>
+                                            </div>
+                                            <div className="opm-card-pie">
+                                                <button type="button" className="opm-del" aria-label={`Eliminar a ${op.nombre}`} onClick={() => eliminar(op.id)}><Trash2 size={15} /></button>
+                                                <button type="button" className="opm-ficha" onClick={() => setOpSel(op)}><Eye size={14} aria-hidden="true" /> Ficha</button>
+                                            </div>
+                                        </article>
+                                    ))}
+                                </div>
+                            ))}
+                    </section>
+                )}
+                {operadores.length > 0 && vista === 'lista' && (
                     <div className="op-panel op-scrollx">
                         <div className="op-scroll-inner" style={{ minWidth: 760 }}>
-                            <div className="op-panel-head">
-                                <h2>Roster de operadores</h2>
-                                <div className="op-search"><Search size={14} color="#93a2b3" /><input value={buscar} onChange={e => setBuscar(e.target.value)} placeholder="Buscar por nombre o cédula..." /></div>
-                            </div>
                             <div className="op-ros-head"><span>Operador</span><span>Máquina asignada</span><span>Horas del periodo</span><span>Bruto → Anticipos → Neto</span><span>Estado</span></div>
                             {opsFiltrados.map(op => (
                                 <div className={`op-ros-row ${!op.maq ? 'empty' : ''}`} key={op.id} onClick={() => setOpSel(op)}>

@@ -43,6 +43,7 @@ import {
     Scissors,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
+import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
@@ -505,7 +506,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                     {!modoPortal && <button className="bs" onClick={onVolver}>← Volver</button>}
                 </div>
 
-                <div className="content"><div className="pad">
+                <div className="content"><div className="pad do-zona">
                     <div className="do-dh">
                         <div className="do-dh-ico"><HardHat size={26} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -523,6 +524,9 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 {tgVinculado && <span className="do-pill info">✈ Telegram</span>}
                             </div>
                         </div>
+                        {!modoPortal && debeTotal > 0 && (
+                            <button type="button" className="do-pagar-saldo" onClick={() => setTab(3)}>Pagar saldo (<Monto v={debeTotal} />)</button>
+                        )}
                     </div>
 
                     {!maqAsignada && (
