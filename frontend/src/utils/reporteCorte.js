@@ -115,7 +115,7 @@ export async function pdfReporteCorte({ maquina, faena, grupos, incluir }) {
     doc.save(`reporte-corte-${slug(maquina)}-${slug(faena.nombreObra)}.pdf`);
 }
 
-// Acta de horas de un corte: por cada día trabajado, las horas y el horómetro de inicio y fin, con espacio para firmas.
+// Acta de horas de un corte: por cada día trabajado, las horas y el horómetro de inicio y fin.
 // grupo es uno de los que devuelve gruposDeCortes.
 export async function pdfActaHoras({ maquina, faena, grupo }) {
     const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
@@ -160,21 +160,6 @@ export async function pdfActaHoras({ maquina, faena, grupo }) {
         doc.setFontSize(9); doc.setTextColor(...GRIS);
         doc.text('Este corte no tiene horas registradas.', 17, y + 4); y += 12;
     }
-
-    // Firmas
-    if (y > 232) { doc.addPage(); y = 30; }
-    y += 10;
-    doc.setFontSize(8); doc.setTextColor(...GRIS);
-    doc.text('Certificamos que las horas y los horómetros de esta acta corresponden al trabajo realizado en el corte indicado.', 14, y);
-    y += 26;
-    doc.setDrawColor(60, 60, 60); doc.setLineWidth(0.3);
-    doc.line(20, y, 90, y); doc.line(120, y, 190, y);
-    doc.setFontSize(8); doc.setTextColor(30, 30, 30);
-    doc.text('Operador', 55, y + 5, { align: 'center' });
-    doc.text(faena.cliente ? `Interventoría · ${faena.cliente}` : 'Interventoría / Cliente', 155, y + 5, { align: 'center' });
-    doc.setTextColor(...GRIS);
-    doc.text('Nombre y C.C.', 55, y + 9.5, { align: 'center' });
-    doc.text('Nombre y C.C.', 155, y + 9.5, { align: 'center' });
 
     pie(doc, `Acta de horas — ${maquina}`);
     doc.save(`acta-horas-${slug(maquina)}-${slug(grupo.nombre)}.pdf`);
