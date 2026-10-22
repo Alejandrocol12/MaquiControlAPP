@@ -43,7 +43,6 @@ import {
     Scissors,
 } from 'lucide-react';
 import MoneyInput from '../../utils/MoneyInput';
-import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
@@ -78,10 +77,10 @@ const normalizePeriodo = (periodo) => ({
     desdeHoraId: periodo.desdeHoraId ?? periodo.desde_hora_id ?? null,
 });
 
-function DetalleOperador({ operador, onVolver, modoPortal = false }) {
+function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 0 }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
-    const [tab, setTab] = useState(0);
+    const [tab, setTab] = useState(tabInicial);
     const [horas, setHoras] = useState([]);
     const [maquinas, setMaquinas] = useState([]);
     const [periodos, setPeriodos] = useState([]);
@@ -507,6 +506,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                 </div>
 
                 <div className="content"><div className="pad do-zona">
+                    <div className="do-head-card">
                     <div className="do-dh">
                         <div className="do-dh-ico"><HardHat size={26} /></div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -524,9 +524,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                                 {tgVinculado && <span className="do-pill info">✈ Telegram</span>}
                             </div>
                         </div>
-                        {!modoPortal && debeTotal > 0 && (
-                            <button type="button" className="do-pagar-saldo" onClick={() => setTab(3)}>Pagar saldo (<Monto v={debeTotal} />)</button>
-                        )}
+                    </div>
+                    <ScrollTabs className="do-dtabs" activeIndex={tab}>
+                        {TABS.map((t, i) => <button key={i} className={`do-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
+                    </ScrollTabs>
                     </div>
 
                     {!maqAsignada && (
@@ -538,10 +539,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false }) {
                             </div>
                         </div>
                     )}
-
-                    <ScrollTabs className="do-dtabs" activeIndex={tab}>
-                        {TABS.map((t, i) => <button key={i} className={`do-dtab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t}</button>)}
-                    </ScrollTabs>
 
                     {tab === 0 && !modoPortal && (
                         <>

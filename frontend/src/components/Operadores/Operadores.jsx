@@ -46,6 +46,7 @@ function Operadores() {
     const [opSel, setOpSel]             = useState(null);
     const [periodosActivos, setPeriodosActivos] = useState({});
     const [buscar, setBuscar]           = useState('');
+    const [opTab, setOpTab]             = useState(0);
     const [vista, setVista]             = useState('tarjetas');
     const [filtro, setFiltro]           = useState('todos');
     const [orden, setOrden]             = useState('saldo');
@@ -216,7 +217,9 @@ function Operadores() {
 
     const { sorted: salOrdenados, Th: ThSal } = useSortable(salarios, 'operadorNombre', 'asc');
 
-    if (opSel) return <DetalleOperador operador={opSel} onVolver={() => { cargar(); setOpSel(null); }} />;
+    const abrirFicha = (op, tab = 0) => { setOpTab(tab); setOpSel(op); };
+
+    if (opSel) return <DetalleOperador operador={opSel} tabInicial={opTab} onVolver={() => { cargar(); setOpSel(null); }} />;
 
     return (
         <>{ConfirmUI}
@@ -376,7 +379,7 @@ function Operadores() {
                                                     <b>{op.nombre}</b>
                                                     <small>{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</small>
                                                 </div>
-                                                <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Pendiente' : 'Al día'}</span>
+                                                <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Con saldo' : 'Al día'}</span>
                                             </div>
                                             <div className="opm-maq">
                                                 {op.maq
@@ -386,11 +389,14 @@ function Operadores() {
                                             <div className="opm-stats">
                                                 <div><span>Horas</span><b>{op.maq ? `${op.horasPeriodo.toLocaleString('es-CO')} h` : '—'}</b></div>
                                                 <div><span>Ganado</span><b className="vd"><Monto v={op.salarioBruto} /></b></div>
-                                                <div><span>Por pagar</span><b className={porPagar(op) > 0 ? 'na' : ''}><Monto v={porPagar(op)} /></b></div>
+                                                <div className={porPagar(op) > 0 ? 'deuda' : ''}><span>Por pagar</span><b className={porPagar(op) > 0 ? 'rj' : ''}><Monto v={porPagar(op)} /></b></div>
                                             </div>
                                             <div className="opm-card-pie">
                                                 <button type="button" className="opm-del" aria-label={`Eliminar a ${op.nombre}`} onClick={() => eliminar(op.id)}><Trash2 size={15} /></button>
-                                                <button type="button" className="opm-ficha" onClick={() => setOpSel(op)}><Eye size={14} aria-hidden="true" /> Ficha</button>
+                                                <span className="opm-acc">
+                                                    {porPagar(op) > 0 && <button type="button" className="opm-pagar" onClick={() => abrirFicha(op, 3)}>$ Pagar</button>}
+                                                    <button type="button" className="opm-ficha" onClick={() => abrirFicha(op)}>Ficha</button>
+                                                </span>
                                             </div>
                                         </article>
                                     ))}
@@ -403,7 +409,7 @@ function Operadores() {
                         <div className="op-scroll-inner" style={{ minWidth: 760 }}>
                             <div className="op-ros-head"><span>Operador</span><span>Máquina asignada</span><span>Horas del periodo</span><span>Bruto → Anticipos → Neto</span><span>Estado</span></div>
                             {opsFiltrados.map(op => (
-                                <div className={`op-ros-row ${!op.maq ? 'empty' : ''}`} key={op.id} onClick={() => setOpSel(op)}>
+                                <div className={`op-ros-row ${!op.maq ? 'empty' : ''}`} key={op.id} onClick={() => abrirFicha(op)}>
                                     <div className="op-who">
                                         <div className={`op-avatar ${!op.maq ? 'dim' : ''}`}>{op.iniciales}</div>
                                         <div><div className="op-who-name">{op.nombre}</div><div className="op-who-sub">{op.cedula ? `C.C. ${op.cedula}` : 'Sin cédula'}</div></div>
@@ -441,7 +447,7 @@ function Operadores() {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
                                         <span className={`op-pill ${!op.maq ? 'none' : op.hayPendiente ? 'pend' : 'ok'}`}><i></i>{!op.maq ? 'Sin asignar' : op.hayPendiente ? 'Pendiente' : 'Al día'}</span>
                                         <div className="op-actions" onClick={e => e.stopPropagation()}>
-                                            <button className="op-iconbtn" title="Ver detalle" onClick={() => setOpSel(op)}><Eye size={14} /></button>
+                                            <button className="op-iconbtn" title="Ver detalle" onClick={() => abrirFicha(op)}><Eye size={14} /></button>
                                             <button className="op-iconbtn" title="Eliminar" onClick={() => eliminar(op.id)}><Trash2 size={14} /></button>
                                         </div>
                                     </div>

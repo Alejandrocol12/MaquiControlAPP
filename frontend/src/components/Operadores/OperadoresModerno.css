@@ -1,20 +1,23 @@
 /* Operadores con el mismo estilo que el resto: resumen oscuro, tarjetas, píldoras y formularios en modal.
    Se carga después de Operadores.css y solo cambia la apariencia. */
 
-/* ── Resumen oscuro ── */
-.op-zona .op-hero{display:grid;grid-template-columns:1fr 1fr 1.15fr 1.2fr;gap:0;margin-bottom:18px;padding:24px 8px;background:#0f1a2b;border-radius:22px;position:relative;overflow:hidden;box-shadow:0 12px 28px -18px rgba(5,10,26,.7);}
-.op-zona .op-hero::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,#f59300,#ffb81c 55%,#22d39a);}
-.op-zona .op-hero .op-kpi{background:transparent !important;border:0 !important;border-radius:0;box-shadow:none;padding:6px 24px;border-left:1px solid #26354d !important;color:inherit;}
-.op-zona .op-hero .op-kpi:first-child{border-left:0 !important;}
-.op-zona .op-hero .op-kpi-label{color:#94a3b8 !important;font-size:11.5px;letter-spacing:.07em;}
-.op-zona .op-hero .op-kpi-ico{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,.08) !important;color:#cbd5e1 !important;}
-.op-zona .op-hero .op-kpi.gold .op-kpi-ico,.op-zona .op-hero .op-kpi.profit .op-kpi-ico{background:rgba(255,184,28,.16) !important;color:#ffb81c !important;}
-.op-zona .op-hero .op-kpi.info .op-kpi-ico{background:rgba(96,165,250,.16) !important;color:#60a5fa !important;}
-.op-zona .op-hero .op-kpi.bad .op-kpi-ico{background:rgba(255,84,112,.16) !important;color:#ff6b86 !important;}
-.op-zona .op-hero .op-kpi-val{font-family:'IBM Plex Mono',monospace;font-size:clamp(20px,2.3vw,30px);font-weight:700;color:#fff !important;letter-spacing:-.02em;}
-.op-zona .op-hero .op-kpi.bad .op-kpi-val{color:#ff6b86 !important;}
-.op-zona .op-hero .op-kpi.profit .op-kpi-val{color:#ffb81c !important;}
-.op-zona .op-hero .op-kpi-sub{color:#8fa0b8 !important;}
+/* ── Resumen: cuatro tarjetas, la última naranja ── */
+.op-zona .op-hero{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-bottom:20px;}
+.op-zona .op-hero .op-kpi{background:#fff;border:1px solid #e3e8ef;border-radius:20px;padding:22px 24px;box-shadow:0 1px 2px rgba(16,32,49,.04);display:flex;flex-direction:column;gap:2px;}
+.op-zona .op-hero .op-kpi-top{margin-bottom:10px;}
+.op-zona .op-hero .op-kpi-label{font-size:12px;font-weight:600;letter-spacing:.06em;color:#64748b;}
+.op-zona .op-hero .op-kpi-ico{width:38px;height:38px;border-radius:12px;}
+.op-zona .op-hero .op-kpi.gold .op-kpi-ico{background:#fff6e0;color:#e8710a;}
+.op-zona .op-hero .op-kpi.info .op-kpi-ico{background:#e6f4fb;color:#0284c7;}
+.op-zona .op-hero .op-kpi.bad .op-kpi-ico{background:#fde8ec;color:#e11d48;}
+.op-zona .op-hero .op-kpi-val{font:700 clamp(26px,2.6vw,34px)/1.1 'IBM Plex Mono',monospace;letter-spacing:-.02em;color:#0f1b2d;overflow-wrap:anywhere;}
+.op-zona .op-hero .op-kpi.bad .op-kpi-val{color:#e11d48;}
+.op-zona .op-hero .op-kpi-sub{font-size:13px;color:#94a3b8;margin-top:4px;}
+.op-zona .op-hero .op-kpi.profit{background:linear-gradient(135deg,#f79a0b,#c2570a);border:0;}
+.op-zona .op-hero .op-kpi.profit .op-kpi-label{color:rgba(255,255,255,.92);}
+.op-zona .op-hero .op-kpi.profit .op-kpi-ico{background:rgba(255,255,255,.25);color:#fff;}
+.op-zona .op-hero .op-kpi.profit .op-kpi-val{color:#fff;}
+.op-zona .op-hero .op-kpi.profit .op-kpi-sub{color:rgba(255,255,255,.88);}
 
 /* ── Roster ── */
 .opm-roster{background:#fff;border:1px solid #e3e8ef;border-radius:22px;padding:0 0 8px;margin-bottom:20px;overflow:hidden;}
@@ -152,12 +155,12 @@
 
 /* ── Celular ── */
 @media (max-width:980px){
-    .op-zona .op-hero{grid-template-columns:1fr 1fr;gap:16px 0;padding:18px 4px;}
-    .op-zona .op-hero .op-kpi{padding:4px 16px;}
-    .op-zona .op-hero .op-kpi:nth-child(odd){border-left:0 !important;}
+    .op-zona .op-hero{grid-template-columns:1fr 1fr;}
 }
 @media (max-width:760px){
-    .op-zona .op-hero .op-kpi-val{font-size:clamp(18px,5.6vw,24px);}
+    .op-zona .op-hero{gap:12px;}
+    .op-zona .op-hero .op-kpi{padding:16px;}
+    .op-zona .op-hero .op-kpi-val{font-size:clamp(20px,6vw,26px);}
     .opm-rh{padding:16px;}
     .opm-rh-f{width:100%;}
     .opm-seg{width:100%;}
@@ -199,3 +202,38 @@ body.dark .do-zona .do-dh,body.dark .do-zona .dop-stat,body.dark .do-zona .ct-ca
 body.dark .do-zona .do-dtab.on{background:#f5a623;color:#1a1305;}
 body.dark .do-zona .do-dtab:hover{background:#0f172a;color:#f1f5f9;}
 body.dark .do-zona .ct-card.curso{background:#2a2418;}
+
+/* ═══ Tarjetas del roster y ficha, igual que el diseño de referencia ═══ */
+.opm-card .op-avatar{width:42px;height:42px;border-radius:11px;font:700 18px 'Barlow',sans-serif;}
+.opm-card-id b{font:700 17px 'Barlow',sans-serif;text-transform:uppercase;letter-spacing:.01em;}
+.opm-card .op-pill{font-size:12px;font-weight:700;padding:4px 12px;border-radius:99px;border:0;}
+.opm-card .op-pill.ok{background:#d6f5e6;color:#0d7a45;}
+.opm-card .op-pill.pend{background:#fdeec0;color:#9a6200;}
+.opm-card .op-pill i{display:none;}
+.opm-stats>div.deuda{background:#fde8ec;}
+.opm-stats b.rj{color:#e11d48;}
+.opm-acc{display:inline-flex;gap:8px;}
+.opm-pagar{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border:0;border-radius:12px;background:#ffb81c;color:#1a1305;font:700 14px 'Barlow',sans-serif;cursor:pointer;}
+.opm-pagar:hover{background:#ffc43d;}
+.opm-pagar:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+
+.do-head-card{background:#fff;border:1px solid #e3e8ef;border-radius:22px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 2px rgba(16,32,49,.04);}
+.do-zona .do-head-card .do-dh{background:transparent;border:0;border-radius:0;box-shadow:none;margin:0;padding:22px 26px 18px;}
+.do-zona .do-head-card .do-dh::before{display:none;}
+.do-zona .do-head-card .do-dh-ico{width:68px;height:68px;border-radius:16px;}
+.do-zona .do-head-card .do-dh-ico svg{width:32px;height:32px;}
+.do-zona .do-head-card .do-dh h2{font:700 26px/1.1 'Barlow',sans-serif;letter-spacing:.01em;}
+.do-zona .do-head-card .do-dtabs{background:transparent;border:0;border-top:1px solid #eef2f7;border-radius:0;width:100%;margin:0;padding:14px 26px 16px;}
+@media (max-width:760px){
+    .do-zona .do-head-card .do-dh{padding:16px;}
+    .do-zona .do-head-card .do-dh-ico{width:52px;height:52px;border-radius:14px;}
+    .do-zona .do-head-card .do-dh h2{font-size:22px;}
+    .do-zona .do-head-card .do-dtabs{padding:12px 14px;}
+}
+body.dark .do-head-card{background:#1e293b;border-color:#334155;}
+body.dark .do-zona .do-head-card .do-dtabs{border-top-color:#334155;}
+body.dark .op-zona .op-hero .op-kpi{background:#1e293b;border-color:#334155;}
+body.dark .op-zona .op-hero .op-kpi-val{color:#f1f5f9;}
+body.dark .op-zona .op-hero .op-kpi.bad .op-kpi-val{color:#ff6b86;}
+body.dark .op-zona .op-hero .op-kpi.profit{background:linear-gradient(135deg,#f79a0b,#c2570a);border:0;}
+body.dark .opm-stats>div.deuda{background:#3b1520;}
