@@ -14,7 +14,6 @@ import Mapa from './components/Mapa/Mapa';
 import { moduloVisible } from './utils/modulosOcultos';
 import TourGuiado, { MINI_TOURS, TOUR_OPERADOR } from './components/TourGuiado/TourGuiado';
 import Novedades, { VERSION_NOVEDADES } from './components/TourGuiado/Novedades';
-import AyudaFlotante from './components/TourGuiado/AyudaFlotante';
 import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -698,13 +697,6 @@ function App() {
                 />
             )}
             {verNovedades && !tourActivo && <Novedades onCerrar={() => setVerNovedades(false)} />}
-            {user && !esOperador && !isOffline && !tourActivo && !miniTour && (
-                <AyudaFlotante
-                    hayGuia={!!MINI_TOURS[modulo]}
-                    onGuia={() => setMiniTour(modulo)}
-                    onTour={() => { setTourActivo(true); setModulo('dashboard'); }}
-                />
-            )}
             {tourActivo && (
                 <TourGuiado
                     onCerrar={() => {
