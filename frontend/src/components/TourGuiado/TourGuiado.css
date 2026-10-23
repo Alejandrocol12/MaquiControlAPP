@@ -1,0 +1,59 @@
+.tg-velo{position:fixed;inset:0;background:rgba(6,12,24,.38);z-index:9000;pointer-events:none;}
+.tg-marco{position:fixed;z-index:9001;border-radius:12px;border:2px solid #ffb81c;box-shadow:0 0 0 4px rgba(255,184,28,.25),0 0 22px rgba(255,184,28,.45);pointer-events:none;animation:tg-pulso 1.6s ease-in-out infinite;transition:top .25s,left .25s,width .25s,height .25s;}
+@keyframes tg-pulso{50%{box-shadow:0 0 0 8px rgba(255,184,28,.12),0 0 30px rgba(255,184,28,.55);}}
+@media (prefers-reduced-motion:reduce){.tg-marco{animation:none;transition:none;}}
+
+.tg-card{position:fixed;right:28px;bottom:28px;z-index:9002;width:370px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 40px);overflow-y:auto;background:#fff;border-radius:20px;box-shadow:0 22px 60px rgba(5,10,26,.42);font-family:'Barlow',sans-serif;color:#0f1b2d;}
+.tg-card *{box-sizing:border-box;}
+.tg-cab{display:flex;align-items:center;gap:10px;padding:14px 16px;background:#0f1a2b;color:#cbd5e1;font-size:14px;}
+.tg-cab img{height:26px;width:auto;}
+.tg-cab b{color:#ffb81c;}
+.tg-x{margin-left:auto;width:32px;height:32px;border:0;border-radius:9px;background:transparent;color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.tg-x:hover{background:rgba(255,255,255,.1);color:#fff;}
+.tg-pasos{display:flex;gap:5px;padding:14px 18px 0;}
+.tg-pasos button{flex:1;height:6px;min-width:0;padding:0;border:0;border-radius:99px;background:#e2e8f0;cursor:pointer;position:relative;}
+.tg-pasos button::after{content:'';position:absolute;inset:-9px 0;}
+.tg-pasos button.on{background:#ffb81c;}
+.tg-cuerpo{padding:16px 20px 6px;}
+.tg-ico{width:46px;height:46px;border-radius:14px;background:#0f1a2b;color:#ffb81c;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.tg-cuerpo h3{margin:0 0 4px;font:700 24px 'Barlow Condensed',sans-serif;letter-spacing:.01em;}
+.tg-cuerpo p{margin:0 0 12px;font-size:14px;line-height:1.5;color:#475569;}
+.tg-cuerpo ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.tg-cuerpo li{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:#334155;}
+.tg-cuerpo li svg{flex-shrink:0;margin-top:2px;color:#12a05b;}
+.tg-n{margin-top:12px;font-size:12px;color:#94a3b8;}
+.tg-pie{display:flex;gap:8px;padding:12px 20px 8px;}
+.tg-pie button{min-height:44px;border-radius:12px;font:700 14px 'Barlow',sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:6px;cursor:pointer;}
+.tg-sec{flex:1;border:1px solid #dbe1e9;background:#fff;color:#334155;}
+.tg-pri{flex:2;border:0;background:#ffb81c;color:#1a1305;}
+.tg-pri:hover{background:#ffc43d;}
+.tg-saltar{display:block;margin:0 auto 14px;border:0;background:none;color:#94a3b8;font-size:12.5px;text-decoration:underline;cursor:pointer;padding:6px 10px;}
+.tg-card button:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+
+@media (max-width:640px){
+    .tg-card{left:8px;right:8px;bottom:8px;width:auto;max-width:none;border-radius:20px;}
+    .tg-cuerpo h3{font-size:22px;}
+}
+body.dark .tg-card{background:#1e293b;color:#f1f5f9;}
+body.dark .tg-cuerpo p,body.dark .tg-cuerpo li{color:#cbd5e1;}
+body.dark .tg-pasos button{background:#334155;}
+body.dark .tg-pasos button.on{background:#ffb81c;}
+body.dark .tg-sec{background:#0f172a;border-color:#334155;color:#cbd5e1;}
+
+/* Novedades */
+.tg-modal{position:fixed;inset:0;z-index:9100;background:rgba(6,12,24,.5);display:flex;align-items:center;justify-content:center;padding:16px;}
+.tg-nov{position:relative;right:auto;bottom:auto;}
+.tg-nov .tg-pie{padding-bottom:18px;}
+
+/* Botón de ayuda */
+.tg-ayuda{position:fixed;right:18px;bottom:18px;z-index:800;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:'Barlow',sans-serif;}
+.tg-ayuda-btn{width:46px;height:46px;border-radius:50%;border:0;background:#0f1a2b;color:#ffb81c;cursor:pointer;box-shadow:0 8px 22px rgba(5,10,26,.35);display:flex;align-items:center;justify-content:center;}
+.tg-ayuda-btn:hover{background:#16263d;}
+.tg-ayuda-btn:focus-visible,.tg-ayuda-menu button:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
+.tg-ayuda-menu{background:#fff;border-radius:14px;box-shadow:0 14px 40px rgba(5,10,26,.3);padding:6px;display:flex;flex-direction:column;min-width:200px;}
+.tg-ayuda-menu button{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:none;color:#0f1b2d;font:600 14px 'Barlow',sans-serif;cursor:pointer;text-align:left;}
+.tg-ayuda-menu button:hover{background:#f1f5f9;}
+body.dark .tg-ayuda-menu{background:#1e293b;}
+body.dark .tg-ayuda-menu button{color:#f1f5f9;}
+body.dark .tg-ayuda-menu button:hover{background:#334155;}
+@media (max-width:760px){.tg-ayuda{bottom:78px;right:12px;}}

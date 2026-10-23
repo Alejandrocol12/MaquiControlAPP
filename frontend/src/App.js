@@ -12,7 +12,9 @@ import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
 import { moduloVisible } from './utils/modulosOcultos';
-import TourGuiado from './components/TourGuiado/TourGuiado';
+import TourGuiado, { MINI_TOURS, TOUR_OPERADOR } from './components/TourGuiado/TourGuiado';
+import Novedades, { VERSION_NOVEDADES } from './components/TourGuiado/Novedades';
+import AyudaFlotante from './components/TourGuiado/AyudaFlotante';
 import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword } from './api';
 import { ToastContext, useToastState } from './utils/toast';
 import {
@@ -507,6 +509,8 @@ function App() {
     const [sbCol, setSbCol] = useState(false);
     const [sbMob, setSbMob] = useState(false);
     const [tourActivo, setTourActivo] = useState(false);
+    const [miniTour, setMiniTour] = useState(null); // guía corta de una pantalla ('operador' = recorrido del portal del operador)
+    const [verNovedades, setVerNovedades] = useState(false);
     // Tema: 'auto' sigue el modo del celular/computador; 'claro' y 'oscuro' lo fijan.
     // Quien ya había activado el modo oscuro a mano lo conserva.
     const [tema, setTema] = useState(() => {
@@ -524,6 +528,32 @@ function App() {
 
     // Un módulo oculto no se puede abrir (ni desde un enlace ni desde el tour): se va al Dashboard
     const ir = (mod) => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); };
+    const esOperador = !!user && isOperatorRole(user.rol);
+
+    // Guías: la primera vez que se entra a una pantalla (cuando ya se vio el tour completo) y el recorrido del operador
+    useEffect(() => {
+        if (!user || tourActivo || miniTour || verNovedades) return undefined;
+        const visto = (k) => { try { return !!localStorage.getItem(k); } catch (e) { return true; } };
+        let t;
+        if (esOperador) {
+            if (!visto('mc_tour_op')) t = setTimeout(() => setMiniTour('operador'), 900);
+        } else if (visto('mc_tour_done') && MINI_TOURS[modulo] && !visto('mc_mini_' + modulo)) {
+            t = setTimeout(() => {
+                if (document.querySelector(MINI_TOURS[modulo][0].selector)) setMiniTour(modulo); // solo si ya hay con qué mostrarlo
+            }, 900);
+        }
+        return () => clearTimeout(t);
+    }, [user, modulo, tourActivo, miniTour, verNovedades, esOperador]);
+
+    // Novedades: una vez por versión. A quien aún no ha visto el tour no se le muestra (ya verá todo lo nuevo)
+    useEffect(() => {
+        if (!user || esOperador) return;
+        try {
+            if (localStorage.getItem('mc_novedades') === VERSION_NOVEDADES) return;
+            if (!localStorage.getItem('mc_tour_done')) { localStorage.setItem('mc_novedades', VERSION_NOVEDADES); return; }
+            setVerNovedades(true);
+        } catch (e) { /* sin almacenamiento */ }
+    }, [user, esOperador]);
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
     const toggleDark = () => setTema(darkMode ? 'claro' : 'oscuro');
 
@@ -658,9 +688,30 @@ function App() {
 
     return (
         <ToastContext.Provider value={toast}>
+            {miniTour && (
+                <TourGuiado
+                    key={miniTour}
+                    pasos={miniTour === 'operador' ? TOUR_OPERADOR : MINI_TOURS[miniTour]}
+                    clave={miniTour === 'operador' ? 'mc_tour_op' : 'mc_mini_' + miniTour}
+                    titulo={miniTour === 'operador' ? 'Tour de' : 'Guía de'}
+                    onCerrar={() => setMiniTour(null)}
+                />
+            )}
+            {verNovedades && !tourActivo && <Novedades onCerrar={() => setVerNovedades(false)} />}
+            {user && !esOperador && !isOffline && !tourActivo && !miniTour && (
+                <AyudaFlotante
+                    hayGuia={!!MINI_TOURS[modulo]}
+                    onGuia={() => setMiniTour(modulo)}
+                    onTour={() => { setTourActivo(true); setModulo('dashboard'); }}
+                />
+            )}
             {tourActivo && (
                 <TourGuiado
-                    onCerrar={() => setTourActivo(false)}
+                    onCerrar={() => {
+                        setTourActivo(false);
+                        // quien acaba de ver el tour completo no necesita además las guías cortas
+                        try { Object.keys(MINI_TOURS).forEach(k => localStorage.setItem('mc_mini_' + k, '1')); } catch (e) { /* sin almacenamiento */ }
+                    }}
                     onIrModulo={mod => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); }}
                 />
             )}
@@ -700,7 +751,7 @@ function App() {
                             </button>
                         </div>
 
-                        <div className="sb-user" onClick={() => { ir('perfil'); }} style={{ cursor: 'pointer' }} title="Ver perfil">
+                        <div className="sb-user" data-modulo="perfil" onClick={() => { ir('perfil'); }} style={{ cursor: 'pointer' }} title="Ver perfil">
                             <div className="av">{user.nombre?.charAt(0)?.toUpperCase() || 'U'}</div>
                             <div className="sb-uinfo">
                                 <p>{user.nombre || 'Usuario'}</p>
@@ -710,41 +761,41 @@ function App() {
 
                         <nav className="nav">
                             <div className="ns">Principal</div>
-                            <div className={`ni ${modulo === 'dashboard' ? 'active' : ''}`} onClick={() => ir('dashboard')}>
+                            <div className={`ni ${modulo === 'dashboard' ? 'active' : ''}`} data-modulo="dashboard" onClick={() => ir('dashboard')}>
                                 <span className="ico"><BarChart2 size={18} /></span><span className="sb-label">Dashboard</span>
                             </div>
 
                             <div className="ns">Gestión</div>
-                            <div className={`ni ${modulo === 'maquinaria' ? 'active' : ''}`} onClick={() => { irMaquinaria(); setSbMob(false); }}>
+                            <div className={`ni ${modulo === 'maquinaria' ? 'active' : ''}`} data-modulo="maquinaria" onClick={() => { irMaquinaria(); setSbMob(false); }}>
                                 <span className="ico"><GiBulldozer size={18} /></span><span className="sb-label">Maquinaria</span>
                             </div>
 
-                            <div className={`ni ${modulo === 'finanzas' ? 'active' : ''}`} onClick={() => ir('finanzas')}>
+                            <div className={`ni ${modulo === 'finanzas' ? 'active' : ''}`} data-modulo="finanzas" onClick={() => ir('finanzas')}>
                                 <span className="ico"><DollarSign size={18} /></span><span className="sb-label">Finanzas</span>
                             </div>
 
-                            <div className={`ni ${modulo === 'faenas' ? 'active' : ''}`} onClick={() => ir('faenas')}>
+                            <div className={`ni ${modulo === 'faenas' ? 'active' : ''}`} data-modulo="faenas" onClick={() => ir('faenas')}>
                                 <span className="ico"><Briefcase size={18} /></span><span className="sb-label">Periodos</span>
                             </div>
 
-                            <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} onClick={() => ir('operadores')}>
+                            <div className={`ni ${modulo === 'operadores' ? 'active' : ''}`} data-modulo="operadores" onClick={() => ir('operadores')}>
                                 <span className="ico"><HardHat size={18} /></span><span className="sb-label">Operadores</span>
                             </div>
                             {moduloVisible('mantenimientos') && (
-                                <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} onClick={() => ir('mantenimientos')}>
+                                <div className={`ni ${modulo === 'mantenimientos' ? 'active' : ''}`} data-modulo="mantenimientos" onClick={() => ir('mantenimientos')}>
                                     <span className="ico"><Wrench size={18} /></span><span className="sb-label">Mantenimientos</span>
                                 </div>
                             )}
-                            <div className={`ni ${modulo === 'reportes' ? 'active' : ''}`} onClick={() => ir('reportes')}>
+                            <div className={`ni ${modulo === 'reportes' ? 'active' : ''}`} data-modulo="reportes" onClick={() => ir('reportes')}>
                                 <span className="ico"><FileText size={18} /></span><span className="sb-label">Reportes</span>
                             </div>
                             {moduloVisible('combustible') && (
-                                <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} onClick={() => ir('combustible')}>
+                                <div className={`ni ${modulo === 'combustible' ? 'active' : ''}`} data-modulo="combustible" onClick={() => ir('combustible')}>
                                     <span className="ico"><Fuel size={18} /></span><span className="sb-label">Combustible</span>
                                 </div>
                             )}
                             {moduloVisible('mapa') && (
-                                <div className={`ni ${modulo === 'mapa' ? 'active' : ''}`} onClick={() => ir('mapa')}>
+                                <div className={`ni ${modulo === 'mapa' ? 'active' : ''}`} data-modulo="mapa" onClick={() => ir('mapa')}>
                                     <span className="ico"><Map size={18} /></span><span className="sb-label">Mapa</span>
                                 </div>
                             )}

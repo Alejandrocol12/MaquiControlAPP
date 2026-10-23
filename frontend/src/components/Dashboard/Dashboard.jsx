@@ -8,6 +8,7 @@ import { useCountUp } from '../../utils/useCountUp';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta } from '../../utils/nomina';
 import RegistroRapido from './RegistroRapido';
+import PrimerosPasos from './PrimerosPasos';
 import Monto from '../../utils/Monto';
 import './Dashboard.css';
 import './DashboardModerno.css';
@@ -216,7 +217,9 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
 
             <div className="content"><div className="pad">
 
-                {maquinas.length > 0 && <RegistroRapido maquinas={maquinas} onGuardado={cargar} />}
+                <PrimerosPasos maquinas={maquinas} faenas={faenas} ingresos={ingresos} onIr={onIrModulo} />
+
+                {maquinas.length > 0 && <div data-tour="registro-rapido"><RegistroRapido maquinas={maquinas} onGuardado={cargar} /></div>}
 
                 <FiltroChips
                     className="db-filtros"

@@ -271,7 +271,7 @@ function PortalOperador({ user, onLogout }) {
 
                 <div className="operator-menu">
                     {SECCIONES.map(({ id, icon: Icon, label }) => (
-                        <button key={id} className={`operator-item${seccion === id ? ' active' : ''}`}
+                        <button key={id} data-tour={`op-${id}`} className={`operator-item${seccion === id ? ' active' : ''}`}
                             onClick={() => navegar(id)}
                             style={{ border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', position: 'relative' }}>
                             <Icon size={16} /> {label}

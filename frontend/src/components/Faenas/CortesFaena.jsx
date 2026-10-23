@@ -247,8 +247,8 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                                 <span className="ctn-acc">
                                     {onCompartir && <button type="button" className="ctn-ico" aria-label="Compartir este corte" title="Compartir" onClick={() => onCompartir('c:' + c.id)}><Share2 size={14} /></button>}
                                     {i === cortes.length - 1 && <button type="button" className="ctn-ico" aria-label="Deshacer el último corte" title="Deshacer corte" onClick={() => deshacer(c, pago)}><RotateCcw size={14} /></button>}
-                                    <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => actaHoras('c' + c.id)}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hc' + c.id ? 'Generando…' : 'Acta de horas'}</button>
-                                    <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('c' + c.id)}><Printer size={14} aria-hidden="true" /> {generandoActa === 'c' + c.id ? 'Generando…' : 'Acta'}</button>
+                                    <button type="button" className="ctn-acta" data-tour="acta-horas" disabled={!!generandoActa} onClick={() => actaHoras('c' + c.id)}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hc' + c.id ? 'Generando…' : 'Acta de horas'}</button>
+                                    <button type="button" className="ctn-acta" data-tour="acta" disabled={!!generandoActa} onClick={() => acta('c' + c.id)}><Printer size={14} aria-hidden="true" /> {generandoActa === 'c' + c.id ? 'Generando…' : 'Acta'}</button>
                                 </span>
                             </div>
                         </article>
@@ -271,8 +271,8 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                             <span className="ctn-obra">{faena.nombreObra}</span>
                             <span className="ctn-acc">
                                 {onCompartir && faena.estado === 'activa' && <button type="button" className="ctn-ico" aria-label="Compartir el corte en curso" title="Compartir" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={14} /></button>}
-                                <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => actaHoras('curso')}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hcurso' ? 'Generando…' : 'Acta de horas'}</button>
-                                <button type="button" className="ctn-acta" disabled={!!generandoActa} onClick={() => acta('curso')}><Printer size={14} aria-hidden="true" /> {generandoActa === 'curso' ? 'Generando…' : 'Acta'}</button>
+                                <button type="button" className="ctn-acta" data-tour="acta-horas" disabled={!!generandoActa} onClick={() => actaHoras('curso')}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hcurso' ? 'Generando…' : 'Acta de horas'}</button>
+                                <button type="button" className="ctn-acta" data-tour="acta" disabled={!!generandoActa} onClick={() => acta('curso')}><Printer size={14} aria-hidden="true" /> {generandoActa === 'curso' ? 'Generando…' : 'Acta'}</button>
                                 {!abierto && <button type="button" className="ctn-cerrar" onClick={abrir}>Cerrar Corte →</button>}
                             </span>
                         </div>

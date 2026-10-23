@@ -126,7 +126,7 @@ function CalendarioTrabajo({ maq, ingresos, combustibles = [], esperadoPorDia = 
     }
 
     return (
-        <div className="cl">
+        <div className="cl" data-tour="calendario">
             <div className="cl-barra">
                 <div className="cl-nav">
                     <button type="button" aria-label="Mes anterior" onClick={() => mover(-1)}><ChevronLeft size={16} /></button>
