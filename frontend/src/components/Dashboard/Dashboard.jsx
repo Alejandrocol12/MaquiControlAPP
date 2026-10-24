@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getMaquinas, getIngresos, getGastos, getSalarios, getFaenas, getPagos } from '../../api';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { Tractor, TrendingUp, TrendingDown, BarChart2, Clock } from 'lucide-react';
@@ -9,6 +9,7 @@ import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta } from '../../utils/nomina';
 import RegistroRapido from './RegistroRapido';
 import PrimerosPasos from './PrimerosPasos';
+import { ErrorCarga } from '../../utils/EstadosCarga';
 import Monto from '../../utils/Monto';
 import './Dashboard.css';
 import './DashboardModerno.css';
@@ -49,6 +50,8 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
     const [faenas,    setFaenas]    = useState([]);
     const [pagos,     setPagos]     = useState([]);
     const [cargando,  setCargando]  = useState(true);
+    const [errorCarga, setErrorCarga] = useState(false);
+    const yaCargo = useRef(false); // un fallo al refrescar no tapa lo que ya se mostraba
     const [filtroFecha, setFiltroFecha] = useState('mes');
     const [fechaDesde, setFechaDesde]   = useState('');
     const [fechaHasta, setFechaHasta]   = useState('');
@@ -63,7 +66,9 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
         setSalarios(sal.data || []);
         setFaenas(fae.data || []);
         setPagos(pag.data || []);
-    }).catch(console.error)
+        yaCargo.current = true;
+        setErrorCarga(false);
+    }).catch(e => { console.error(e); if (!yaCargo.current) setErrorCarga(true); })
       .finally(() => setCargando(false));
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,6 +184,13 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
         .filter(i => i.maquinaNombre === nombre && i.tipoTrabajo === 'Horas' && i.fecha?.startsWith(mes))
         .reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
     const maxHorasFlota = Math.max(1, ...maquinas.map(m => horasEsteMes(m.nombre)));
+
+    if (errorCarga && !cargando) return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div className="topbar"><div><h1>Dashboard</h1><p>No se pudo cargar</p></div></div>
+            <div className="content"><div className="pad"><ErrorCarga onReintentar={() => { setErrorCarga(false); setCargando(true); cargar(); }} /></div></div>
+        </div>
+    );
 
     if (cargando) return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

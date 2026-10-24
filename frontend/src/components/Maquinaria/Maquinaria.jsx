@@ -16,6 +16,7 @@ import { useConfirm } from '../../utils/ConfirmModal';
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
 import EmptyState from '../../utils/EmptyState';
+import { Esqueleto, ErrorCarga } from '../../utils/EstadosCarga';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import HistoriaMaquina from './HistoriaMaquina';
 import { moduloVisible } from '../../utils/modulosOcultos';
@@ -176,7 +177,15 @@ function Maquinaria({ vistaInicial = 'lista' }) {
         getGastos().then(r => setGastosAll(r.data || [])).catch(() => {});
     }, []);
 
-    const cargar = () => getMaquinas().then(r => setMaquinas(r.data)).catch(console.error);
+    const [cargandoLista, setCargandoLista] = useState(true);
+    const [errorLista, setErrorLista] = useState(false);
+
+    const cargar = () => {
+        setErrorLista(false);
+        return getMaquinas().then(r => setMaquinas(r.data))
+            .catch(e => { console.error(e); setErrorLista(true); })
+            .finally(() => setCargandoLista(false));
+    };
 
     // Periodo activo + utilidad en vivo de cada máquina, para que se vea desde la lista
     // sin tener que entrar al detalle
@@ -283,6 +292,16 @@ function Maquinaria({ vistaInicial = 'lista' }) {
                 <button className="bp" onClick={() => { setForm(FORM_VACIO); setVista('nueva'); }}><Plus size={14} style={{marginRight:'5px',verticalAlign:'middle'}} /> Nueva Máquina</button>
             </div>
             <div className="content"><div className="pad">
+                {cargandoLista && <Esqueleto variante="tarjetas" cantidad={3} etiqueta="Cargando máquinas" />}
+                {errorLista && !cargandoLista && <ErrorCarga mensaje="No se pudieron cargar las máquinas." onReintentar={() => { setCargandoLista(true); cargar(); }} />}
+                {!cargandoLista && !errorLista && maquinas.length === 0 && (
+                    <EmptyState
+                        icono={<Tractor size={20} />}
+                        titulo="Aún no tienes máquinas"
+                        texto="Registra la primera para llevar su calendario de trabajo, sus ingresos y sus gastos."
+                        accion={{ label: 'Nueva máquina', onClick: () => { setForm(FORM_VACIO); setVista('nueva'); } }}
+                    />
+                )}
                 <div className="mq-fleet">
                     {maquinas.map(m => {
                         const info = infoPeriodo(m);

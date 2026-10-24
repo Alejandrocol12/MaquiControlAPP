@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import EmptyState from '../../utils/EmptyState';
+import { Esqueleto, ErrorCarga } from '../../utils/EstadosCarga';
 import { getHoras, getSalarios, getMaquinas, deleteHora, deleteSalario, createOperadorAPI, deleteOperadorAPI, createUsuario, getOperadoresAPI, getPeriodoActivoAPI, getUsuarios } from '../../api';
 import { useSortable } from '../../utils/useSortable';
 import DetalleOperador from './DetalleOperador';
@@ -7,7 +9,7 @@ import CertificadoOperadorModal from './CertificadoOperadorModal';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
-import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Info, Search, X, List, LayoutGrid, Award, Download, Send, DollarSign } from 'lucide-react';
+import { HardHat, Clock, TrendingDown, AlertTriangle, Plus, Check, Eye, Trash2, Tractor, Briefcase, Search, X, List, LayoutGrid, Award, Download, Send, DollarSign } from 'lucide-react';
 import Monto from '../../utils/Monto';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -55,7 +57,11 @@ function Operadores() {
     const [pagando, setPagando]         = useState(null);
     const [certificando, setCertificando] = useState(null);
 
+    const [cargando, setCargando] = useState(true);
+    const [errorCarga, setErrorCarga] = useState(false);
+
     const cargar = async () => {
+        setErrorCarga(false);
         try {
             const [opsRes, maqRes, horasRes, salariosRes] = await Promise.all([
                 getOperadoresAPI(),
@@ -83,8 +89,13 @@ function Operadores() {
             setPeriodosActivos(Object.fromEntries(periodosEntries));
         } catch (err) {
             console.error(err);
+            setErrorCarga(true);
+        } finally {
+            setCargando(false);
         }
     };
+
+    const reintentar = () => { setCargando(true); cargar(); };
 
     useEffect(() => { cargar(); }, []);
 
@@ -358,11 +369,15 @@ function Operadores() {
                     </div>
                 )}
 
-                {operadores.length === 0 && !mostrarForm && (
-                    <div className="ale">
-                        <Info size={20} />
-                        <div><p>No hay operadores registrados</p><span className="ale-desc">Haz clic en "Nuevo Operador" para agregar uno</span></div>
-                    </div>
+                {cargando && operadores.length === 0 && <Esqueleto variante="tarjetas" cantidad={3} etiqueta="Cargando operadores" />}
+                {errorCarga && !cargando && <ErrorCarga mensaje="No se pudieron cargar los operadores." onReintentar={reintentar} />}
+                {!cargando && !errorCarga && operadores.length === 0 && !mostrarForm && (
+                    <EmptyState
+                        icono={<HardHat size={20} />}
+                        titulo="Aún no tienes operadores"
+                        texto="Registra a quien opera tus máquinas para llevar sus horas, sus pagos y lo que se le debe."
+                        accion={{ label: 'Nuevo operador', onClick: () => setMostrarForm(true) }}
+                    />
                 )}
 
                 {/* ROSTER DE OPERADORES */}

@@ -19,6 +19,7 @@ import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
+import { ErrorCarga } from '../../utils/EstadosCarga';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { guardarFactura, eliminarFactura, abrirFactura } from '../../utils/facturaAPI';
 import { QuienPago, usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
@@ -96,6 +97,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [pagFiltro, setPagFiltro]             = useState('');
 
     const [cargando, setCargando] = useState(true);
+    const [errorCarga, setErrorCarga] = useState(false);
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
     const [gastoFactura, setGastoFactura] = useState(null);
@@ -133,6 +135,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const cargarTodo = () => {
         setCargando(true);
+        setErrorCarga(false);
         Promise.all([
             getMaquinas(),
             getIngresos(),
@@ -148,7 +151,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             setSalarios(salR.data);
             setPagos((pagR.data || []).map(normalizarPago));
             setFaenas(faeR.data || []);
-        }).catch(console.error).finally(() => setCargando(false));
+        }).catch(e => { console.error(e); setErrorCarga(true); }).finally(() => setCargando(false));
     };
 
     const abrirNuevo = () => {
@@ -302,6 +305,13 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             </select>
         );
     };
+
+    if (errorCarga && !cargando) return (
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div className="topbar"><div><h1>Finanzas</h1><p>No se pudo cargar</p></div></div>
+            <div className="content"><div className="pad"><ErrorCarga onReintentar={cargarTodo} /></div></div>
+        </div>
+    );
 
     if (cargando) return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

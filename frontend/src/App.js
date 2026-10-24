@@ -225,7 +225,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
         if (!registerForm.nombre.trim())   errs.nombre = 'El nombre es obligatorio';
         if (!registerForm.empresa.trim())  errs.empresa = 'La empresa es obligatoria';
         if (!registerForm.email.includes('@')) errs.email = 'Correo no válido';
-        if (registerForm.password.length < 6) errs.password = 'Mínimo 6 caracteres';
+        if (registerForm.password.length < 8) errs.password = 'Mínimo 8 caracteres';
         if (registerForm.password !== registerForm.confirmPassword) errs.confirmPassword = 'No coinciden';
         setErrores(errs);
         if (Object.keys(errs).length) return;
@@ -249,7 +249,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
     const hacerResetPassword = async () => {
         if (!recForm.codigo.trim()) return;
-        if (recForm.nueva.length < 6) return;
+        if (recForm.nueva.length < 8) return;
         if (recForm.nueva !== recForm.confirmar) return;
         setRecCargando(true);
         try {
@@ -385,7 +385,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                                     <input className="fi" type={passVis.rec ? 'text' : 'password'}
                                         value={recForm.nueva} style={{ paddingRight: '40px', marginBottom: 0 }}
                                         onChange={e => setRecForm(f => ({ ...f, nueva: e.target.value }))}
-                                        placeholder="Mínimo 6 caracteres" />
+                                        placeholder="Mínimo 8 caracteres" />
                                     <button type="button" onClick={() => setPassVis(p => ({ ...p, rec: !p.rec }))}
                                         style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#9aa5b4', display: 'flex', padding: 0 }}>
                                         {passVis.rec ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -404,7 +404,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
 
                                 <button className="auth-submit"
                                     onClick={hacerResetPassword}
-                                    disabled={recCargando || !recForm.codigo.trim() || recForm.nueva.length < 6 || recForm.nueva !== recForm.confirmar}>
+                                    disabled={recCargando || !recForm.codigo.trim() || recForm.nueva.length < 8 || recForm.nueva !== recForm.confirmar}>
                                     {recCargando ? 'Cambiando...' : 'Cambiar contraseña'}
                                 </button>
 
@@ -447,7 +447,7 @@ function AuthScreen({ onLogin, onRegister, onLoginPin, darkMode, toggleDark }) {
                                 value={registerForm.password}
                                 onChange={e => { setRegisterForm(f => ({ ...f, password: e.target.value })); setErrores(er => ({ ...er, password: '' })); }}
                                 onFocus={() => focus('Contraseña')}
-                                placeholder="Mínimo 6 caracteres"
+                                placeholder="Mínimo 8 caracteres"
                                 vis={passVis.reg}
                                 setVis={v => setPassVis(p => ({ ...p, reg: v(p.reg) }))}
                                 error={errores.password}
@@ -649,8 +649,8 @@ function App() {
             toast('Completa todos los campos del registro', 'e');
             return;
         }
-        if (password.length < 6) {
-            toast('La contrasena debe tener al menos 6 caracteres', 'e');
+        if (password.length < 8) {
+            toast('La contraseña debe tener al menos 8 caracteres', 'e');
             return;
         }
         if (password !== confirmPassword) {

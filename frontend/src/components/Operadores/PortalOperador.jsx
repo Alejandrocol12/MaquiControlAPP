@@ -5,6 +5,7 @@ import {
     Clock, Gauge, AlertCircle, CheckCircle, Info, KeyRound, Trash2,
 } from 'lucide-react';
 import DetalleOperador from './DetalleOperador';
+import { Esqueleto, ErrorCarga } from '../../utils/EstadosCarga';
 import {
     getOperadoresAPI, getOperadorByIdAPI, getMisMaquinasAPI, actualizarUbicacion,
     getMantenimientosMiMaquina, createNovedad, getMisNovedades,
@@ -68,8 +69,12 @@ function PortalOperador({ user, onLogout }) {
     const [pinForm, setPinForm] = useState({ pin: '', confirmar: '' });
     const [pinLoading, setPinLoading] = useState(false);
 
+    const [errorCarga, setErrorCarga] = useState(false);
+    const [intento, setIntento] = useState(0);
+
     useEffect(() => {
         const encontrarOperador = async () => {
+            setErrorCarga(false);
             try {
                 if (user?.operadorId) {
                     const { data } = await getOperadorByIdAPI(user.operadorId);
@@ -83,11 +88,11 @@ function PortalOperador({ user, onLogout }) {
                     };
                     setOperador(data.find(match) || null);
                 }
-            } catch { setOperador(null); }
+            } catch { setErrorCarga(true); }
             finally { setCargando(false); }
         };
         encontrarOperador();
-    }, [user]);
+    }, [user, intento]);
 
     useEffect(() => {
         if (!operador) return;
@@ -202,13 +207,17 @@ function PortalOperador({ user, onLogout }) {
 
     const navegar = (id) => { setSeccion(id); setMobSide(false); };
 
-    if (cargando) return (
+    if (cargando || errorCarga) return (
         <div className="operator-shell">
             <aside className="operator-side">
                 <div><div className="logo-fila"><img className="logo-img" src={`${process.env.PUBLIC_URL}/logo-moventra-claro.png`} alt="" /><div className="logo"><span className="mv-m">M</span>OVENTRA</div></div><div className="sb-badge">Operador</div></div>
             </aside>
             <main className="operator-main">
-                <div className="content"><div className="pad" style={{ color: '#6b7a8d', padding: '40px 0' }}>Cargando...</div></div>
+                <div className="content"><div className="pad" style={{ padding: '24px 0' }}>
+                    {errorCarga
+                        ? <ErrorCarga onReintentar={() => { setCargando(true); setIntento(n => n + 1); }} />
+                        : <Esqueleto variante="lista" cantidad={3} etiqueta="Cargando tu portal" />}
+                </div></div>
             </main>
         </div>
     );

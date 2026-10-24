@@ -17,6 +17,7 @@ import {
     fmt, fmtNum, AZUL, DORADO, GRIS, VERDE, ROJO, AZULC,
     cabecera, cajaResumen, barChart, seccion, tabla, pie,
 } from '../../utils/pdfObra';
+import { ErrorCarga } from '../../utils/EstadosCarga';
 
 
 // ── helpers ────────────────────────────────────────────────────
@@ -713,7 +714,9 @@ function Reportes() {
     const [periodoSel,     setPeriodoSel]     = useState('');
     const [incluirSueldo,  setIncluirSueldo]  = useState(false);
 
-    useEffect(() => {
+    const cargarDatos = () => {
+        setCargando(true);
+        setErrorCarga(false);
         Promise.all([
             getMaquinas(), getIngresos(), getGastos(), getSalarios(),
             getHoras(), getMantenimientos(), getCombustible(), getFaenas()
@@ -728,7 +731,9 @@ function Reportes() {
             setFaenas(fae.data || []);
             if (maq.data.length) setMaqSel(maq.data[0].nombre);
         }).catch(e => { console.error(e); setErrorCarga(true); }).finally(() => setCargando(false));
-    }, []);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => { cargarDatos(); }, []);
 
     // Meses con movimiento, del más reciente al más antiguo (siempre incluye el mes actual)
     const meses = useMemo(() => {
@@ -934,7 +939,7 @@ function Reportes() {
                 )}
 
                 {!cargando && errorCarga && (
-                    <div className="ale" role="alert"><div><p>No se pudieron cargar los datos. Recarga la página para intentarlo de nuevo.</p></div></div>
+                    <ErrorCarga onReintentar={cargarDatos} />
                 )}
 
                 {!cargando && !errorCarga && (

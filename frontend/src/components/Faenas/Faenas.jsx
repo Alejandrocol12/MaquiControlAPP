@@ -14,6 +14,7 @@ import {
 
 import { fmtFecha } from '../../utils/fmtFecha';
 import EmptyState from '../../utils/EmptyState';
+import { Esqueleto, ErrorCarga } from '../../utils/EstadosCarga';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import CortesFaena from './CortesFaena';
@@ -48,6 +49,8 @@ function Faenas() {
     const [expandida, setExpandida]   = useState(null);
     const [detalle, setDetalle]       = useState({});
     const [cargandoDet, setCargandoDet] = useState(false);
+    const [cargandoLista, setCargandoLista] = useState(true);
+    const [errorCarga, setErrorCarga] = useState(false);
 
     useEffect(() => {
         cargar();
@@ -57,8 +60,12 @@ function Faenas() {
         getSalarios().then(r => setSalariosAll(r.data || [])).catch(() => {});
     }, []);
 
-    const cargar = () =>
-        getFaenas().then(r => setFaenas(r.data || [])).catch(console.error);
+    const cargar = () => {
+        setErrorCarga(false);
+        return getFaenas().then(r => setFaenas(r.data || []))
+            .catch(e => { console.error(e); setErrorCarga(true); })
+            .finally(() => setCargandoLista(false));
+    };
 
     // Ingresos, gastos y nómina en vivo de un periodo (activo o cerrado), calculados de forma
     // uniforme para toda la lista — la Utilidad ya descuenta la nómina de los operadores,
@@ -364,7 +371,9 @@ function Faenas() {
                     </>
                 )}
 
-                {faenas.length === 0 && (
+                {cargandoLista && <Esqueleto variante="lista" cantidad={3} etiqueta="Cargando periodos" />}
+                {errorCarga && !cargandoLista && <ErrorCarga mensaje="No se pudieron cargar los periodos." onReintentar={() => { setCargandoLista(true); cargar(); }} />}
+                {!cargandoLista && !errorCarga && faenas.length === 0 && (
                     <EmptyState
                         icono={<Briefcase size={20} />}
                         titulo="Aún no hay periodos"
