@@ -1,5 +1,6 @@
 import autoTable from 'jspdf-autotable';
 import { LOGO_CLARO, LOGO_GRANDE, LOGO_PROPORCION } from './logoMoventra';
+import { empresaActual, lineaEmpresa } from './empresa';
 
 export const fmt    = (v) => '$' + (v || 0).toLocaleString('es-CO');
 export const fmtNum = (v) => (v || 0).toLocaleString('es-CO');
@@ -45,10 +46,31 @@ export function cabecera(doc, titulo, subtitulo) {
     doc.text('OVENTRA', x0 + w, 15.5);
 
     const hoy = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'long', year: 'numeric' });
+    // Datos de la empresa a la derecha de la banda: logo (sobre fondo blanco), nombre, NIT y contacto
+    const emp = empresaActual();
+    let xr = 196;
+    if (emp?.logo) {
+        try {
+            const p = doc.getImageProperties(emp.logo);
+            const w = Math.min(32, 11 * p.width / p.height);
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(xr - w - 4, 6, w + 4, 13, 1.5, 1.5, 'F');
+            doc.addImage(emp.logo, emp.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG', xr - w - 2, 7, w, 11);
+            xr -= w + 7;
+        } catch { /* sin logo de la empresa si la imagen no carga */ }
+    }
+    if (emp?.empresa) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(emp.empresa).toUpperCase().slice(0, Math.floor((xr - 95) / 2)), xr, 10.5, { align: 'right' });
+    }
     doc.setFont(MONO, 'normal');
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(190, 190, 190);
-    doc.text(`Generado: ${hoy}`, 196, 14.5, { align: 'right' });
+    const contacto = lineaEmpresa(emp, Math.floor((xr - 95) / 1.5));
+    if (contacto) doc.text(contacto, xr, 14.5, { align: 'right' });
+    doc.text(`Generado: ${hoy}`, xr, contacto ? 18.5 : 14.5, { align: 'right' });
 
     // título
     doc.setFont('helvetica', 'bold');

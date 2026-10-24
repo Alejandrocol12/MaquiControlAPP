@@ -1,132 +1,277 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useToast } from '../../utils/toast';
-import { updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin, solicitarCambioEmail, verificarEmailViejo, confirmarCambioEmail } from '../../api';
-import { User, Lock, Check, Building2, Mail, RefreshCw, KeyRound, ShieldCheck, ShieldOff, Shield, PlayCircle, HelpCircle } from 'lucide-react';
+import {
+    updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin,
+    solicitarCambioEmail, verificarEmailViejo, confirmarCambioEmail,
+    getSesiones, cerrarSesionRemota, cerrarOtrasSesiones, subirLogoEmpresa, quitarLogoEmpresa,
+    getMaquinas, getOperadoresAPI,
+} from '../../api';
+import { empresaActual, guardarEmpresa, cargarEmpresa } from '../../utils/empresa';
+import {
+    User, Lock, Check, Building2, Mail, ShieldCheck, PlayCircle, HelpCircle, SlidersHorizontal,
+    Monitor, Smartphone, LogOut, ImagePlus, Trash2, KeyRound, Sun, Moon, X,
+} from 'lucide-react';
 import './Perfil.css';
 
-const AUTH_USER_KEY  = 'mc_auth_user';
-const POLICY_KEY     = 'mc_pass_policy';
-const defaultPolicy  = { minLength: 6, requireUppercase: false, requireNumbers: false, requireSymbols: false };
+const AUTH_USER_KEY = 'mc_auth_user';
 
-const loadPolicy = () => {
-    try { return { ...defaultPolicy, ...JSON.parse(localStorage.getItem(POLICY_KEY)) }; }
-    catch { return { ...defaultPolicy }; }
-};
-
-const savePolicy = (p) => localStorage.setItem(POLICY_KEY, JSON.stringify(p));
-
-const validarContra = (pass, policy) => [
-    { label: `Mínimo ${policy.minLength} caracteres`,     ok: pass.length >= policy.minLength },
-    ...(policy.requireUppercase ? [{ label: 'Al menos una mayúscula',          ok: /[A-Z]/.test(pass) }] : []),
-    ...(policy.requireNumbers   ? [{ label: 'Al menos un número',              ok: /\d/.test(pass) }] : []),
-    ...(policy.requireSymbols   ? [{ label: 'Al menos un símbolo (!@#$...)',   ok: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(pass) }] : []),
+// Requisitos fijos de la contraseña nueva (el servidor exige además el mínimo de 8)
+const requisitos = (p) => [
+    { label: 'Mínimo 8 caracteres', ok: p.length >= 8 },
+    { label: 'Una mayúscula', ok: /[A-Z]/.test(p) },
+    { label: 'Un número', ok: /\d/.test(p) },
 ];
 
-const Toggle = ({ value, onChange, label }) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}>
-        <div onClick={() => onChange(!value)} style={{
-            width: '38px', height: '20px', borderRadius: '10px',
-            background: value ? '#f5a623' : '#c8d6e5',
-            position: 'relative', transition: 'background .2s', flexShrink: 0,
-        }}>
-            <div style={{
-                position: 'absolute', top: '2px', left: value ? '20px' : '2px',
-                width: '16px', height: '16px', borderRadius: '50%',
-                background: '#fff', transition: 'left .2s',
-                boxShadow: '0 1px 3px rgba(0,0,0,.2)',
-            }} />
-        </div>
-        <span style={{ fontSize: '13px', color: '#1a2d42' }}>{label}</span>
-    </label>
-);
+// Fortaleza de 0 a 4 para el medidor
+const fortaleza = (p) => {
+    if (!p) return { n: 0, texto: '' };
+    let n = 0;
+    if (p.length >= 8) n++;
+    if (p.length >= 12) n++;
+    if (/[A-Z]/.test(p) && /[a-z]/.test(p) && /\d/.test(p)) n++;
+    if (/[^A-Za-z0-9]/.test(p)) n++;
+    return { n, texto: ['Muy débil', 'Débil', 'Media', 'Buena', 'Fuerte'][n] };
+};
 
-function Perfil({ user, onUpdate, onIniciarTour }) {
+const hace = (iso) => {
+    if (!iso) return '';
+    const min = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    if (min < 6) return 'Activa ahora';
+    if (min < 60) return `Activa hace ${min} min`;
+    const h = Math.round(min / 60);
+    if (h < 24) return `Activa hace ${h} h`;
+    const d = Math.round(h / 24);
+    return `Activa hace ${d} ${d === 1 ? 'día' : 'días'}`;
+};
+
+// Reduce la imagen para que el logo pese poco y se guarde sin problema
+const prepararLogo = (file) => new Promise((resolve, reject) => {
+    if (!/^image\/(png|jpeg)$/.test(file.type)) return reject(new Error('El logo debe ser una imagen PNG o JPG.'));
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+        const escala = Math.min(1, 480 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * escala);
+        c.height = Math.round(img.height * escala);
+        const ctx = c.getContext('2d');
+        const png = file.type === 'image/png';
+        if (!png) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); }
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        let out = png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.9);
+        if (out.length > 380000) out = c.toDataURL('image/jpeg', 0.8); // un PNG muy pesado pasa a JPG
+        if (out.length > 380000) return reject(new Error('El logo es muy pesado. Usa una imagen más pequeña.'));
+        resolve(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen.')); };
+    img.src = url;
+});
+
+const SECCIONES = [
+    { id: 'cuenta', label: 'Cuenta', Icono: User },
+    { id: 'seguridad', label: 'Seguridad', Icono: Lock },
+    { id: 'preferencias', label: 'Preferencias', Icono: SlidersHorizontal },
+    { id: 'ayuda', label: 'Ayuda', Icono: HelpCircle },
+];
+
+function Perfil({ user, onUpdate, onIniciarTour, onLogout, tema, setTema }) {
     const toast = useToast();
-    const [tab, setTab] = useState(0);
+    const [seccion, setSeccion] = useState('cuenta');
 
-    const [perfForm, setPerfForm] = useState({ nombre: user.nombre || '', empresa: user.empresa || '' });
-    const [guardando, setGuardando] = useState(false);
+    // ── cabecera ──
+    const [conteo, setConteo] = useState({ maquinas: null, operadores: null });
+    const [empresaDatos, setEmpresaDatos] = useState(empresaActual());
 
-    const [pinForm, setPinForm] = useState('');
-    const [guardandoPin, setGuardandoPin] = useState(false);
+    // ── cuenta ──
+    const [nombre, setNombre] = useState(user.nombre || '');
+    const [emp, setEmp] = useState({ empresa: user.empresa || '', nit: user.nit || '', ciudad: user.ciudad || '', telefono: user.telefono || '', direccion: user.direccion || '' });
+    const [guardando, setGuardando] = useState('');
+    const [subiendoLogo, setSubiendoLogo] = useState(false);
+    const archivoLogo = useRef(null);
 
+    // ── correo ──
+    const [abrirEmail, setAbrirEmail] = useState(false);
+    const [emailForm, setEmailForm] = useState({ nuevo: '', codigoViejo: '', codigoNuevo: '' });
+    const [pasoEmail, setPasoEmail] = useState(0); // 0 nuevo correo, 1 código del correo actual, 2 código del nuevo
+    const [cargandoEmail, setCargandoEmail] = useState(false);
+    const [cuentaEmail, setCuentaEmail] = useState(0);
+
+    // ── contraseña ──
+    const [abrirPass, setAbrirPass] = useState(false);
     const [codigoEnviado, setCodigoEnviado] = useState(false);
     const [enviando, setEnviando] = useState(false);
-    const [countdown, setCountdown] = useState(0);
+    const [cuentaPass, setCuentaPass] = useState(0);
     const [passForm, setPassForm] = useState({ codigo: '', nueva: '', confirmar: '' });
     const [cambiando, setCambiando] = useState(false);
 
-    const [policy, setPolicy] = useState(loadPolicy);
+    // ── PIN ──
+    const [abrirPin, setAbrirPin] = useState(false);
+    const [pinForm, setPinForm] = useState('');
+    const [guardandoPin, setGuardandoPin] = useState(false);
 
-    const [emailForm, setEmailForm] = useState({ nuevo: '', codigoViejo: '', codigoNuevo: '' });
-    const [pasoEmail, setPasoEmail] = useState(0); // 0=form, 1=código correo viejo, 2=código correo nuevo
-    const [cargandoEmail, setCargandoEmail] = useState(false);
-    const [countdownEmail, setCountdownEmail] = useState(0);
+    // ── sesiones ──
+    const [sesiones, setSesiones] = useState(null);
+    const [cerrandoSesion, setCerrandoSesion] = useState('');
 
-    const actualizarPolicy = (campo, valor) => {
-        const nueva = { ...policy, [campo]: valor };
-        setPolicy(nueva);
-        savePolicy(nueva);
+    useEffect(() => { try { localStorage.removeItem('mc_pass_policy'); } catch { /* sin almacenamiento */ } }, []);
+
+    useEffect(() => {
+        let vivo = true;
+        Promise.all([getMaquinas(), getOperadoresAPI()])
+            .then(([m, o]) => { if (vivo) setConteo({ maquinas: (m.data || []).length, operadores: (o.data || []).length }); })
+            .catch(() => {});
+        cargarEmpresa().then(d => { if (vivo && d) setEmpresaDatos(d); });
+        return () => { vivo = false; };
+    }, []);
+
+    const cargarSesiones = useCallback(() => {
+        getSesiones().then(r => setSesiones(r.data || [])).catch(() => setSesiones([]));
+    }, []);
+    useEffect(() => { if (seccion === 'seguridad') cargarSesiones(); }, [seccion, cargarSesiones]);
+
+    const contar = (set) => {
+        set(60);
+        const t = setInterval(() => set(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; }), 1000);
     };
 
-    const guardarPerfil = async () => {
-        if (!perfForm.nombre.trim()) return toast('El nombre es obligatorio', 'e');
-        setGuardando(true);
+    const aplicarUsuario = (data) => {
+        const sesion = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || '{}');
+        if (sesion.user) { sesion.user = { ...sesion.user, ...data }; localStorage.setItem(AUTH_USER_KEY, JSON.stringify(sesion)); }
+        onUpdate(data);
+    };
+
+    // ── cuenta: guardar ──
+    const guardar = async (cual) => {
+        if (cual === 'personal' && !nombre.trim()) return toast('El nombre es obligatorio', 'e');
+        if (cual === 'empresa' && !emp.empresa.trim()) return toast('El nombre de la empresa es obligatorio', 'e');
+        setGuardando(cual);
         try {
-            const { data } = await updateMe({ nombre: perfForm.nombre.trim(), empresa: perfForm.empresa.trim() });
-            const session = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || '{}');
-            if (session.user) { session.user = { ...session.user, ...data }; localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session)); }
-            onUpdate(data);
-            toast('Perfil actualizado');
+            const cuerpo = cual === 'personal'
+                ? { nombre: nombre.trim() }
+                : { empresa: emp.empresa.trim(), nit: emp.nit, ciudad: emp.ciudad, telefono: emp.telefono, direccion: emp.direccion };
+            const { data } = await updateMe(cuerpo);
+            aplicarUsuario(data);
+            if (cual === 'empresa') {
+                const nuevo = { ...(empresaActual() || {}), ...cuerpo };
+                guardarEmpresa(nuevo); setEmpresaDatos(nuevo);
+            }
+            toast(cual === 'personal' ? 'Datos personales guardados' : 'Datos de la empresa guardados');
         } catch (err) {
-            toast(err.response?.data?.error || 'Error al actualizar el perfil', 'e');
-        } finally { setGuardando(false); }
+            toast(err.response?.data?.error || 'No se pudieron guardar los cambios', 'e');
+        } finally { setGuardando(''); }
     };
+
+    const elegirLogo = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        setSubiendoLogo(true);
+        try {
+            const logo = await prepararLogo(file);
+            const { data } = await subirLogoEmpresa(logo);
+            aplicarUsuario(data);
+            const nuevo = { ...(empresaActual() || {}), logo };
+            guardarEmpresa(nuevo); setEmpresaDatos(nuevo);
+            toast('Logo guardado. Saldrá en tus PDF.');
+        } catch (err) {
+            toast(err.response?.data?.error || err.message || 'No se pudo subir el logo', 'e');
+        } finally { setSubiendoLogo(false); }
+    };
+
+    const quitarLogo = async () => {
+        setSubiendoLogo(true);
+        try {
+            const { data } = await quitarLogoEmpresa();
+            aplicarUsuario(data);
+            const nuevo = { ...(empresaActual() || {}), logo: null };
+            guardarEmpresa(nuevo); setEmpresaDatos(nuevo);
+            toast('Logo quitado', 'i');
+        } catch { toast('No se pudo quitar el logo', 'e'); }
+        finally { setSubiendoLogo(false); }
+    };
+
+    // ── correo ──
+    const cerrarEmail = () => { setAbrirEmail(false); setEmailForm({ nuevo: '', codigoViejo: '', codigoNuevo: '' }); setPasoEmail(0); setCuentaEmail(0); };
+
+    const iniciarCambioEmail = async () => {
+        const email = emailForm.nuevo.trim().toLowerCase();
+        if (!email.includes('@')) return toast('Escribe un correo válido', 'e');
+        setCargandoEmail(true);
+        try {
+            await solicitarCambioEmail({ nuevoEmail: email });
+            setPasoEmail(1); contar(setCuentaEmail);
+            toast(`Código enviado a ${user.email}`, 's');
+        } catch (err) { toast(err.response?.data?.error || 'No se pudo enviar el código', 'e'); }
+        finally { setCargandoEmail(false); }
+    };
+
+    const verificarViejo = async () => {
+        if (!emailForm.codigoViejo.trim()) return toast('Escribe el código que llegó a tu correo actual', 'e');
+        setCargandoEmail(true);
+        try {
+            await verificarEmailViejo({ codigo: emailForm.codigoViejo.trim() });
+            setPasoEmail(2); contar(setCuentaEmail);
+            toast(`Código enviado a ${emailForm.nuevo}`, 's');
+        } catch (err) { toast(err.response?.data?.error || 'Código incorrecto o vencido', 'e'); }
+        finally { setCargandoEmail(false); }
+    };
+
+    const confirmarEmail = async () => {
+        if (!emailForm.codigoNuevo.trim()) return toast('Escribe el código que llegó al correo nuevo', 'e');
+        setCargandoEmail(true);
+        try {
+            const { data } = await confirmarCambioEmail({ codigo: emailForm.codigoNuevo.trim() });
+            aplicarUsuario(data);
+            cerrarEmail();
+            toast('Correo actualizado', 's');
+        } catch (err) { toast(err.response?.data?.error || 'Código incorrecto o vencido', 'e'); }
+        finally { setCargandoEmail(false); }
+    };
+
+    // ── contraseña ──
+    const cerrarPass = () => { setAbrirPass(false); setCodigoEnviado(false); setPassForm({ codigo: '', nueva: '', confirmar: '' }); setCuentaPass(0); };
 
     const pedirCodigo = async () => {
         setEnviando(true);
         try {
             await enviarCodigoPassword();
-            setCodigoEnviado(true);
-            toast('Código enviado — revisa tu correo', 's');
-            setCountdown(60);
-            const t = setInterval(() => {
-                setCountdown(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; });
-            }, 1000);
-        } catch (err) {
-            toast(err.response?.data?.error || 'No se pudo enviar el correo.', 'e');
-        } finally { setEnviando(false); }
+            setCodigoEnviado(true); contar(setCuentaPass);
+            toast('Código enviado. Revisa tu correo.', 's');
+        } catch (err) { toast(err.response?.data?.error || 'No se pudo enviar el correo', 'e'); }
+        finally { setEnviando(false); }
     };
 
+    const reqs = requisitos(passForm.nueva);
+    const fuerza = fortaleza(passForm.nueva);
+    const passOk = reqs.every(r => r.ok) && passForm.nueva === passForm.confirmar && passForm.codigo.trim();
+
     const cambiarPass = async () => {
-        if (!passForm.codigo.trim()) return toast('Ingresa el código que llegó a tu correo', 'e');
-        const checks = validarContra(passForm.nueva, policy);
-        const fallido = checks.find(c => !c.ok);
-        if (fallido) return toast(fallido.label, 'e');
+        if (!passForm.codigo.trim()) return toast('Escribe el código que llegó a tu correo', 'e');
+        const falla = reqs.find(r => !r.ok);
+        if (falla) return toast(`La contraseña necesita: ${falla.label.toLowerCase()}`, 'e');
         if (passForm.nueva !== passForm.confirmar) return toast('Las contraseñas no coinciden', 'e');
         setCambiando(true);
         try {
             await changePassword({ codigo: passForm.codigo.trim(), nueva: passForm.nueva });
-            setPassForm({ codigo: '', nueva: '', confirmar: '' });
-            setCodigoEnviado(false);
-            toast('Contraseña cambiada correctamente', 's');
-        } catch (err) {
-            toast(err.response?.data?.error || 'Código incorrecto o expirado', 'e');
-        } finally { setCambiando(false); }
+            cerrarPass();
+            toast('Contraseña cambiada', 's');
+        } catch (err) { toast(err.response?.data?.error || 'Código incorrecto o vencido', 'e'); }
+        finally { setCambiando(false); }
     };
 
+    // ── PIN ──
     const guardarPin = async () => {
-        if (!/^\d{4}$/.test(pinForm)) return toast('El PIN debe ser exactamente 4 dígitos numéricos', 'e');
+        if (!/^\d{4}$/.test(pinForm)) return toast('El PIN son exactamente 4 números', 'e');
         setGuardandoPin(true);
         try {
             const { data } = await configurarPin({ pin: pinForm });
             localStorage.setItem('mc_pin_email', user.email);
             onUpdate(data);
-            setPinForm('');
-            toast('PIN configurado — ya puedes usarlo al entrar', 's');
-        } catch (err) {
-            toast(err.response?.data?.error || 'Error al guardar el PIN', 'e');
-        } finally { setGuardandoPin(false); }
+            setPinForm(''); setAbrirPin(false);
+            toast('PIN guardado. Ya puedes usarlo al entrar.', 's');
+        } catch (err) { toast(err.response?.data?.error || 'No se pudo guardar el PIN', 'e'); }
+        finally { setGuardandoPin(false); }
     };
 
     const quitarPin = async () => {
@@ -135,443 +280,309 @@ function Perfil({ user, onUpdate, onIniciarTour }) {
             const { data } = await eliminarPin();
             localStorage.removeItem('mc_pin_email');
             onUpdate(data);
-            toast('PIN eliminado', 'i');
-        } catch {
-            toast('Error al eliminar el PIN', 'e');
-        } finally { setGuardandoPin(false); }
+            setAbrirPin(false);
+            toast('PIN quitado', 'i');
+        } catch { toast('No se pudo quitar el PIN', 'e'); }
+        finally { setGuardandoPin(false); }
     };
 
-    const iniciarCambioEmail = async () => {
-        const email = emailForm.nuevo.trim().toLowerCase();
-        if (!email.includes('@')) return toast('Ingresa un correo válido', 'e');
-        setCargandoEmail(true);
+    // ── sesiones ──
+    const cerrarUna = async (id) => {
+        setCerrandoSesion(id);
+        try { await cerrarSesionRemota(id); toast('Sesión cerrada', 'i'); cargarSesiones(); }
+        catch { toast('No se pudo cerrar la sesión', 'e'); }
+        finally { setCerrandoSesion(''); }
+    };
+
+    const cerrarOtras = async () => {
+        setCerrandoSesion('todas');
         try {
-            await solicitarCambioEmail({ nuevoEmail: email });
-            setPasoEmail(1);
-            toast(`Código enviado a ${user.email} — revisa tu bandeja`, 's');
-            iniciarCountdown();
-        } catch (err) {
-            toast(err.response?.data?.error || 'No se pudo enviar el código', 'e');
-        } finally { setCargandoEmail(false); }
+            const { data } = await cerrarOtrasSesiones();
+            toast(data.cerradas ? `Se cerraron ${data.cerradas} sesiones` : 'No había otras sesiones abiertas', 'i');
+            cargarSesiones();
+        } catch { toast('No se pudieron cerrar las sesiones', 'e'); }
+        finally { setCerrandoSesion(''); }
     };
 
-    const verificarViejo = async () => {
-        if (!emailForm.codigoViejo.trim()) return toast('Ingresa el código que llegó a tu correo actual', 'e');
-        setCargandoEmail(true);
-        try {
-            await verificarEmailViejo({ codigo: emailForm.codigoViejo.trim() });
-            setPasoEmail(2);
-            toast(`Código enviado a ${emailForm.nuevo} — revísalo`, 's');
-            iniciarCountdown();
-        } catch (err) {
-            toast(err.response?.data?.error || 'Código incorrecto o expirado', 'e');
-        } finally { setCargandoEmail(false); }
+    // Teclado en el menú de secciones
+    const alTeclear = (e, i) => {
+        const d = ['ArrowDown', 'ArrowRight'].includes(e.key) ? 1 : ['ArrowUp', 'ArrowLeft'].includes(e.key) ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        const sig = SECCIONES[(i + d + SECCIONES.length) % SECCIONES.length];
+        setSeccion(sig.id);
+        document.getElementById(`pf-t-${sig.id}`)?.focus();
     };
 
-    const confirmarEmail = async () => {
-        if (!emailForm.codigoNuevo.trim()) return toast('Ingresa el código que llegó al nuevo correo', 'e');
-        setCargandoEmail(true);
-        try {
-            const { data } = await confirmarCambioEmail({ codigo: emailForm.codigoNuevo.trim() });
-            onUpdate(data);
-            const session = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || '{}');
-            if (session.user) { session.user = { ...session.user, ...data }; localStorage.setItem(AUTH_USER_KEY, JSON.stringify(session)); }
-            setEmailForm({ nuevo: '', codigoViejo: '', codigoNuevo: '' });
-            setPasoEmail(0);
-            toast('Correo actualizado correctamente', 's');
-        } catch (err) {
-            toast(err.response?.data?.error || 'Código incorrecto o expirado', 'e');
-        } finally { setCargandoEmail(false); }
-    };
-
-    const iniciarCountdown = () => {
-        setCountdownEmail(60);
-        const t = setInterval(() => {
-            setCountdownEmail(c => { if (c <= 1) { clearInterval(t); return 0; } return c - 1; });
-        }, 1000);
-    };
-
-    const resetEmail = () => { setEmailForm({ nuevo: '', codigoViejo: '', codigoNuevo: '' }); setPasoEmail(0); setCountdownEmail(0); };
-
-    const checks   = validarContra(passForm.nueva, policy);
-    const todoOk   = checks.every(c => c.ok) && passForm.nueva === passForm.confirmar;
-    const inicial  = (user.nombre || 'U').charAt(0).toUpperCase();
-
-    const TABS = [
-        { label: 'Datos personales', ico: <User size={14} /> },
-        { label: 'Seguridad', ico: <Shield size={14} /> },
-        { label: 'Ayuda', ico: <HelpCircle size={14} /> },
-    ];
+    const otras = (sesiones || []).filter(s => !s.actual).length;
+    const inicial = (user.nombre || 'U').charAt(0).toUpperCase();
+    const logo = empresaDatos?.logo;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <div className="topbar">
-                <div><h1>Mi Perfil</h1><p>Información de tu cuenta</p></div>
+                <div><h1>Mi Perfil</h1><p>Tu cuenta, tu empresa y tu seguridad</p></div>
             </div>
             <div className="content"><div className="pad">
+                <div className="pf">
 
-                {/* Hero de usuario */}
-                <div className="pf-hero">
-                    <div className="pf-av">{inicial}</div>
-                    <div className="pf-hero-info">
-                        <div className="pf-hero-name">{user.nombre}</div>
-                        <div className="pf-hero-email">{user.email}</div>
-                        <div className="pf-hero-badges">
-                            <span className="pf-badge"><Building2 size={11} /> {user.empresa || 'Sin empresa'}</span>
-                            <span className="pf-badge gold">{user.rol}</span>
-                            {user.hasPin && <span className="pf-badge"><ShieldCheck size={11} /> PIN activo</span>}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="pf-tabs">
-                    {TABS.map((t, i) => (
-                        <button key={i} className={`pf-tab ${tab === i ? 'on' : ''}`} onClick={() => setTab(i)}>{t.ico}{t.label}</button>
-                    ))}
-                </div>
-
-                {tab === 0 && <>
-                {/* Datos personales */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico gold"><User size={16} /></span>
-                        <div><div className="pf-sec-title">Datos personales</div><div className="pf-sec-desc">Tu nombre y empresa, visibles en reportes y vista compartida.</div></div>
-                    </div>
-                    <div className="fg2">
-                        <div>
-                            <label className="fl">Nombre *</label>
-                            <input className="fi" value={perfForm.nombre}
-                                onChange={e => setPerfForm({ ...perfForm, nombre: e.target.value })}
-                                placeholder="Tu nombre completo" />
-                        </div>
-                        <div>
-                            <label className="fl">Empresa</label>
-                            <input className="fi" value={perfForm.empresa}
-                                onChange={e => setPerfForm({ ...perfForm, empresa: e.target.value })}
-                                placeholder="Nombre de tu empresa" />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="fl">Correo electrónico</label>
-                        <input className="fi" value={user.email} readOnly
-                            style={{ background: '#f0f4f8', color: '#9aa5b4', cursor: 'not-allowed' }} />
-                    </div>
-                    <button className="bp" onClick={guardarPerfil} disabled={guardando}>
-                        <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                        {guardando ? 'Guardando...' : 'Guardar cambios'}
-                    </button>
-                </div>
-
-                {/* Cambiar correo */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico info"><Mail size={16} /></span>
-                        <div><div className="pf-sec-title">Cambiar correo</div><div className="pf-sec-desc">Verificación en dos pasos: confirmas el correo actual y luego el nuevo.</div></div>
-                    </div>
-
-                    {/* Indicador de pasos */}
-                    <div className="pf-steps">
-                        {[['1', 'Nuevo correo'], ['2', 'Verificar cuenta'], ['3', 'Verificar nuevo']].map(([n, label], i) => (
-                            <div key={n} className="pf-step">
-                                <div className="pf-step">
-                                    <div className={`pf-step-dot ${pasoEmail > i ? 'done' : pasoEmail === i ? 'on' : ''}`}>
-                                        {pasoEmail > i ? <Check size={11} /> : n}
-                                    </div>
-                                    <span className={`pf-step-label ${pasoEmail === i ? 'on' : ''}`}>{label}</span>
-                                </div>
-                                {i < 2 && <div className="pf-step-line" />}
-                            </div>
-                        ))}
-                    </div>
-
-                    {pasoEmail === 0 && (
-                        <div>
-                            <div className="ale blue" style={{ marginBottom: '14px' }}>
-                                <Mail size={18} color="#2980b9" />
-                                <div>
-                                    <p>Correo actual: <strong>{user.email}</strong></p>
-                                    <span className="ale-desc">Se verificará tu identidad por el correo actual, luego confirmarás el nuevo.</span>
-                                </div>
-                            </div>
-                            <div style={{ marginBottom: '10px' }}>
-                                <label className="fl">Nuevo correo *</label>
-                                <input className="fi" type="email" value={emailForm.nuevo}
-                                    onChange={e => setEmailForm({ ...emailForm, nuevo: e.target.value })}
-                                    placeholder="nuevo@correo.com" />
-                            </div>
-                            <button className="bp" onClick={iniciarCambioEmail} disabled={cargandoEmail || !emailForm.nuevo.trim()}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Mail size={14} />
-                                {cargandoEmail ? 'Enviando...' : 'Continuar'}
-                            </button>
-                        </div>
-                    )}
-
-                    {pasoEmail === 1 && (
-                        <div>
-                            <div className="ale green" style={{ marginBottom: '14px' }}>
-                                <Check size={18} color="#27ae60" />
-                                <div>
-                                    <p>Código enviado a <strong>{user.email}</strong></p>
-                                    <span className="ale-desc">Ingresa el código para confirmar que eres el dueño de esta cuenta.</span>
-                                </div>
-                            </div>
-                            <div style={{ marginBottom: '10px' }}>
-                                <label className="fl">Código de verificación *</label>
-                                <input className="fi" value={emailForm.codigoViejo}
-                                    onChange={e => setEmailForm({ ...emailForm, codigoViejo: e.target.value })}
-                                    placeholder="000000" maxLength={6} inputMode="numeric"
-                                    style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center' }} />
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                <button className="bp" onClick={verificarViejo} disabled={cargandoEmail || !emailForm.codigoViejo.trim()}>
-                                    <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    {cargandoEmail ? 'Verificando...' : 'Verificar'}
-                                </button>
-                                <button className="bs" onClick={iniciarCambioEmail} disabled={cargandoEmail || countdownEmail > 0}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <RefreshCw size={13} />
-                                    {countdownEmail > 0 ? `Reenviar en ${countdownEmail}s` : 'Reenviar'}
-                                </button>
-                                <button className="bs" onClick={resetEmail}>Cancelar</button>
+                    <header className="pf-hero">
+                        <div className="pf-av" aria-hidden="true">{logo ? <img src={logo} alt="" /> : inicial}</div>
+                        <div className="pf-hero-info">
+                            <h2>{user.nombre}</h2>
+                            <div className="pf-hero-mail">{user.email}</div>
+                            <div className="pf-badges">
+                                <span className="pf-bd"><Building2 size={12} aria-hidden="true" /> {user.empresa || 'Sin empresa'}</span>
+                                <span className="pf-bd oro">{user.rol}</span>
+                                {user.hasPin && <span className="pf-bd"><ShieldCheck size={12} aria-hidden="true" /> PIN activo</span>}
                             </div>
                         </div>
-                    )}
-
-                    {pasoEmail === 2 && (
-                        <div>
-                            <div className="ale green" style={{ marginBottom: '14px' }}>
-                                <Check size={18} color="#27ae60" />
-                                <div>
-                                    <p>Código enviado a <strong>{emailForm.nuevo}</strong></p>
-                                    <span className="ale-desc">Último paso: confirma que ese correo es tuyo.</span>
-                                </div>
-                            </div>
-                            <div style={{ marginBottom: '10px' }}>
-                                <label className="fl">Código de verificación *</label>
-                                <input className="fi" value={emailForm.codigoNuevo}
-                                    onChange={e => setEmailForm({ ...emailForm, codigoNuevo: e.target.value })}
-                                    placeholder="000000" maxLength={6} inputMode="numeric"
-                                    style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center' }} />
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                <button className="bp" onClick={confirmarEmail} disabled={cargandoEmail || !emailForm.codigoNuevo.trim()}>
-                                    <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    {cargandoEmail ? 'Confirmando...' : 'Confirmar nuevo correo'}
-                                </button>
-                                <button className="bs" onClick={verificarViejo} disabled={cargandoEmail || countdownEmail > 0}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <RefreshCw size={13} />
-                                    {countdownEmail > 0 ? `Reenviar en ${countdownEmail}s` : 'Reenviar'}
-                                </button>
-                                <button className="bs" onClick={resetEmail}>Cancelar</button>
-                            </div>
+                        <div className="pf-stats">
+                            <div><b>{conteo.maquinas ?? '–'}</b><span>Máquinas</span></div>
+                            <div><b>{conteo.operadores ?? '–'}</b><span>Operadores</span></div>
                         </div>
-                    )}
-                </div>
-                </>}
+                    </header>
 
-                {tab === 1 && <>
-                {/* Política de contraseña */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico purple"><Shield size={16} /></span>
-                        <div><div className="pf-sec-title">Política de contraseña</div><div className="pf-sec-desc">Define los requisitos que debe cumplir tu contraseña al cambiarla.</div></div>
-                    </div>
-
-                    <div style={{ marginBottom: '14px' }}>
-                        <label className="fl">Longitud mínima</label>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            {[6, 8, 10, 12].map(n => (
-                                <button key={n} onClick={() => actualizarPolicy('minLength', n)}
-                                    style={{
-                                        padding: '6px 16px', borderRadius: '8px', border: '1.5px solid',
-                                        borderColor: policy.minLength === n ? '#f5a623' : '#dde4ed',
-                                        background: policy.minLength === n ? '#fff8ee' : '#fff',
-                                        color: policy.minLength === n ? '#f5a623' : '#6b7a8d',
-                                        fontWeight: policy.minLength === n ? '700' : '400',
-                                        cursor: 'pointer', fontSize: '13px',
-                                    }}>
-                                    {n} caracteres
+                    <div className="pf-cuerpo">
+                        <div className="pf-menu" role="tablist" aria-label="Secciones del perfil">
+                            {SECCIONES.map(({ id, label, Icono }, i) => (
+                                <button key={id} id={`pf-t-${id}`} type="button" role="tab" aria-selected={seccion === id} aria-controls={`pf-p-${id}`}
+                                    tabIndex={seccion === id ? 0 : -1} className="pf-tab" onClick={() => setSeccion(id)} onKeyDown={e => alTeclear(e, i)}>
+                                    <Icono size={16} aria-hidden="true" /> {label}
                                 </button>
                             ))}
                         </div>
-                    </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <Toggle value={policy.requireUppercase} onChange={v => actualizarPolicy('requireUppercase', v)} label="Requerir al menos una mayúscula (A-Z)" />
-                        <Toggle value={policy.requireNumbers}   onChange={v => actualizarPolicy('requireNumbers', v)}   label="Requerir al menos un número (0-9)" />
-                        <Toggle value={policy.requireSymbols}   onChange={v => actualizarPolicy('requireSymbols', v)}   label="Requerir al menos un símbolo (!@#$...)" />
-                    </div>
-                </div>
+                        <div className="pf-paneles">
 
-                {/* Cambiar contraseña */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico bad"><Lock size={16} /></span>
-                        <div><div className="pf-sec-title">Cambiar contraseña</div><div className="pf-sec-desc">Requiere un código de verificación enviado a tu correo.</div></div>
-                    </div>
-
-                    {!codigoEnviado ? (
-                        <div>
-                            <div className="ale blue" style={{ marginBottom: '14px' }}>
-                                <Mail size={18} color="#2980b9" />
-                                <div>
-                                    <p>Se enviará un código de verificación a</p>
-                                    <span className="ale-desc" style={{ fontWeight: '700' }}>{user.email}</span>
-                                </div>
-                            </div>
-                            <button className="bp" onClick={pedirCodigo} disabled={enviando}
-                                style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Mail size={14} />
-                                {enviando ? 'Enviando...' : 'Enviar código a mi correo'}
-                            </button>
-                        </div>
-                    ) : (
-                        <div>
-                            <div className="ale green" style={{ marginBottom: '14px' }}>
-                                <Check size={18} color="#27ae60" />
-                                <div>
-                                    <p>Código enviado a <strong>{user.email}</strong></p>
-                                    <span className="ale-desc">Revisa tu bandeja de entrada (y spam). Válido por 15 minutos.</span>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="fl">Código de verificación *</label>
-                                <input className="fi" value={passForm.codigo}
-                                    onChange={e => setPassForm({ ...passForm, codigo: e.target.value })}
-                                    placeholder="Ej: 483921" maxLength={6} inputMode="numeric"
-                                    style={{ letterSpacing: '4px', fontSize: '20px', fontWeight: '700', textAlign: 'center' }} />
-                            </div>
-
-                            <div className="fg2" style={{ marginTop: '4px' }}>
-                                <div>
-                                    <label className="fl">Nueva contraseña *</label>
-                                    <input className="fi" type="password" value={passForm.nueva}
-                                        onChange={e => setPassForm({ ...passForm, nueva: e.target.value })}
-                                        placeholder={`Mínimo ${policy.minLength} caracteres`} />
-                                </div>
-                                <div>
-                                    <label className="fl">Confirmar nueva *</label>
-                                    <input className="fi" type="password" value={passForm.confirmar}
-                                        onChange={e => setPassForm({ ...passForm, confirmar: e.target.value })}
-                                        placeholder="Repite la contraseña" />
-                                </div>
-                            </div>
-
-                            {/* Checklist en tiempo real */}
-                            {passForm.nueva && (
-                                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 14px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                    {checks.map((c, i) => (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: c.ok ? '#27ae60' : '#9aa5b4' }}>
-                                            <span style={{ width:'14px', height:'14px', borderRadius:'50%', flexShrink:0, display:'inline-flex', alignItems:'center', justifyContent:'center', background: c.ok ? '#27ae60' : 'transparent', border: `2px solid ${c.ok ? '#27ae60' : '#c8d6e5'}` }}>
-                                                {c.ok && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                                            </span>
-                                            {c.label}
+                            {seccion === 'cuenta' && (
+                                <div className="pf-panel" id="pf-p-cuenta" role="tabpanel" aria-labelledby="pf-t-cuenta">
+                                    <section className="pf-card">
+                                        <h3>Datos personales</h3>
+                                        <p className="pf-d">Tu nombre aparece en los reportes y en la vista compartida.</p>
+                                        <div className="pf-campo">
+                                            <label htmlFor="pf-nombre">Nombre *</label>
+                                            <input id="pf-nombre" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre completo" autoComplete="name" />
                                         </div>
-                                    ))}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12px', color: (passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : '#9aa5b4' }}>
-                                        <span style={{ width:'14px', height:'14px', borderRadius:'50%', flexShrink:0, display:'inline-flex', alignItems:'center', justifyContent:'center', background: (passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : 'transparent', border: `2px solid ${(passForm.confirmar && passForm.nueva === passForm.confirmar) ? '#27ae60' : '#c8d6e5'}` }}>
-                                            {(passForm.confirmar && passForm.nueva === passForm.confirmar) && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                                        </span>
-                                        Las contraseñas coinciden
-                                    </div>
+                                        <div className="pf-campo">
+                                            <label htmlFor="pf-correo">Correo</label>
+                                            <div className="pf-linea">
+                                                <input id="pf-correo" value={user.email} readOnly />
+                                                <button type="button" className="pf-btn sec" onClick={() => (abrirEmail ? cerrarEmail() : setAbrirEmail(true))} aria-expanded={abrirEmail}>
+                                                    <Mail size={15} aria-hidden="true" /> {abrirEmail ? 'Cancelar' : 'Cambiar correo'}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {abrirEmail && (
+                                            <div className="pf-flujo">
+                                                <ol className="pf-pasos" aria-label="Pasos para cambiar el correo">
+                                                    {['Correo nuevo', 'Confirmar el actual', 'Confirmar el nuevo'].map((t, i) => (
+                                                        <li key={t} className={i < pasoEmail ? 'hecho' : i === pasoEmail ? 'ahora' : ''} aria-current={i === pasoEmail ? 'step' : undefined}>
+                                                            <span>{i < pasoEmail ? <Check size={12} aria-hidden="true" /> : i + 1}</span>{t}
+                                                        </li>
+                                                    ))}
+                                                </ol>
+                                                {pasoEmail === 0 && (<>
+                                                    <div className="pf-campo">
+                                                        <label htmlFor="pf-nuevo-correo">Correo nuevo</label>
+                                                        <input id="pf-nuevo-correo" type="email" value={emailForm.nuevo} onChange={e => setEmailForm({ ...emailForm, nuevo: e.target.value })} placeholder="nuevo@correo.com" autoComplete="email" />
+                                                    </div>
+                                                    <p className="pf-nota">Primero te enviamos un código a <b>{user.email}</b> para confirmar que eres tú.</p>
+                                                    <button type="button" className="pf-btn" onClick={iniciarCambioEmail} disabled={cargandoEmail}>{cargandoEmail ? 'Enviando…' : 'Enviar código'}</button>
+                                                </>)}
+                                                {pasoEmail === 1 && (<>
+                                                    <div className="pf-campo">
+                                                        <label htmlFor="pf-cod-viejo">Código enviado a {user.email}</label>
+                                                        <input id="pf-cod-viejo" inputMode="numeric" value={emailForm.codigoViejo} onChange={e => setEmailForm({ ...emailForm, codigoViejo: e.target.value })} placeholder="Código de 6 dígitos" autoComplete="one-time-code" />
+                                                    </div>
+                                                    <div className="pf-linea-btn">
+                                                        <button type="button" className="pf-btn" onClick={verificarViejo} disabled={cargandoEmail}>{cargandoEmail ? 'Verificando…' : 'Verificar'}</button>
+                                                        <button type="button" className="pf-btn sec" onClick={iniciarCambioEmail} disabled={cargandoEmail || cuentaEmail > 0}>{cuentaEmail > 0 ? `Reenviar en ${cuentaEmail} s` : 'Reenviar código'}</button>
+                                                    </div>
+                                                </>)}
+                                                {pasoEmail === 2 && (<>
+                                                    <div className="pf-campo">
+                                                        <label htmlFor="pf-cod-nuevo">Código enviado a {emailForm.nuevo}</label>
+                                                        <input id="pf-cod-nuevo" inputMode="numeric" value={emailForm.codigoNuevo} onChange={e => setEmailForm({ ...emailForm, codigoNuevo: e.target.value })} placeholder="Código de 6 dígitos" autoComplete="one-time-code" />
+                                                    </div>
+                                                    <button type="button" className="pf-btn" onClick={confirmarEmail} disabled={cargandoEmail}>{cargandoEmail ? 'Confirmando…' : 'Confirmar cambio'}</button>
+                                                </>)}
+                                            </div>
+                                        )}
+
+                                        <div className="pf-acciones">
+                                            <button type="button" className="pf-btn" onClick={() => guardar('personal')} disabled={guardando === 'personal'}>
+                                                <Check size={15} aria-hidden="true" /> {guardando === 'personal' ? 'Guardando…' : 'Guardar'}
+                                            </button>
+                                        </div>
+                                    </section>
+
+                                    <section className="pf-card">
+                                        <h3>Datos de la empresa</h3>
+                                        <p className="pf-d">Salen en el encabezado de los PDF: reportes, actas y comprobantes.</p>
+                                        <div className="pf-f2">
+                                            <div className="pf-campo"><label htmlFor="pf-empresa">Empresa *</label><input id="pf-empresa" value={emp.empresa} onChange={e => setEmp({ ...emp, empresa: e.target.value })} placeholder="Nombre de tu empresa" autoComplete="organization" /></div>
+                                            <div className="pf-campo"><label htmlFor="pf-nit">NIT</label><input id="pf-nit" value={emp.nit} onChange={e => setEmp({ ...emp, nit: e.target.value })} placeholder="900.123.456-7" maxLength={40} /></div>
+                                            <div className="pf-campo"><label htmlFor="pf-ciudad">Ciudad</label><input id="pf-ciudad" value={emp.ciudad} onChange={e => setEmp({ ...emp, ciudad: e.target.value })} placeholder="Ciudad" maxLength={80} autoComplete="address-level2" /></div>
+                                            <div className="pf-campo"><label htmlFor="pf-tel">Teléfono</label><input id="pf-tel" type="tel" value={emp.telefono} onChange={e => setEmp({ ...emp, telefono: e.target.value })} placeholder="300 123 4567" maxLength={40} autoComplete="tel" /></div>
+                                        </div>
+                                        <div className="pf-campo"><label htmlFor="pf-dir">Dirección</label><input id="pf-dir" value={emp.direccion} onChange={e => setEmp({ ...emp, direccion: e.target.value })} placeholder="Dirección de la empresa" maxLength={160} autoComplete="street-address" /></div>
+
+                                        <div className="pf-campo">
+                                            <label>Logo de la empresa</label>
+                                            <div className="pf-logo">
+                                                <div className="pf-logo-caja">{logo ? <img src={logo} alt="Logo de la empresa" /> : <ImagePlus size={22} aria-hidden="true" />}</div>
+                                                <div className="pf-logo-acc">
+                                                    <input ref={archivoLogo} type="file" accept="image/png,image/jpeg" onChange={elegirLogo} hidden />
+                                                    <button type="button" className="pf-btn sec" onClick={() => archivoLogo.current?.click()} disabled={subiendoLogo}>
+                                                        <ImagePlus size={15} aria-hidden="true" /> {subiendoLogo ? 'Subiendo…' : logo ? 'Cambiar logo' : 'Subir logo'}
+                                                    </button>
+                                                    {logo && <button type="button" className="pf-btn sec peligro" onClick={quitarLogo} disabled={subiendoLogo}><Trash2 size={15} aria-hidden="true" /> Quitar</button>}
+                                                </div>
+                                                <p className="pf-nota">PNG o JPG. Se ve en el encabezado de tus PDF junto al de Moventra.</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="pf-acciones">
+                                            <button type="button" className="pf-btn" onClick={() => guardar('empresa')} disabled={guardando === 'empresa'}>
+                                                <Check size={15} aria-hidden="true" /> {guardando === 'empresa' ? 'Guardando…' : 'Guardar datos de la empresa'}
+                                            </button>
+                                        </div>
+                                    </section>
                                 </div>
                             )}
 
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
-                                <button className="bp" onClick={cambiarPass} disabled={cambiando || !todoOk}>
-                                    <Lock size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    {cambiando ? 'Cambiando...' : 'Cambiar contraseña'}
-                                </button>
-                                <button className="bs" onClick={pedirCodigo} disabled={enviando || countdown > 0}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <RefreshCw size={13} />
-                                    {countdown > 0 ? `Reenviar en ${countdown}s` : 'Reenviar código'}
-                                </button>
-                                <button className="bs" onClick={() => { setCodigoEnviado(false); setPassForm({ codigo: '', nueva: '', confirmar: '' }); }}>
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                            {seccion === 'seguridad' && (
+                                <div className="pf-panel" id="pf-p-seguridad" role="tabpanel" aria-labelledby="pf-t-seguridad">
+                                    <section className="pf-card">
+                                        <h3>Contraseña</h3>
+                                        <p className="pf-d">Para cambiarla te enviamos un código a tu correo.</p>
+                                        {!abrirPass ? (
+                                            <div className="pf-fila">
+                                                <div className="pf-fila-t"><b>Contraseña</b><span>Cámbiala cuando quieras</span></div>
+                                                <button type="button" className="pf-btn sec" onClick={() => setAbrirPass(true)}><Lock size={15} aria-hidden="true" /> Cambiar contraseña</button>
+                                            </div>
+                                        ) : (
+                                            <div className="pf-flujo">
+                                                {!codigoEnviado ? (<>
+                                                    <p className="pf-nota">Enviaremos un código a <b>{user.email}</b>.</p>
+                                                    <div className="pf-linea-btn">
+                                                        <button type="button" className="pf-btn" onClick={pedirCodigo} disabled={enviando}><Mail size={15} aria-hidden="true" /> {enviando ? 'Enviando…' : 'Enviar código'}</button>
+                                                        <button type="button" className="pf-btn sec" onClick={cerrarPass}>Cancelar</button>
+                                                    </div>
+                                                </>) : (<>
+                                                    <div className="pf-campo"><label htmlFor="pf-pcod">Código del correo</label>
+                                                        <input id="pf-pcod" inputMode="numeric" value={passForm.codigo} onChange={e => setPassForm({ ...passForm, codigo: e.target.value })} placeholder="Código de 6 dígitos" autoComplete="one-time-code" /></div>
+                                                    <div className="pf-f2">
+                                                        <div className="pf-campo"><label htmlFor="pf-pnueva">Contraseña nueva</label>
+                                                            <input id="pf-pnueva" type="password" value={passForm.nueva} onChange={e => setPassForm({ ...passForm, nueva: e.target.value })} autoComplete="new-password" /></div>
+                                                        <div className="pf-campo"><label htmlFor="pf-pconf">Repite la contraseña</label>
+                                                            <input id="pf-pconf" type="password" value={passForm.confirmar} onChange={e => setPassForm({ ...passForm, confirmar: e.target.value })} autoComplete="new-password" /></div>
+                                                    </div>
+                                                    <div className="pf-medidor" role="img" aria-label={`Fortaleza: ${fuerza.texto || 'sin escribir'}`}>
+                                                        <div className="pf-barra"><i className={`n${fuerza.n}`} style={{ width: `${(fuerza.n / 4) * 100}%` }} /></div>
+                                                        <span>{fuerza.texto}</span>
+                                                    </div>
+                                                    <ul className="pf-reqs">
+                                                        {reqs.map(r => <li key={r.label} className={r.ok ? 'ok' : ''}>{r.ok ? <Check size={13} aria-hidden="true" /> : <X size={13} aria-hidden="true" />} {r.label}</li>)}
+                                                        {passForm.confirmar && <li className={passForm.nueva === passForm.confirmar ? 'ok' : ''}>{passForm.nueva === passForm.confirmar ? <Check size={13} aria-hidden="true" /> : <X size={13} aria-hidden="true" />} Las dos coinciden</li>}
+                                                    </ul>
+                                                    <div className="pf-linea-btn">
+                                                        <button type="button" className="pf-btn" onClick={cambiarPass} disabled={cambiando || !passOk}>{cambiando ? 'Cambiando…' : 'Cambiar contraseña'}</button>
+                                                        <button type="button" className="pf-btn sec" onClick={pedirCodigo} disabled={enviando || cuentaPass > 0}>{cuentaPass > 0 ? `Reenviar en ${cuentaPass} s` : 'Reenviar código'}</button>
+                                                        <button type="button" className="pf-btn sec" onClick={cerrarPass}>Cancelar</button>
+                                                    </div>
+                                                </>)}
+                                            </div>
+                                        )}
+                                    </section>
 
-                {/* PIN de acceso rápido */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico good"><KeyRound size={16} /></span>
-                        <div><div className="pf-sec-title">Acceso con PIN</div><div className="pf-sec-desc">Entra más rápido desde este dispositivo con un PIN de 4 dígitos.</div></div>
+                                    <section className="pf-card">
+                                        <h3>Acceso rápido con PIN</h3>
+                                        <p className="pf-d">Entra desde este dispositivo con 4 números.</p>
+                                        <div className="pf-fila">
+                                            <div className="pf-fila-t"><b>{user.hasPin ? 'PIN activo' : 'Sin PIN'}</b><span>{user.hasPin ? 'Puedes entrar con él desde la pantalla de acceso' : 'Crea uno para entrar más rápido'}</span></div>
+                                            <div className="pf-linea-btn">
+                                                <button type="button" className="pf-btn sec" onClick={() => setAbrirPin(a => !a)} aria-expanded={abrirPin}><KeyRound size={15} aria-hidden="true" /> {user.hasPin ? 'Cambiar PIN' : 'Crear PIN'}</button>
+                                                {user.hasPin && <button type="button" className="pf-btn sec peligro" onClick={quitarPin} disabled={guardandoPin}>Quitar</button>}
+                                            </div>
+                                        </div>
+                                        {abrirPin && (
+                                            <div className="pf-flujo">
+                                                <div className="pf-campo"><label htmlFor="pf-pin">PIN de 4 números</label>
+                                                    <input id="pf-pin" type="password" inputMode="numeric" maxLength={4} value={pinForm} onChange={e => setPinForm(e.target.value.replace(/\D/g, ''))} placeholder="••••" autoComplete="off" style={{ maxWidth: 160, letterSpacing: '.4em', textAlign: 'center' }} /></div>
+                                                <button type="button" className="pf-btn" onClick={guardarPin} disabled={guardandoPin || pinForm.length !== 4}>{guardandoPin ? 'Guardando…' : 'Guardar PIN'}</button>
+                                            </div>
+                                        )}
+                                    </section>
+
+                                    <section className="pf-card">
+                                        <h3>Sesiones activas</h3>
+                                        <p className="pf-d">Dónde está abierta tu cuenta ahora.</p>
+                                        {sesiones === null ? <p className="pf-nota">Cargando…</p> : sesiones.length === 0 ? (
+                                            <p className="pf-nota">No hay otras sesiones para mostrar. Si entraste hace poco, aparecerá aquí.</p>
+                                        ) : (
+                                            <ul className="pf-sesiones">
+                                                {sesiones.map(s => (
+                                                    <li key={s.id}>
+                                                        <span className="pf-ico" aria-hidden="true">{/android|iphone/i.test(s.dispositivo || '') ? <Smartphone size={18} /> : <Monitor size={18} />}</span>
+                                                        <div className="pf-fila-t">
+                                                            <b>{s.dispositivo || 'Dispositivo'}</b>
+                                                            <span className={s.actual ? 'actual' : ''}>{s.actual ? 'Este dispositivo' : hace(s.ultimaActividad)}</span>
+                                                        </div>
+                                                        {!s.actual && <button type="button" className="pf-btn sec" onClick={() => cerrarUna(s.id)} disabled={!!cerrandoSesion}>{cerrandoSesion === s.id ? 'Cerrando…' : 'Cerrar'}</button>}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                        {otras > 0 && (
+                                            <div className="pf-acciones">
+                                                <button type="button" className="pf-btn sec peligro" onClick={cerrarOtras} disabled={!!cerrandoSesion}>{cerrandoSesion === 'todas' ? 'Cerrando…' : 'Cerrar todas las demás sesiones'}</button>
+                                            </div>
+                                        )}
+                                    </section>
+                                </div>
+                            )}
+
+                            {seccion === 'preferencias' && (
+                                <div className="pf-panel" id="pf-p-preferencias" role="tabpanel" aria-labelledby="pf-t-preferencias">
+                                    <section className="pf-card">
+                                        <h3>Apariencia</h3>
+                                        <p className="pf-d">Automático sigue el modo de tu celular o computador.</p>
+                                        <div className="pf-seg" role="group" aria-label="Tema de la app">
+                                            {[['claro', 'Claro', Sun], ['oscuro', 'Oscuro', Moon], ['auto', 'Automático', Monitor]].map(([k, l, I]) => (
+                                                <button key={k} type="button" aria-pressed={tema === k} onClick={() => setTema(k)}><I size={15} aria-hidden="true" /> {l}</button>
+                                            ))}
+                                        </div>
+                                    </section>
+                                </div>
+                            )}
+
+                            {seccion === 'ayuda' && (
+                                <div className="pf-panel" id="pf-p-ayuda" role="tabpanel" aria-labelledby="pf-t-ayuda">
+                                    <section className="pf-card">
+                                        <h3>Aprende Moventra</h3>
+                                        <p className="pf-d">Recorre todos los módulos con una guía paso a paso.</p>
+                                        <div className="pf-fila">
+                                            <div className="pf-fila-t"><b>Tour guiado</b><span>Dura menos de un minuto</span></div>
+                                            <button type="button" className="pf-btn" onClick={onIniciarTour}><PlayCircle size={15} aria-hidden="true" /> Iniciar tour</button>
+                                        </div>
+                                    </section>
+                                    <section className="pf-card">
+                                        <h3>Sesión</h3>
+                                        <p className="pf-d">Sales de este dispositivo. Tu información queda guardada.</p>
+                                        <div className="pf-fila">
+                                            <div className="pf-fila-t"><b>Cerrar sesión</b><span>{user.email}</span></div>
+                                            <button type="button" className="pf-btn sec peligro" onClick={onLogout}><LogOut size={15} aria-hidden="true" /> Cerrar sesión</button>
+                                        </div>
+                                    </section>
+                                </div>
+                            )}
+
+                        </div>
                     </div>
-                    {user.hasPin ? (
-                        <div>
-                            <div className="ale green" style={{ marginBottom: '14px' }}>
-                                <ShieldCheck size={18} color="#27ae60" />
-                                <div>
-                                    <p>PIN activo — puedes entrar con 4 dígitos desde la pantalla de inicio</p>
-                                    <span className="ale-desc">Correo vinculado: <strong>{user.email}</strong></span>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '160px' }}>
-                                    <label className="fl">Cambiar PIN</label>
-                                    <input className="fi" type="password" inputMode="numeric" maxLength={4}
-                                        value={pinForm} onChange={e => setPinForm(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        placeholder="Nuevo PIN (4 dígitos)" />
-                                </div>
-                                <button className="bp" disabled={guardandoPin || pinForm.length !== 4} onClick={guardarPin}
-                                    style={{ alignSelf: 'flex-end', whiteSpace: 'nowrap' }}>
-                                    <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    {guardandoPin ? 'Guardando...' : 'Cambiar PIN'}
-                                </button>
-                                <button className="bs" disabled={guardandoPin} onClick={quitarPin}
-                                    style={{ alignSelf: 'flex-end', color: '#e74c3c', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <ShieldOff size={14} /> Eliminar PIN
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div>
-                            <div className="ale gray" style={{ marginBottom: '14px' }}>
-                                <KeyRound size={18} color="#6b7a8d" />
-                                <div>
-                                    <p>Sin PIN configurado</p>
-                                    <span className="ale-desc">Configura un PIN de 4 dígitos para entrar más rápido desde tu dispositivo.</span>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                                <div style={{ flex: 1, minWidth: '160px' }}>
-                                    <label className="fl">Nuevo PIN (4 dígitos) *</label>
-                                    <input className="fi" type="password" inputMode="numeric" maxLength={4}
-                                        value={pinForm} onChange={e => setPinForm(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        placeholder="Ej: 1234" style={{ letterSpacing: '8px', fontSize: '20px', textAlign: 'center' }} />
-                                </div>
-                                <button className="bp" disabled={guardandoPin || pinForm.length !== 4} onClick={guardarPin}>
-                                    <ShieldCheck size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />
-                                    {guardandoPin ? 'Guardando...' : 'Activar PIN'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
-
-                </>}
-
-                {tab === 2 && <>
-                {/* Tour guiado */}
-                <div className="pf-sec">
-                    <div className="pf-sec-head">
-                        <span className="pf-sec-ico info"><PlayCircle size={16} /></span>
-                        <div><div className="pf-sec-title">Ayuda y tutorial</div><div className="pf-sec-desc">Recorre todos los módulos de Moventra con una guía paso a paso.</div></div>
-                    </div>
-                    <button className="bp" onClick={onIniciarTour}
-                        style={{ display: 'flex', alignItems: 'center', gap: '8px', width: 'fit-content' }}>
-                        <PlayCircle size={14} /> Iniciar tour guiado
-                    </button>
-                </div>
-                </>}
-
             </div></div>
         </div>
     );

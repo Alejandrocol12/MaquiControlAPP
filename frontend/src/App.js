@@ -14,7 +14,8 @@ import Mapa from './components/Mapa/Mapa';
 import { moduloVisible } from './utils/modulosOcultos';
 import TourGuiado, { MINI_TOURS, TOUR_OPERADOR } from './components/TourGuiado/TourGuiado';
 import Novedades, { VERSION_NOVEDADES } from './components/TourGuiado/Novedades';
-import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword } from './api';
+import { apiLogin, apiRegister, loginPin, recuperarPassword, resetPassword, apiLogout } from './api';
+import { cargarEmpresa, limpiarEmpresa } from './utils/empresa';
 import { ToastContext, useToastState } from './utils/toast';
 import {
     BarChart2,
@@ -529,6 +530,11 @@ function App() {
     const ir = (mod) => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); };
     const esOperador = !!user && isOperatorRole(user.rol);
 
+    // Datos de la empresa para el encabezado de los PDF
+    useEffect(() => {
+        if (user && !isOperatorRole(user.rol)) cargarEmpresa(); else limpiarEmpresa();
+    }, [user?.id, user?.rol]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // Guías: la primera vez que se entra a una pantalla (cuando ya se vio el tour completo) y el recorrido del operador
     useEffect(() => {
         if (!user || tourActivo || miniTour || verNovedades) return undefined;
@@ -662,6 +668,7 @@ function App() {
     };
 
     const logout = () => {
+        apiLogout().catch(() => {}); // cierra también la sesión en el servidor
         localStorage.removeItem(AUTH_USER_KEY);
         setUser(null);
         setModulo('dashboard');
@@ -678,7 +685,7 @@ function App() {
             case 'combustible': return moduloVisible('combustible') ? <Combustible /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
-            case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} />;
+            case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} onLogout={logout} tema={tema} setTema={setTema} />;
             default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
         }
     };

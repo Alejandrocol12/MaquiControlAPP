@@ -192,3 +192,17 @@ export const getPagadores     = ()         => API.get('/pagadores');
 export const createPagador    = (nombre)   => API.post('/pagadores', { nombre });
 export const renombrarPagador = (id, nombre) => API.put(`/pagadores/${id}`, { nombre });
 export const quitarPagador    = (id)       => API.delete(`/pagadores/${id}`);
+
+// Sesiones y datos de la empresa
+// Lleva el token a mano: al cerrar sesión la copia guardada se borra enseguida
+export const apiLogout = () => {
+    let token;
+    try { token = JSON.parse(localStorage.getItem('mc_auth_user')).token; } catch { /* sin sesión */ }
+    return API.post('/auth/logout', null, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+};
+export const getSesiones           = ()     => API.get('/auth/sesiones');
+export const cerrarSesionRemota    = (id)   => API.delete(`/auth/sesiones/${id}`);
+export const cerrarOtrasSesiones   = ()     => API.post('/auth/sesiones/cerrar-otras');
+export const getEmpresa            = ()     => API.get('/auth/empresa');
+export const subirLogoEmpresa      = (logo) => API.put('/auth/logo-empresa', { logo });
+export const quitarLogoEmpresa     = ()     => API.delete('/auth/logo-empresa');
