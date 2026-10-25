@@ -37,3 +37,7 @@ yarn-error.log*
 
 .vercel
 .env*
+
+# copias de la base de datos: tienen datos reales y contraseñas cifradas
+*.sql
+*.dump
