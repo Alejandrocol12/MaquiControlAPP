@@ -204,5 +204,7 @@ export const getSesiones           = ()     => API.get('/auth/sesiones');
 export const cerrarSesionRemota    = (id)   => API.delete(`/auth/sesiones/${id}`);
 export const cerrarOtrasSesiones   = ()     => API.post('/auth/sesiones/cerrar-otras');
 export const getEmpresa            = ()     => API.get('/auth/empresa');
+export const codigoTelegramDueno   = ()     => API.post('/auth/telegram/codigo');
+export const desvincularTelegram   = ()     => API.delete('/auth/telegram');
 export const subirLogoEmpresa      = (logo) => API.put('/auth/logo-empresa', { logo });
 export const quitarLogoEmpresa     = ()     => API.delete('/auth/logo-empresa');

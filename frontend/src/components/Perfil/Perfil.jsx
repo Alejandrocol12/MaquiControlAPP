@@ -4,12 +4,12 @@ import {
     updateMe, enviarCodigoPassword, changePassword, configurarPin, eliminarPin,
     solicitarCambioEmail, verificarEmailViejo, confirmarCambioEmail,
     getSesiones, cerrarSesionRemota, cerrarOtrasSesiones, subirLogoEmpresa, quitarLogoEmpresa,
-    getMaquinas, getOperadoresAPI,
+    getMaquinas, getOperadoresAPI, apiMe, codigoTelegramDueno, desvincularTelegram,
 } from '../../api';
 import { empresaActual, guardarEmpresa, cargarEmpresa } from '../../utils/empresa';
 import {
     User, Lock, Check, Building2, Mail, ShieldCheck, PlayCircle, HelpCircle, SlidersHorizontal,
-    Monitor, Smartphone, LogOut, ImagePlus, Trash2, KeyRound, Sun, Moon, X,
+    Monitor, Smartphone, LogOut, ImagePlus, Trash2, KeyRound, Sun, Moon, X, Send,
 } from 'lucide-react';
 import './Perfil.css';
 
@@ -109,6 +109,10 @@ function Perfil({ user, onUpdate, onIniciarTour, onLogout, tema, setTema }) {
     const [abrirPin, setAbrirPin] = useState(false);
     const [pinForm, setPinForm] = useState('');
     const [guardandoPin, setGuardandoPin] = useState(false);
+
+    // ── Telegram del dueño ──
+    const [codigoTg, setCodigoTg] = useState(null);
+    const [cargandoTg, setCargandoTg] = useState(false);
 
     // ── sesiones ──
     const [sesiones, setSesiones] = useState(null);
@@ -303,6 +307,28 @@ function Perfil({ user, onUpdate, onIniciarTour, onLogout, tema, setTema }) {
         } catch { toast('No se pudieron cerrar las sesiones', 'e'); }
         finally { setCerrandoSesion(''); }
     };
+
+    // ── Telegram del dueño ──
+    const pedirCodigoTg = async () => {
+        setCargandoTg(true);
+        try { const { data } = await codigoTelegramDueno(); setCodigoTg(data); }
+        catch { toast('No se pudo generar el código', 'e'); }
+        finally { setCargandoTg(false); }
+    };
+    const quitarTg = async () => {
+        setCargandoTg(true);
+        try { const { data } = await desvincularTelegram(); aplicarUsuario(data); setCodigoTg(null); toast('Telegram desvinculado', 'i'); }
+        catch { toast('No se pudo desvincular', 'e'); }
+        finally { setCargandoTg(false); }
+    };
+    // Mientras se espera el código en el bot, se revisa si ya quedó vinculado
+    useEffect(() => {
+        if (!codigoTg || user.telegramVinculado) return undefined;
+        const t = setInterval(() => {
+            apiMe().then(r => { if (r.data?.telegramVinculado) { aplicarUsuario(r.data); setCodigoTg(null); toast('Telegram vinculado', 's'); } }).catch(() => {});
+        }, 4000);
+        return () => clearInterval(t);
+    }); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Teclado en el menú de secciones
     const alTeclear = (e, i) => {
@@ -555,6 +581,30 @@ function Perfil({ user, onUpdate, onIniciarTour, onLogout, tema, setTema }) {
                                                 <button key={k} type="button" aria-pressed={tema === k} onClick={() => setTema(k)}><I size={15} aria-hidden="true" /> {l}</button>
                                             ))}
                                         </div>
+                                    </section>
+                                    <section className="pf-card">
+                                        <h3>Telegram</h3>
+                                        <p className="pf-d">Recibe aquí los avisos de tu empresa. Cuando una lectura del horómetro quede en revisión, la apruebas o la rechazas con un toque.</p>
+                                        {user.telegramVinculado ? (
+                                            <div className="pf-fila">
+                                                <div className="pf-fila-t"><b>Telegram vinculado</b><span>Escribe /pendientes al bot para ver lo que espera tu aprobación</span></div>
+                                                <button type="button" className="pf-btn sec peligro" onClick={quitarTg} disabled={cargandoTg}>Desvincular</button>
+                                            </div>
+                                        ) : codigoTg ? (
+                                            <div className="pf-flujo">
+                                                <p className="pf-nota">Abre el bot de Moventra en Telegram y envíale este mensaje. El código sirve 15 minutos.</p>
+                                                <div className="pf-codigo" aria-label="Mensaje para el bot">/admin <b>{codigoTg.codigo}</b></div>
+                                                <div className="pf-linea-btn">
+                                                    <button type="button" className="pf-btn sec" onClick={pedirCodigoTg} disabled={cargandoTg}>Generar otro código</button>
+                                                    <button type="button" className="pf-btn sec" onClick={() => setCodigoTg(null)}>Cancelar</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="pf-fila">
+                                                <div className="pf-fila-t"><b>Sin vincular</b><span>Vincula tu cuenta para recibir los avisos</span></div>
+                                                <button type="button" className="pf-btn" onClick={pedirCodigoTg} disabled={cargandoTg}><Send size={15} aria-hidden="true" /> Vincular mi Telegram</button>
+                                            </div>
+                                        )}
                                     </section>
                                 </div>
                             )}
