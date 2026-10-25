@@ -86,8 +86,6 @@ body.dark .pf-btn.peligro{color:#f07878;border-color:#6b3030;}
 .pf-sesiones li:first-child{border-top:0;padding-top:0;}
 .pf-ico{width:40px;height:40px;border-radius:11px;background:var(--pf-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 
-.pf-codigo{font:700 22px 'JetBrains Mono',ui-monospace,Menlo,monospace;background:var(--pf-card);border:1.5px dashed var(--pf-field-line);border-radius:12px;padding:14px 18px;margin:0 0 12px;width:fit-content;max-width:100%;overflow-wrap:anywhere;}
-.pf-codigo b{color:#e69a00;letter-spacing:.12em;}
 .pf-seg{display:flex;gap:8px;flex-wrap:wrap;}
 .pf-seg button{min-height:44px;padding:0 16px;border:1.5px solid var(--pf-field-line);background:var(--pf-field);color:var(--pf-ink);border-radius:12px;font:600 14px 'Barlow',sans-serif;cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
 .pf-seg button[aria-pressed="true"]{border-color:#ffb81c;background:var(--pf-oro-soft);}
