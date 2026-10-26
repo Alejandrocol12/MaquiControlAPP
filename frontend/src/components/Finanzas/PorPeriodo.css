@@ -54,3 +54,6 @@ body.dark .pp2-tipo.corte{background:#ffb81c;color:#2a1d00;}
 .pc-historial .pp2-grupo.pcp .pc-tabla{overflow-x:auto;border-top:1px solid #e5eaf1;}
 .pc-historial .pp2-grupo.pcp .pc-tr{padding-inline:16px;}
 @media (max-width:760px){.pc-historial .pp2-grupo.pcp{margin-inline:10px;}}
+
+/* Salarios: la misma tabla de Pagos Clientes con columnas de operador */
+.pc-tr.op{grid-template-columns:96px 84px minmax(160px,1.4fr) minmax(110px,1fr) 112px 112px 112px 112px 72px;}

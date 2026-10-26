@@ -1,78 +1,32 @@
-import { useMemo, useState } from 'react';
-import { X, Loader, HardHat } from 'lucide-react';
+import { useState } from 'react';
+import { X, Loader } from 'lucide-react';
 import { updateGasto } from '../../api';
 import { useToast } from '../../utils/toast';
 import MoneyInput from '../../utils/MoneyInput';
-import Monto from '../../utils/Monto';
 import './Carteras.css';
 
 const dia10 = (f) => String(f || '').slice(0, 10);
 const n = (v) => Number(v) || 0;
-const fmt = (v) => '$' + Math.round(n(v)).toLocaleString('es-CO');
-
-function Tarjeta({ titulo, valor, nota, tono = '' }) {
-    return (
-        <div className={`crt-t ${tono}`}>
-            <span>{titulo}</span>
-            <b><Monto v={valor} /></b>
-            {nota && <small>{nota}</small>}
-        </div>
-    );
-}
 
 // Operadores: lo pagado y lo que se les debe de los cortes ya cerrados. Lo que van ganando en el corte en curso
 // todavía no es deuda, así que no entra en estas cuentas.
-export function TarjetasOperadores({ maquinas, horas, cortes, pagosOp }) {
-    const filas = useMemo(() => {
-        const nombres = new Set([
-            ...maquinas.map(m => m.operadorNombre), ...horas.map(h => h.operadorNombre), ...pagosOp.map(p => p.operadorNombre),
-        ].filter(Boolean));
-        return [...nombres].map(nombre => {
-            const hs = horas.filter(h => h.operadorNombre === nombre);
-            const ganado = hs.reduce((a, h) => a + n(h.horas) * n(h.valorHora), 0);
-            const pagado = pagosOp.filter(p => p.operadorNombre === nombre).reduce((a, p) => a + n(p.monto), 0);
-            const maqs = new Set([...maquinas.filter(m => m.operadorNombre === nombre).map(m => m.nombre), ...hs.map(h => h.maquinaNombre)].filter(Boolean));
-            const finales = cortes.filter(c => maqs.has(c.maquinaNombre) && c.conOperador !== false).map(c => dia10(c.fechaFin)).sort();
-            const ultimo = finales[finales.length - 1] || '';
-            const enCurso = hs.filter(h => !ultimo || dia10(h.fecha) > ultimo).reduce((a, h) => a + n(h.horas) * n(h.valorHora), 0);
-            // los pagos llenan primero lo ya cortado
-            const cerrado = Math.max(0, ganado - enCurso);
-            const pendiente = Math.max(0, cerrado - pagado);
-            const maq = maquinas.find(m => m.operadorNombre === nombre) || null;
-            return { nombre, cerrado, pagado: Math.min(pagado, cerrado) + Math.max(0, pagado - cerrado), pendiente, maq };
-        }).filter(f => f.cerrado > 0 || f.pagado > 0).sort((a, b) => b.pendiente - a.pendiente);
-    }, [maquinas, horas, cortes, pagosOp]);
-
-    if (!filas.length) return null;
-    const total = (k) => filas.reduce((a, f) => a + f[k], 0);
-
-    return (
-        <section className="crt" aria-label="Resumen de pagos a operadores">
-            <div className="crt-tot dos">
-                <Tarjeta titulo="Pagado" valor={total('pagado')} tono="ok" nota={`${filas.length} operador${filas.length === 1 ? '' : 'es'}`} />
-                <Tarjeta titulo="Por pagar" valor={total('pendiente')} tono={total('pendiente') > 0.5 ? 'mal' : ''} nota={total('pendiente') > 0.5 ? 'cortes cerrados sin pagar' : 'todo al día'} />
-            </div>
-            <div className="crt-lista">
-                {filas.map(f => {
-                    const pct = f.cerrado > 0 ? Math.min(100, f.pagado / f.cerrado * 100) : 100;
-                    return (
-                        <article className={`crt-c ${f.pendiente > 0.5 ? 'debe' : ''}`} key={f.nombre}>
-                            <header>
-                                <span className="crt-ico" aria-hidden="true"><HardHat size={16} /></span>
-                                <div><b>{f.nombre}</b><small>{f.maq ? f.maq.nombre : 'Sin máquina asignada'}</small></div>
-                            </header>
-                            <dl className="dos">
-                                <div><dt>Pagado</dt><dd className="pos">{fmt(f.pagado)}</dd></div>
-                                <div><dt>Por pagar</dt><dd className={f.pendiente > 0.5 ? 'neg' : ''}>{fmt(f.pendiente)}</dd></div>
-                            </dl>
-                            <div className="crt-barra" role="img" aria-label={`${Math.round(pct)}% de lo cortado ya pagado`}><i style={{ width: `${pct}%` }} /></div>
-                            <footer><small>{Math.round(pct)}% de lo cortado pagado</small></footer>
-                        </article>
-                    );
-                })}
-            </div>
-        </section>
-    );
+export function calcularOperadores({ maquinas, horas, cortes, pagosOp }) {
+    const nombres = new Set([
+        ...maquinas.map(m => m.operadorNombre), ...horas.map(h => h.operadorNombre), ...pagosOp.map(p => p.operadorNombre),
+    ].filter(Boolean));
+    let pagado = 0, causado = 0, pendiente = 0;
+    nombres.forEach(nombre => {
+        const hs = horas.filter(h => h.operadorNombre === nombre);
+        const ganado = hs.reduce((a, h) => a + n(h.horas) * n(h.valorHora), 0);
+        const pagos = pagosOp.filter(p => p.operadorNombre === nombre).reduce((a, p) => a + n(p.monto), 0);
+        const maqs = new Set([...maquinas.filter(m => m.operadorNombre === nombre).map(m => m.nombre), ...hs.map(h => h.maquinaNombre)].filter(Boolean));
+        const finales = cortes.filter(c => maqs.has(c.maquinaNombre) && c.conOperador !== false).map(c => dia10(c.fechaFin)).sort();
+        const ultimo = finales[finales.length - 1] || '';
+        const enCurso = hs.filter(h => !ultimo || dia10(h.fecha) > ultimo).reduce((a, h) => a + n(h.horas) * n(h.valorHora), 0);
+        const cerrado = Math.max(0, ganado - enCurso); // los pagos llenan primero lo ya cortado
+        pagado += pagos; causado += cerrado; pendiente += Math.max(0, cerrado - pagos);
+    });
+    return { pagado, causado, pendiente };
 }
 
 // Edita el costo causado por un corte (o un pago viejo que quedó solo como gasto): descripción, monto y fecha

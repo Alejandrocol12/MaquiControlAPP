@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Pencil, Trash2, Inbox, Plus, CircleCheck, Clock } from 'lucide-react';
-import Estado from '../../utils/Estado';
+import { ChevronRight, Pencil, Trash2, Plus, CircleCheck, Clock } from 'lucide-react';
 import Monto from '../../utils/Monto';
 import EmptyState from '../../utils/EmptyState';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -36,53 +35,6 @@ function Cabecera({ gr, abierto, alternar, cifras }) {
                 {cifras.map(([l, v, t]) => <div key={l} className={t}><span>{l}</span><b><Monto v={v} /></b></div>)}
             </div>
         </button>
-    );
-}
-
-// ── Salarios: cortes causados y pagos de cada operador, por periodo o en lista ──
-// filas: { key, tipo: 'corte' | 'pago', id, fecha, operador, desc, maquina, monto, faenaId, estado, debe }
-export function MovimientosOperadores({ filas, faenas, vista, onEditar, onEliminar }) {
-    const [abiertos, setAbiertos] = useState({});
-    const grupos = useMemo(() => agrupar(filas, faenas, f => (f.faenaId != null ? String(f.faenaId) : null)), [filas, faenas]);
-
-    if (!filas.length) return <div className="pp2-vacio"><Inbox size={20} aria-hidden="true" /> No hay movimientos para mostrar con estos filtros.</div>;
-
-    const fila = (f) => (
-        <div className="pp2-fila mv" key={f.key}>
-            <span className="pp2-fecha">{fmtFecha(f.fecha)}</span>
-            <div className="pp2-desc"><b>{f.operador}</b><span>{f.desc || (f.tipo === 'corte' ? 'Corte causado' : 'Pago registrado')}</span></div>
-            <span><span className={`pp2-tipo ${f.tipo}`}>{f.tipo === 'corte' ? '✂ Corte causado' : '✓ Pago'}</span></span>
-            <span className={`pp2-num ${f.tipo === 'corte' ? 'neg' : 'pos'}`}>{f.tipo === 'corte' ? '' : '−'}<Monto v={n(f.monto)} /></span>
-            <span>{f.tipo === 'corte' ? <Estado valor={f.estado === 'Por pagar' ? 'Pendiente' : f.estado} /> : <Estado valor="Pagado" />}</span>
-            <span className="pp2-acc">
-                <button type="button" className="fin-iconbtn" aria-label="Editar" onClick={() => onEditar(f)}><Pencil size={14} /></button>
-                <button type="button" className="fin-iconbtn" aria-label="Eliminar" onClick={() => onEliminar(f)}><Trash2 size={14} /></button>
-            </span>
-        </div>
-    );
-    const cab = (
-        <div className="pp2-fila mv h"><span>Fecha</span><span>Operador</span><span>Tipo</span><span className="r">Monto</span><span>Estado</span><span /></div>
-    );
-
-    if (vista === 'lis') {
-        const ordenadas = [...filas].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha)));
-        return <div className="pp2-lista">{cab}{ordenadas.map(fila)}</div>;
-    }
-    return (
-        <div className="pp2">
-            {grupos.map(gr => {
-                const abierto = abiertos[gr.key] !== false && (abiertos[gr.key] || gr === grupos[0]);
-                const pagado = gr.items.filter(f => f.tipo === 'pago').reduce((a, f) => a + n(f.monto), 0);
-                const debe = gr.items.filter(f => f.tipo === 'corte').reduce((a, f) => a + n(f.debe), 0);
-                return (
-                    <section className={`pp2-grupo ${abierto ? 'abierto' : ''}`} key={gr.key}>
-                        <Cabecera gr={gr} abierto={abierto} alternar={() => setAbiertos(a => ({ ...a, [gr.key]: !abierto }))}
-                            cifras={[['Pagado', pagado, 'pos'], ['Por pagar', debe, debe > 0.5 ? 'neg' : 'zero']]} />
-                        {abierto && <div className="pp2-cuerpo"><div className="pp2-lista">{cab}{[...gr.items].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha))).map(fila)}</div></div>}
-                    </section>
-                );
-            })}
-        </div>
     );
 }
 
@@ -167,6 +119,75 @@ export function PagosClientesPeriodo({ pagos, faenas, cortes, onNuevo, onEditar,
                                             </span>
                                         </div>
                                     ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </section>
+        </>
+    );
+}
+
+const ESTADO_OP = { Pagado: ['ok', 'Pagado', CircleCheck], Parcial: ['parcial', 'Parcial', Clock], 'Por pagar': ['pend', 'Pendiente', Clock] };
+function ChipOp({ estado }) {
+    const [clase, texto, Icono] = ESTADO_OP[estado] || ['pend', estado || '—', Clock];
+    return <span className={`pc-chip ${clase}`}><Icono size={13} aria-hidden="true" /> {texto}</span>;
+}
+
+// ── Salarios: el mismo diseño de Pagos Clientes. Cortes causados y pagos a operadores, agrupados por periodo ──
+// filas: { key, tipo: 'corte' | 'pago', id, fecha, operador, desc, maquina, monto, pagado, faenaId, estado, debe }
+export function OperadoresPeriodo({ resumen, filas, faenas, onEditar, onEliminar }) {
+    const [abiertos, setAbiertos] = useState({});
+    const grupos = useMemo(() => agrupar(filas, faenas, f => (f.faenaId != null ? String(f.faenaId) : null)), [filas, faenas]);
+    const pct = resumen.causado > 0 ? Math.round(Math.min(resumen.pagado, resumen.causado) / resumen.causado * 100) : 0;
+    const conSaldo = filas.filter(f => f.tipo === 'corte' && n(f.debe) > 0.5).length;
+    const nPagos = filas.filter(f => f.tipo === 'pago').length;
+
+    return (
+        <>
+            <div className="pc-tarjetas">
+                <div className="pc-tarjeta"><span className="pc-etq">Pagado a operadores</span><b className="pc-valor vd"><Monto v={resumen.pagado} /></b><small>{nPagos} pago{nPagos === 1 ? '' : 's'} registrado{nPagos === 1 ? '' : 's'}</small></div>
+                <div className="pc-tarjeta"><span className="pc-etq">Total de cortes cerrados</span><b className="pc-valor"><Monto v={resumen.causado} /></b><small>{pct}% ya pagado</small></div>
+                <div className="pc-tarjeta"><span className="pc-etq">Por pagar</span><b className="pc-valor na"><Monto v={resumen.pendiente} /></b><small>{conSaldo} corte{conSaldo === 1 ? '' : 's'} con saldo pendiente</small></div>
+            </div>
+
+            <section className="pc-historial">
+                <header>
+                    <div><h3>Historial de Cortes y Pagos a Operadores</h3><p>Lo que se causó en cada corte y lo que se le ha pagado al operador, por periodo</p></div>
+                </header>
+
+                {grupos.map((gr, gi) => {
+                    const abierto = abiertos[gr.key] === undefined ? gi === 0 : abiertos[gr.key];
+                    const pagado = gr.items.filter(f => f.tipo === 'pago').reduce((a, f) => a + n(f.monto), 0);
+                    const debe = gr.items.filter(f => f.tipo === 'corte').reduce((a, f) => a + n(f.debe), 0);
+                    return (
+                        <div className={`pp2-grupo pcp ${abierto ? 'abierto' : ''}`} key={gr.key}>
+                            <Cabecera gr={gr} abierto={abierto} alternar={() => setAbiertos(a => ({ ...a, [gr.key]: !abierto }))}
+                                cifras={[['Pagado', pagado, 'pos'], ['Por pagar', debe, debe > 0.5 ? 'neg' : 'zero']]} />
+                            {abierto && (
+                                <div className="pc-tabla">
+                                    <div className="pc-tr pc-th op"><span>Fecha</span><span>Concepto</span><span>Operador</span><span>Máquina</span>
+                                        <span className="r">Total</span><span className="r">Pagado</span><span className="r">Saldo</span><span>Estado</span><span /></div>
+                                    {[...gr.items].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha))).map(f => {
+                                        const corte = f.tipo === 'corte';
+                                        return (
+                                            <div className="pc-tr op" key={f.key}>
+                                                <span data-l="Fecha"><b>{fmtFecha(f.fecha)}</b></span>
+                                                <span data-l="Concepto" className="mono">{corte ? String(f.desc || '').split(' · ')[0] || 'Corte' : 'Pago'}</span>
+                                                <span data-l="Operador">{f.operador}{f.desc && <small>{f.desc}</small>}</span>
+                                                <span data-l="Máquina" className="gris">{f.maquina || '—'}</span>
+                                                <span data-l="Total" className="r mono">{corte ? fmt(f.monto) : '—'}</span>
+                                                <span data-l="Pagado" className="r mono vd">{corte ? fmt(f.pagado) : fmt(f.monto)}</span>
+                                                <span data-l="Saldo" className={`r mono ${corte && n(f.debe) > 0.5 ? 'na' : ''}`}>{corte ? fmt(f.debe) : '—'}</span>
+                                                <span data-l="Estado">{corte ? <ChipOp estado={f.estado} /> : <ChipOp estado="Pagado" />}</span>
+                                                <span className="pc-acc">
+                                                    <button type="button" aria-label="Editar" onClick={() => onEditar(f)}><Pencil size={14} /></button>
+                                                    <button type="button" aria-label="Eliminar" onClick={() => onEliminar(f)}><Trash2 size={14} /></button>
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

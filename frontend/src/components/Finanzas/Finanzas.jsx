@@ -19,8 +19,8 @@ import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
-import { MovimientosOperadores, PagosClientesPeriodo } from './PorPeriodo';
-import { TarjetasOperadores, EditarGastoOperadorModal } from './Carteras';
+import { OperadoresPeriodo, PagosClientesPeriodo } from './PorPeriodo';
+import { calcularOperadores, EditarGastoOperadorModal } from './Carteras';
 import PagarOperadorModal from '../Operadores/PagarOperadorModal';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
@@ -108,9 +108,6 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [editGasto, setEditGasto] = useState(null);   // costo causado por un corte (o pago viejo) que se está editando
     const [pagosOp, setPagosOp] = useState([]);   // pagos hechos a operadores (para saber cuánto de cada corte está pagado)
     const [cortesF, setCortesF] = useState([]);    // cortes, para ligar cada pago de cliente a su periodo
-    // Pagos de clientes y de operadores: agrupados por periodo o en lista (se recuerda la elección)
-    const [vistaPeriodo, setVistaPeriodoE] = useState(() => { try { return localStorage.getItem('mc_fin_por_periodo') !== '0'; } catch { return true; } });
-    const setVistaPeriodo = (v) => { setVistaPeriodoE(v); try { localStorage.setItem('mc_fin_por_periodo', v ? '1' : '0'); } catch { /* sin almacenamiento */ } };
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
     const [gastoFactura, setGastoFactura] = useState(null);
@@ -313,7 +310,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             const e = estadoCausado(g, pagosOp);
             return { key: 'c' + g.id, tipo: 'corte', id: g.id, fecha: g.fecha, operador: g.operadorNombre || partesPagoOp(g).operador,
                 desc: (g.descripcion || '').split(': ').slice(1).join(': ') || g.descripcion, maquina: g.maquinaNombre, monto: g.monto,
-                faenaId: g.faenaId, estado: nombreEstadoCausado(e), debe: e ? e.debe : 0, raw: g };
+                faenaId: g.faenaId, estado: nombreEstadoCausado(e), debe: e ? e.debe : 0, pagado: e ? e.pagado : 0, raw: g };
         }),
         ...pagosOp.map(p => ({ key: 'p' + p.id, tipo: 'pago', id: p.id, fecha: p.fecha, operador: p.operadorNombre, desc: p.descripcion,
             maquina: (maquinas.find(m => m.operadorNombre === p.operadorNombre) || {}).nombre, monto: p.monto, faenaId: periodoDePago(p), raw: p })),
@@ -325,6 +322,8 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     ];
     const filasOp = porFecha(filasOpTodas, 'fecha').filter(f => (!q || f.operador?.toLowerCase().includes(q) || f.desc?.toLowerCase().includes(q) || f.maquina?.toLowerCase().includes(q))
         && (!maqFiltro || f.maquina === maqFiltro));
+
+    const resumenOp = calcularOperadores({ maquinas, horas: horasF, cortes: cortesF, pagosOp });
 
     const editarFilaOp = (f) => {
         if (f.tipo === 'pago' && f.via !== 'gasto') {
@@ -531,21 +530,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         <div style={{ minWidth: 560 }}>
                             <div className="fin-ledger-head">
                                 <h2>{TABS.find(t => t.key === tab).label}</h2>
-                                {tab === 'salarios' && (
-                                    <div className="fin-vista" role="group" aria-label="Cómo ver los movimientos">
-                                        <button type="button" aria-pressed={vistaPeriodo} onClick={() => setVistaPeriodo(true)}>Por periodo</button>
-                                        <button type="button" aria-pressed={!vistaPeriodo} onClick={() => setVistaPeriodo(false)}>Lista</button>
-                                    </div>
-                                )}
                                 <div className="fin-search">
                                     <Search size={14} />
                                     <input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} />
                                 </div>
                             </div>
-
-                            {tab === 'salarios' && (
-                                <TarjetasOperadores maquinas={maquinas} horas={horasF} cortes={cortesF} pagosOp={pagosOp} />
-                            )}
 
                             {/* ── INGRESOS ── */}
                             {tab === 'ingresos' && (ingFiltrados.length === 0
@@ -622,7 +611,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                     {filasOp.length > 0 && (
                                         <>
                                             {salFiltrados.length > 0 && <div className="fin-subhead">Cortes y pagos a operadores</div>}
-                                            <MovimientosOperadores filas={filasOp} faenas={faenas} vista={vistaPeriodo ? 'per' : 'lis'} onEditar={editarFilaOp} onEliminar={eliminarFilaOp} />
+                                            <OperadoresPeriodo resumen={resumenOp} filas={filasOp} faenas={faenas} onEditar={editarFilaOp} onEliminar={eliminarFilaOp} />
                                         </>
                                     )}
                                     {salFiltrados.length > 0 && (
