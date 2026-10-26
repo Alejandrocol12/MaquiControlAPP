@@ -57,3 +57,16 @@ body.dark .rs-pron-texto h4,body.dark .rs-meta-top,body.dark .rs-pron-texto p b,
 body.dark .rs-pron-texto code{background:#1d3a6e;color:#93c5fd;}
 body.dark .rs-barra{background:#27406e;}
 body.dark .rs-meta-pie button,body.dark .rs-meta-edit button,body.dark .rs-meta-edit input{background:#0f172a;border-color:#334155;color:#f1f5f9;}
+
+.rs-ciclo-est{margin-top:6px!important;font-weight:600;}
+.rs-ciclo-est.ok{color:#12803f;}
+.rs-ciclo-est.falta{color:#a35f00;}
+.rs-ciclo-av{margin-top:6px!important;color:#c0392b;font-weight:600;}
+.rs-ciclo-form{display:grid;gap:8px;}
+.rs-ciclo-form label{display:grid;gap:3px;font-size:12px;font-weight:700;color:#475569;}
+.rs-ciclo-form input{min-height:40px;border:1px solid #d5dce6;border-radius:9px;padding:0 10px;font:inherit;font-size:14px;background:#fff;color:#0f1b2d;}
+.rs-ciclo-form small{color:#64748b;font-size:11.5px;}
+.rs-ciclo-form .rs-ciclo-error{color:#c0392b;font-weight:600;}
+.rs-ciclo-acc{display:flex;gap:6px;flex-wrap:wrap;}
+body.dark .rs-ciclo-form label{color:#cbd5e1;}
+body.dark .rs-ciclo-form input{background:#0f172a;border-color:#334155;color:#f1f5f9;}

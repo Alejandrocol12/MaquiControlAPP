@@ -9,7 +9,7 @@ import {
     crearEnlace, getEnlaces, revocarEnlace, getVistasEnlace,
     leerFacturaIA,
     getPagos, createPago, updatePago, deletePago,
-    getMantenimientos, getCortes,
+    getMantenimientos, getCortes, updateCicloFaena,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -27,7 +27,7 @@ import { pendientesDeCierre } from '../../utils/pendientesCierre';
 import { fmtHoro, redondearHoro } from '../../utils/horometro';
 import CorteEnCurso from '../Faenas/CorteEnCurso';
 import CalendarioTrabajo from './CalendarioTrabajo';
-import { TarjetasPeriodo, PronosticoMes } from './ResumenMaquina';
+import { TarjetasPeriodo, PronosticoCorte } from './ResumenMaquina';
 import FacturacionPorCorte from './FacturacionPorCorte';
 import GastoModal from './GastoModal';
 import GastosPorCorte from './GastosPorCorte';
@@ -63,14 +63,14 @@ const parseLocal = (str) => { const [y, m, d] = str.split('-').map(Number); retu
 // Pronostica las horas que la máquina alcanzará a trabajar antes de fin de mes, a partir
 // de su propio patrón histórico: qué días de la semana suele trabajar y cuántas horas hace
 // esos días (no asume un calendario fijo de días hábiles — se basa en los datos reales).
-function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina) {
+function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina, ciclo = {}) {
     const conFecha = ingresosHoras.filter(i => i.fecha);
     if (conFecha.length === 0) return null;
 
     const hoyD = new Date();
     const hoyStr = isoLocal(hoyD);
-    const inicioMesStr = `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-01`;
-    const finMes = new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
+    const inicioMesStr = ciclo.desde || `${hoyD.getFullYear()}-${String(hoyD.getMonth() + 1).padStart(2, '0')}-01`;
+    const finMes = ciclo.hasta ? parseLocal(ciclo.hasta) : new Date(hoyD.getFullYear(), hoyD.getMonth() + 1, 0);
 
     const horasEsteMes = conFecha
         .filter(i => i.fecha >= inicioMesStr && i.fecha <= hoyStr)
@@ -105,10 +105,12 @@ function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina) {
         return frecuencia * promedio;
     });
 
-    let horasRestantes = 0, diasRestantes = 0;
-    for (let d = new Date(hoyD); d <= finMes; d.setDate(d.getDate() + 1)) {
+    let horasRestantes = 0, diasRestantes = 0, diasTrabajoEsperados = 0;
+    for (let d = new Date(hoyD.getFullYear(), hoyD.getMonth(), hoyD.getDate()); d <= finMes; d.setDate(d.getDate() + 1)) {
         if (isoLocal(d) === hoyStr) continue; // hoy ya está contado en horasEsteMes
         horasRestantes += horasEsperadasPorDia[d.getDay()];
+        const dow = d.getDay();
+        diasTrabajoEsperados += ocurrencias[dow] > 0 ? diasTrabajados[dow] / ocurrencias[dow] : 0;
         diasRestantes++;
     }
 
@@ -119,6 +121,7 @@ function calcularPronosticoHoras(ingresosHoras, valorHoraMaquina) {
         totalProyectado: Math.round(totalProyectado * 10) / 10,
         ingresoProyectado: Math.round(totalProyectado * (valorHoraMaquina || 0)),
         diasRestantes,
+        diasTrabajoEsperados,
         esperadoPorDia: horasEsperadasPorDia, // horas esperadas por día de la semana (0 = domingo)
     };
 }
@@ -407,6 +410,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
 
     // Faena
     const [faenaActiva, setFaenaActiva] = useState(null);
+    const [cortesMaq, setCortesMaq] = useState([]);
     const [formFaena, setFormFaena] = useState({ nombreObra: '', cliente: '', fechaInicio: hoy(), nota: '' });
     const [mostrarFormFaena, setMostrarFormFaena] = useState(false);
     const [faenasCerradas, setFaenasCerradas] = useState([]);
@@ -537,6 +541,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     useEffect(() => { cargarTodo(); }, []);
 
     const cargarFaena = () => {
+        getCortes().then(r => setCortesMaq((r.data || []).filter(c => c.maquinaNombre === maq.nombre))).catch(() => {});
         getFaenaActiva(maq.nombre)
             .then(r => setFaenaActiva(r.data))
             .catch(() => setFaenaActiva(null));
@@ -759,7 +764,29 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const totalGastos   = gasFaena.reduce((a, g) => a + (g.monto || 0), 0);
 
     // Pronóstico de horas a fin de mes, basado en TODO el historial de la máquina (no solo el periodo actual)
-    const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
+    // Ciclo del corte del cliente: desde el día siguiente al último corte (o la fecha que se ponga) hasta la fecha del corte
+    const sumarDia = (iso) => { const d = parseLocal(iso); d.setDate(d.getDate() + 1); return isoLocal(d); };
+    const cortesDeLaFaena = faenaActiva ? cortesMaq.filter(c => String(c.faenaId) === String(faenaActiva.id)) : [];
+    const ultimoCorteFin = cortesDeLaFaena.map(c => String(c.fechaFin).slice(0, 10)).sort().pop();
+    const desdeManual = faenaActiva?.corteDesde ? String(faenaActiva.corteDesde).slice(0, 10) : '';
+    const hastaManual = faenaActiva?.corteHasta ? String(faenaActiva.corteHasta).slice(0, 10) : '';
+    const cicloDesde = desdeManual || (ultimoCorteFin ? sumarDia(ultimoCorteFin) : String(faenaActiva?.fechaInicio || '').slice(0, 10)) || prefijoMes + '-01';
+    const cicloHasta = hastaManual || isoLocal(new Date(ahoraMes.getFullYear(), ahoraMes.getMonth() + 1, 0));
+    const metaCiclo = faenaActiva ? (faenaActiva.metaHorasCorte || (hastaManual ? 0 : (maq.metaMensualHoras || 0))) : (maq.metaMensualHoras || 0);
+    const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina, { desde: cicloDesde, hasta: cicloHasta });
+    const horasCiclo = ingresos.filter(i => i.tipoTrabajo === 'Horas' && String(i.fecha || '').slice(0, 10) >= cicloDesde && String(i.fecha || '').slice(0, 10) <= isoLocal(new Date()))
+        .reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
+
+    // Guarda las fechas y la meta del corte (vacío = automático / sin meta)
+    const guardarCiclo = (datos) => {
+        if (!faenaActiva) {
+            // sin periodo activo solo existe la meta del mes
+            guardarMeta(datos.metaHorasCorte || 0);
+            return;
+        }
+        updateCicloFaena(faenaActiva.id, datos).then(() => { toast('Corte actualizado'); cargarFaena(); })
+            .catch((e) => toast(e.response?.data?.error || 'No se pudo guardar', 'e'));
+    };
 
 
 
@@ -1055,8 +1082,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             horas={horasFaena} diasTrabajados={diasTrabajadosFaena} periodoNombre={faenaActiva?.nombreObra}
                             valorHora={maq.valorHoraMaquina} onIr={setTab} />
 
-                        <PronosticoMes pronostico={pronostico} horasMes={horasEsteMes} diasDelMes={diasDelMes}
-                            valorHora={maq.valorHoraMaquina} meta={maq.metaMensualHoras || 0} onGuardarMeta={guardarMeta} />
+                        <PronosticoCorte pronostico={pronostico} horasCiclo={horasCiclo} valorHora={maq.valorHoraMaquina} onGuardar={guardarCiclo}
+                            ciclo={{ desde: cicloDesde, hasta: cicloHasta, meta: metaCiclo, automatico: !hastaManual, desdeManual, hastaManual }} />
 
                         <CalendarioTrabajo maq={maq} ingresos={ingresos} combustibles={combustibles}
                             esperadoPorDia={pronostico?.esperadoPorDia || null} verGalones={moduloVisible('combustible')}

@@ -134,6 +134,7 @@ export const getFaena              = (id)            => API.get(`/faenas/${id}`)
 export const getFaenaActiva        = (maquinaNombre) => API.get(`/faenas/maquina/${encodeURIComponent(maquinaNombre)}/activa`);
 export const createFaena           = (data)          => API.post('/faenas', data);
 export const updateFaena           = (id, data)      => API.put(`/faenas/${id}`, data);
+export const updateCicloFaena      = (id, data)      => API.put(`/faenas/${id}/ciclo`, data);
 export const cerrarFaena           = (id)            => API.post(`/faenas/${id}/cerrar`);
 export const reabrirFaena          = (id)            => API.post(`/faenas/${id}/reabrir`);
 export const deleteFaena           = (id)            => API.delete(`/faenas/${id}`);
