@@ -16,7 +16,8 @@ export function cuentaOperador({ nombre, maquinas = [], horas = [], cortes = [],
     cortes.forEach(c => { (porFaena[c.faenaId] = porFaena[c.faenaId] || []).push(c); });
     Object.values(porFaena).forEach(l => ordenarCortes(l).forEach((c, i) => { nombres[c.id] = nombreCorte(c, i + 1); }));
 
-    const propios = ordenarCortes(cortes.filter(c => maqs.has(c.maquinaNombre) && c.conOperador !== false));
+    // Todos los cortes de sus máquinas: la casilla "con operador" solo decide si el corte crea el gasto, y los cortes anteriores a esa casilla quedaron marcados como "sin operador"
+    const propios = ordenarCortes(cortes.filter(c => maqs.has(c.maquinaNombre)));
     const gana = (lista) => lista.reduce((a, h) => a + n(h.horas) * n(h.valorHora), 0);
     const tramos = propios.map(c => {
         const delTramo = hs.filter(h => h.maquinaNombre === c.maquinaNombre && enRango(h.fecha, c.fechaInicio, c.fechaFin));
