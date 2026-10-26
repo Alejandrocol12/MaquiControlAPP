@@ -129,65 +129,74 @@ export function PagosClientesPeriodo({ pagos, faenas, cortes, onNuevo, onEditar,
     );
 }
 
-const ESTADO_OP = { Pagado: ['ok', 'Pagado', CircleCheck], Parcial: ['parcial', 'Parcial', Clock], 'Por pagar': ['pend', 'Pendiente', Clock] };
+const ESTADO_OP = { Pagado: ['ok', 'Pagado', CircleCheck], Parcial: ['parcial', 'Parcial', Clock], Pendiente: ['pend', 'Pendiente', Clock], Adelanto: ['parcial', 'Adelanto', Clock] };
 function ChipOp({ estado }) {
     const [clase, texto, Icono] = ESTADO_OP[estado] || ['pend', estado || '—', Clock];
     return <span className={`pc-chip ${clase}`}><Icono size={13} aria-hidden="true" /> {texto}</span>;
 }
 
-// ── Salarios: el mismo diseño de Pagos Clientes. Cortes causados y pagos a operadores, agrupados por periodo ──
-// filas: { key, tipo: 'corte' | 'pago', id, fecha, operador, desc, maquina, monto, pagado, faenaId, estado, debe }
-export function OperadoresPeriodo({ resumen, filas, faenas, onEditar, onEliminar }) {
+// ── Salarios y Pago Operador: el mismo diseño de Pagos Clientes, agrupado por periodo ──
+// cuentas: resultado de cuentaOperador() de cada operador. Cada fila es un pago, o un corte que todavía no tiene pagos.
+export function HistorialOperadores({ cuentas, faenas, subtitulo, onRegistrar, onEditar, onEliminar }) {
     const [abiertos, setAbiertos] = useState({});
+    const filas = useMemo(() => cuentas.flatMap(c => c.filas), [cuentas]);
     const grupos = useMemo(() => agrupar(filas, faenas, f => (f.faenaId != null ? String(f.faenaId) : null)), [filas, faenas]);
-    const pct = resumen.causado > 0 ? Math.round(Math.min(resumen.pagado, resumen.causado) / resumen.causado * 100) : 0;
-    const conSaldo = filas.filter(f => f.tipo === 'corte' && n(f.debe) > 0.5).length;
+    const pagado = cuentas.reduce((a, c) => a + c.pagado, 0);
+    const causado = cuentas.reduce((a, c) => a + c.causado, 0);
+    const pendiente = cuentas.reduce((a, c) => a + c.pendiente, 0);
+    const pct = causado > 0 ? Math.round(Math.min(pagado, causado) / causado * 100) : 0;
     const nPagos = filas.filter(f => f.tipo === 'pago').length;
+    const cortesConSaldo = cuentas.reduce((a, c) => a + c.tramos.filter(t => t.debe > 0.5).length, 0);
 
     return (
         <>
             <div className="pc-tarjetas">
-                <div className="pc-tarjeta"><span className="pc-etq">Pagado a operadores</span><b className="pc-valor vd"><Monto v={resumen.pagado} /></b><small>{nPagos} pago{nPagos === 1 ? '' : 's'} registrado{nPagos === 1 ? '' : 's'}</small></div>
-                <div className="pc-tarjeta"><span className="pc-etq">Total de cortes cerrados</span><b className="pc-valor"><Monto v={resumen.causado} /></b><small>{pct}% ya pagado</small></div>
-                <div className="pc-tarjeta"><span className="pc-etq">Por pagar</span><b className="pc-valor na"><Monto v={resumen.pendiente} /></b><small>{conSaldo} corte{conSaldo === 1 ? '' : 's'} con saldo pendiente</small></div>
+                <div className="pc-tarjeta"><span className="pc-etq">Pagado</span><b className="pc-valor vd"><Monto v={pagado} /></b><small>{nPagos} pago{nPagos === 1 ? '' : 's'} registrado{nPagos === 1 ? '' : 's'}</small></div>
+                <div className="pc-tarjeta"><span className="pc-etq">Total de cortes cerrados</span><b className="pc-valor"><Monto v={causado} /></b><small>{pct}% ya pagado</small></div>
+                <div className="pc-tarjeta"><span className="pc-etq">Por pagar</span><b className="pc-valor na"><Monto v={pendiente} /></b><small>{cortesConSaldo} corte{cortesConSaldo === 1 ? '' : 's'} con saldo pendiente</small></div>
             </div>
 
             <section className="pc-historial">
                 <header>
-                    <div><h3>Historial de Cortes y Pagos a Operadores</h3><p>Lo que se causó en cada corte y lo que se le ha pagado al operador, por periodo</p></div>
+                    <div><h3>Historial de Pagos a Operadores</h3><p>{subtitulo || 'Lo que se causó en cada corte y lo que se ha pagado, por periodo'}</p></div>
+                    <button type="button" className="pc-nuevo" onClick={() => onRegistrar()}><Plus size={16} aria-hidden="true" /> Registrar pago</button>
                 </header>
 
-                {grupos.map((gr, gi) => {
+                {filas.length === 0 ? (
+                    <EmptyState titulo="Aún no hay pagos ni cortes" texto="Cuando hagas un corte con el operador y le pagues, aparece aquí." accion={{ label: 'Registrar pago', onClick: () => onRegistrar() }} />
+                ) : grupos.map((gr, gi) => {
                     const abierto = abiertos[gr.key] === undefined ? gi === 0 : abiertos[gr.key];
-                    const pagado = gr.items.filter(f => f.tipo === 'pago').reduce((a, f) => a + n(f.monto), 0);
-                    const debe = gr.items.filter(f => f.tipo === 'corte').reduce((a, f) => a + n(f.debe), 0);
+                    const pg = gr.items.filter(f => f.tipo === 'pago').reduce((a, f) => a + n(f.pagado), 0);
+                    // el saldo de cada corte cuenta una sola vez, aunque tenga varios pagos
+                    const saldos = new Map(gr.items.filter(f => f.imputado && f.estado !== 'Adelanto').map(f => [f.operador + '|' + f.imputado, n(f.saldo)]));
+                    const debe = [...saldos.values()].reduce((a, v) => a + v, 0);
                     return (
                         <div className={`pp2-grupo pcp ${abierto ? 'abierto' : ''}`} key={gr.key}>
                             <Cabecera gr={gr} abierto={abierto} alternar={() => setAbiertos(a => ({ ...a, [gr.key]: !abierto }))}
-                                cifras={[['Pagado', pagado, 'pos'], ['Por pagar', debe, debe > 0.5 ? 'neg' : 'zero']]} />
+                                cifras={[['Pagado', pg, 'pos'], ['Por pagar', debe, debe > 0.5 ? 'neg' : 'zero']]} />
                             {abierto && (
                                 <div className="pc-tabla">
-                                    <div className="pc-tr pc-th op"><span>Fecha</span><span>Concepto</span><span>Operador</span><span>Máquina</span>
+                                    <div className="pc-tr pc-th"><span>Fecha</span><span>Corte imputado</span><span>Operador</span><span>Método de pago</span><span>Comprobante #</span>
                                         <span className="r">Total</span><span className="r">Pagado</span><span className="r">Saldo</span><span>Estado</span><span /></div>
-                                    {[...gr.items].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha))).map(f => {
-                                        const corte = f.tipo === 'corte';
-                                        return (
-                                            <div className="pc-tr op" key={f.key}>
-                                                <span data-l="Fecha"><b>{fmtFecha(f.fecha)}</b></span>
-                                                <span data-l="Concepto" className="mono">{corte ? String(f.desc || '').split(' · ')[0] || 'Corte' : 'Pago'}</span>
-                                                <span data-l="Operador">{f.operador}{f.desc && <small>{f.desc}</small>}</span>
-                                                <span data-l="Máquina" className="gris">{f.maquina || '—'}</span>
-                                                <span data-l="Total" className="r mono">{corte ? fmt(f.monto) : '—'}</span>
-                                                <span data-l="Pagado" className="r mono vd">{corte ? fmt(f.pagado) : fmt(f.monto)}</span>
-                                                <span data-l="Saldo" className={`r mono ${corte && n(f.debe) > 0.5 ? 'na' : ''}`}>{corte ? fmt(f.debe) : '—'}</span>
-                                                <span data-l="Estado">{corte ? <ChipOp estado={f.estado} /> : <ChipOp estado="Pagado" />}</span>
-                                                <span className="pc-acc">
-                                                    <button type="button" aria-label="Editar" onClick={() => onEditar(f)}><Pencil size={14} /></button>
-                                                    <button type="button" aria-label="Eliminar" onClick={() => onEliminar(f)}><Trash2 size={14} /></button>
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                    {[...gr.items].sort((a, b) => dia10(b.fecha).localeCompare(dia10(a.fecha))).map(f => (
+                                        <div className="pc-tr" key={f.key}>
+                                            <span data-l="Fecha"><b>{fmtFecha(f.fecha)}</b></span>
+                                            <span data-l="Corte imputado" className="mono">{f.imputado || '—'}</span>
+                                            <span data-l="Operador">{f.operador}{f.desc && <small>{f.desc}</small>}</span>
+                                            <span data-l="Método de pago">{f.metodo || '—'}</span>
+                                            <span data-l="Comprobante #" className="mono gris">{f.comprobante || '—'}</span>
+                                            <span data-l="Total" className="r mono">{f.total ? fmt(f.total) : '—'}</span>
+                                            <span data-l="Pagado" className="r mono vd">{fmt(f.pagado)}</span>
+                                            <span data-l="Saldo" className={`r mono ${n(f.saldo) > 0.5 ? 'na' : ''}`}>{f.total ? fmt(f.saldo) : '—'}</span>
+                                            <span data-l="Estado"><ChipOp estado={f.estado} /></span>
+                                            <span className="pc-acc">
+                                                {f.tipo === 'pago' && (<>
+                                                    <button type="button" aria-label="Editar pago" onClick={() => onEditar(f)}><Pencil size={14} /></button>
+                                                    <button type="button" aria-label="Borrar pago" onClick={() => onEliminar(f)}><Trash2 size={14} /></button>
+                                                </>)}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>

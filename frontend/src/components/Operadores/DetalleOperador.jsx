@@ -17,7 +17,6 @@ import {
     pasarPagosOperadorAGastos,
     getCortes,
     getFaenas,
-    getGastos,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -48,7 +47,8 @@ import {
 import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
-import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
+import { cuentaOperador } from '../../utils/cuentaOperador';
+import { HistorialOperadores } from '../Finanzas/PorPeriodo';
 import './PorPagarCorte.css';
 import EmptyState from '../../utils/EmptyState';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
@@ -56,7 +56,7 @@ import { fmtFecha } from '../../utils/fmtFecha';
 import { diaSiguiente, enRango, ordenarCortes, repartirPagos, fmtHoras, nombreCorte } from '../../utils/cortes';
 import { fmtHoro } from '../../utils/horometro';
 import CortesOperador from './CortesOperador';
-import PagarOperadorModal from './PagarOperadorModal';
+import PagoOperadorForm from './PagoOperadorForm';
 import CertificadoOperadorModal from './CertificadoOperadorModal';
 import HorasCorteLista from './HorasCorteLista';
 import HorasPorCorte from './HorasPorCorte';
@@ -120,16 +120,11 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
     const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
     const [formPagoAbierto, setFormPagoAbierto] = useState(false);
-    // Lo que el corte dejó por pagar a este operador (gastos que el servidor causa al hacer el corte)
-    const [causados, setCausados] = useState([]);
-    const [saldoCorte, setSaldoCorte] = useState(null); // monto con el que se abre el pago cuando sale de un corte
+    // Formulario de pago: null = cerrado; { corteId } = nuevo pago (con un corte elegido); { edicion } = editar un pago
+    const [pagoForm, setPagoForm] = useState(null);
 
     const refrescarPagosOperador = () =>
         getPagosOperador().then(r => setPagosOperador((r.data || []).filter(p => p.operadorNombre === operador.nombre))).catch(() => {});
-
-    const refrescarCausados = () =>
-        getGastos().then(r => setCausados((r.data || []).filter(g => g.corteId != null && g.operadorNombre === operador.nombre)
-            .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))))).catch(() => {});
 
     const refrescarPagosSinGasto = () =>
         getPagosOperadorSinGasto().then(r => setPagosSinGasto(r.data || [])).catch(() => {});
@@ -137,7 +132,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     useEffect(() => {
         if (modoPortal) return;
         refrescarPagosOperador();
-        refrescarCausados();
         refrescarPagosSinGasto();
         getCortes().then(r => setCortes(r.data || [])).catch(() => {});
         getFaenas().then(r => setFaenas(r.data || [])).catch(() => {});
@@ -161,7 +155,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), total: '', fecha: p.fecha || hoy() });
         setEditandoPagoOpId(p.id);
     };
-    const cancelarPagoOperador = () => { setSaldoCorte(null); setFormPagoAbierto(false); setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
+    const cancelarPagoOperador = () => { setFormPagoAbierto(false); setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
     const eliminarPagoOperador = async (id) => {
         if (!await confirm('¿Eliminar este registro de pago?')) return;
         const prev = pagosOperador;
@@ -400,6 +394,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     const ultimoPagoFecha = pagosOperador.map(p => String(p.fecha || '').slice(0, 10)).filter(Boolean).sort().pop();
     const diasUltimoPago = ultimoPagoFecha ? Math.round((new Date(hoy() + 'T00:00:00') - new Date(ultimoPagoFecha + 'T00:00:00')) / 864e5) : null;
     const debeTotal = Math.max(0, salarioNeto);
+    const cuentaOp = cuentaOperador({ nombre: operadorLocal.nombre, maquinas: maqAsignada ? [maqAsignada] : [], horas, cortes, pagosOp: pagosOperador, faenas });
     // El resumen se centra en el corte actual; lo de los cortes ya cerrados queda aparte, como pendiente de pago
     const cortesPorPagar = filasCorte.filter(f => f.id !== 'curso' && f.debe > 0.5);
     const pendienteCerrados = cortesPorPagar.reduce((a, f) => a + f.debe, 0);
@@ -616,7 +611,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                         </div>
                                     </div>
                                     <div className="dop-acciones">
-                                        <button type="button" className="dop-pagar" onClick={() => { cancelarPagoOperador(); setSaldoCorte(pendienteCerrados > 0.5 ? pendienteCerrados : null); setFormPagoAbierto(true); }}><DollarSign size={16} aria-hidden="true" /> {pendienteCerrados > 0.5 ? `Pagar ${fmt(pendienteCerrados)}` : 'Registrar pago'}</button>
+                                        <button type="button" className="dop-pagar" onClick={() => setPagoForm({})}><DollarSign size={16} aria-hidden="true" /> {pendienteCerrados > 0.5 ? `Pagar ${fmt(pendienteCerrados)}` : 'Registrar pago'}</button>
                                         <button type="button" className="dop-imprimir" onClick={() => setCertificando(true)}><Printer size={14} aria-hidden="true" /> Imprimir Comprobante</button>
                                     </div>
                                 </div>
@@ -643,7 +638,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                     <div className="ct-head"><b><DollarSign size={16} className="ct-ico" /> Cortes cerrados por pagar</b><button type="button" className="ct-link plano" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
                                     {cortesPorPagar.length > 0 ? (
                                         <CortesOperador filas={cortesPorPagar} resumen={false} ancho
-                                            onPagar={(f) => { cancelarPagoOperador(); setSaldoCorte(f.debe); setFormPagoAbierto(true); }}
+                                            onPagar={(f) => setPagoForm({ corteId: f.id })}
                                             onVerHoras={(id) => setHorasAbiertas(a => (a === id ? null : id))} horasAbiertas={horasAbiertas}
                                             renderHoras={(f) => <HorasCorteLista horas={horasDeFila(f)} valorHora={valorHora} getHrs={getHrs} />} />
                                     ) : (
@@ -919,20 +914,6 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
 
                     {tab === 3 && !modoPortal && (
                         <>
-                            <div className="ale purple">
-                                <CreditCard size={18} color="#8e44ad" />
-                                <div>
-                                    <p>El corte crea el gasto, tus pagos lo abonan</p>
-                                    <span className="ale-desc">Al hacer un corte, lo que ganó {operadorLocal.nombre} ya queda como gasto. Cada pago que registres aquí lo abona sin contarse dos veces; un adelanto (más de lo que se debe) sí entra como gasto.</span>
-                                </div>
-                            </div>
-
-                            <div className="dpo-tarjetas">
-                                <div className="dpo-t"><span>Pagado</span><b className="vd"><Monto v={totalPagadoOperador} /></b><small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} registrado{pagosOperador.length === 1 ? '' : 's'}</small></div>
-                                <div className="dpo-t"><span>Por pagar de cortes cerrados</span><b className={pendienteCerrados > 0.5 ? 'na' : ''}><Monto v={pendienteCerrados} /></b><small>{pendienteCerrados > 0.5 ? `${cortesPorPagar.length} corte${cortesPorPagar.length === 1 ? '' : 's'} pendiente${cortesPorPagar.length === 1 ? '' : 's'}` : 'está al día'}</small></div>
-                                <div className="dpo-t"><span>Corte en curso</span><b><Monto v={filaCurso.ganado} /></b><small>{fmtHoras(filaCurso.horas)} h × {fmt(valorHora)} · aún sin cortar</small></div>
-                            </div>
-
                             {pagosSinGasto.length > 0 && (
                                 <div className="ct-box ct-migrar">
                                     <div className="ct-head"><b><AlertTriangle size={14} /> Pagos anteriores que todavía no están en Gastos</b></div>
@@ -953,80 +934,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 </div>
                             )}
 
-                            <div className="dpo-fold">
-                                <button type="button" className="dpo-fold-btn" onClick={() => { cancelarPagoOperador(); setFormPagoAbierto(true); }}>
-                                    <Plus size={16} aria-hidden="true" /> Registrar pago o adelanto
-                                </button>
-                            </div>
-
-                            {causados.length > 0 && (
-                                <div className="tbl">
-                                    <div className="th"><strong>Por pagar por corte — {operadorLocal.nombre}</strong></div>
-                                    <div className="ppc-lista">
-                                        {causados.map(g => {
-                                            const e = estadoCausado(g, pagosOperador);
-                                            const estado = nombreEstadoCausado(e);
-                                            return (
-                                                <div className={`ppc-fila ${estado === 'Pagado' ? 'ok' : estado === 'Parcial' ? 'warn' : 'bad'}`} key={g.id}>
-                                                    <div className="ppc-t">
-                                                        <b>{String(g.descripcion || '').split(': ').slice(1).join(': ') || 'Corte'}</b>
-                                                        <span>Causado el {fmtFecha(g.fecha)} al hacer el corte</span>
-                                                    </div>
-                                                    <div className="ppc-n"><span>Ganó</span><b>{fmt(e.ganado)}</b></div>
-                                                    <div className="ppc-n"><span>Pagado</span><b className="pos">{fmt(e.pagado)}</b></div>
-                                                    <div className="ppc-n"><span>Por pagar</span><b className={e.debe > 0.5 ? 'neg' : ''}>{fmt(e.debe)}</b></div>
-                                                    <div className="ppc-a">
-                                                        <Estado valor={estado === 'Por pagar' ? 'Pendiente' : estado} />
-                                                        {e.debe > 0.5 && <button type="button" className="ppc-btn" onClick={() => { cancelarPagoOperador(); setSaldoCorte(e.debe); setFormPagoAbierto(true); }}>Pagar</button>}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="tbl">
-                                <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
-                                {pagosOperador.length === 0 ? (
-                                    <EmptyState
-                                        icono={<CreditCard size={20} />}
-                                        titulo="Aún no hay pagos registrados"
-                                        texto={`Anota aquí los pagos y adelantos que le das a ${operadorLocal.nombre}. Cada uno queda también en Gastos.`}
-                                        accion={{ label: 'Registrar el primero', onClick: () => setFormPagoAbierto(true) }}
-                                    />
-                                ) : (
-                                    <>
-                                        <div className="tr hdr only-desk"><span>Fecha</span><span className="w2">Descripción</span><span className="amt">Monto</span><span>Acc.</span></div>
-                                        {pagosOperadorOrdenados.map(p => (
-                                            <div className="tr only-desk" key={p.id}>
-                                                <span>{fmtFecha(p.fecha)}</span>
-                                                <span className="w2">{p.descripcion || '—'}{!p.gastoGeneradoId && <small className="ct-pend"> · sin pasar a Gastos</small>}</span>
-                                                <span className="pos amt">{fmt(p.monto)}</span>
-                                                <span>
-                                                    <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPagoOperador(p)}><Pencil size={14} /></button>
-                                                    <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={14} /></button>
-                                                </span>
-                                            </div>
-                                        ))}
-                                        {pagosOperadorOrdenados.map(p => (
-                                            <div className="mcard only-mob" key={p.id}>
-                                                <div className="mcard-top"><span className="mcard-t">{p.descripcion || 'Pago'}</span><b className="pos" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{fmt(p.monto)}</b></div>
-                                                <div className="mcard-foot">
-                                                    <span>{fmtFecha(p.fecha)}</span>
-                                                    <span>
-                                                        <button className="icon-btn" aria-label="Editar pago" onClick={() => editarPagoOperador(p)}><Pencil size={15} /></button>
-                                                        <button className="icon-btn" aria-label="Borrar pago" onClick={() => eliminarPagoOperador(p.id)}><Trash2 size={15} /></button>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        <div className="po-total">
-                                            Total pagado: <strong className="pos">{fmt(totalPagadoOperador)}</strong>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <HistorialOperadores cuentas={[cuentaOp]} faenas={faenas} subtitulo={`Cortes de ${operadorLocal.nombre} y lo que se le ha pagado, por periodo`}
+                                onRegistrar={() => setPagoForm({})} onEditar={(f) => setPagoForm({ edicion: f.raw })} onEliminar={(f) => eliminarPagoOperador(f.id)} />
                         </>
                     )}
 
@@ -1157,13 +1066,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                     )}
                 </div></div>
 
-                {!modoPortal && (formPagoAbierto || editandoPagoOpId) && (
-                    <PagarOperadorModal
-                        operador={{ nombre: operadorLocal.nombre, maq: maqAsignada, valorHora }}
-                        saldo={saldoCorte != null ? saldoCorte : debeTotal}
-                        edicion={editandoPagoOpId ? { id: editandoPagoOpId, monto: pagoOpForm.monto, descripcion: pagoOpForm.descripcion, fecha: pagoOpForm.fecha } : null}
-                        onCerrar={cancelarPagoOperador}
-                        onPagado={() => { cancelarPagoOperador(); refrescarPagosOperador(); refrescarCausados(); }} />
+                {!modoPortal && pagoForm && (
+                    <PagoOperadorForm operadores={[{ nombre: operadorLocal.nombre }]} cuentas={{ [operadorLocal.nombre]: cuentaOp }}
+                        inicial={{ operador: operadorLocal.nombre, corteId: pagoForm.corteId }} edicion={pagoForm.edicion || null}
+                        onCerrar={() => setPagoForm(null)} onGuardado={() => { setPagoForm(null); refrescarPagosOperador(); }} />
                 )}
                 {certificando && (
                     <CertificadoOperadorModal

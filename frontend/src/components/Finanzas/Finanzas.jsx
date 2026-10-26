@@ -18,10 +18,9 @@ import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardH
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
-import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
-import { OperadoresPeriodo, PagosClientesPeriodo } from './PorPeriodo';
-import { calcularOperadores, EditarGastoOperadorModal } from './Carteras';
-import PagarOperadorModal from '../Operadores/PagarOperadorModal';
+import { cuentaOperador } from '../../utils/cuentaOperador';
+import { HistorialOperadores, PagosClientesPeriodo } from './PorPeriodo';
+import PagoOperadorForm from '../Operadores/PagoOperadorForm';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
 import { ErrorCarga } from '../../utils/EstadosCarga';
@@ -104,8 +103,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const [cargando, setCargando] = useState(true);
     const [errorCarga, setErrorCarga] = useState(false);
     const [horasF, setHorasF] = useState([]);       // horas trabajadas, para saber lo que va ganando cada operador en su corte actual
-    const [pagarOp, setPagarOp] = useState(null);     // { operador, saldo, edicion }: formulario para editar un pago a operador
-    const [editGasto, setEditGasto] = useState(null);   // costo causado por un corte (o pago viejo) que se está editando
+    const [formPagoOp, setFormPagoOp] = useState(null);  // { edicion } formulario de pago a operador (nuevo o para editar)
     const [pagosOp, setPagosOp] = useState([]);   // pagos hechos a operadores (para saber cuánto de cada corte está pagado)
     const [cortesF, setCortesF] = useState([]);    // cortes, para ligar cada pago de cliente a su periodo
     const [mostrarForm, setMostrarForm] = useState(false);
@@ -294,57 +292,26 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     // Pagos al operador: son gastos categoría "Pago operador"; aquí se ven junto a los salarios
     const pagPag  = usePaginacion(pagSorted, 20);
 
-    // Salarios: lo que se causó al hacer cada corte y lo que se le ha pagado al operador
-    const gastoPorId = new Map(gastos.map(g => [g.id, g]));
-    const periodoDePago = (p) => {
-        const g = p.gastoGeneradoId != null ? gastoPorId.get(p.gastoGeneradoId) : null;
-        if (g && g.faenaId != null) return g.faenaId;
-        const maq = maquinas.find(m => m.operadorNombre === p.operadorNombre);
-        const dia = String(p.fecha || '').slice(0, 10);
-        const f = maq && faenas.find(x => x.maquinaNombre === maq.nombre && x.tipo !== 'gastos' && dia >= String(x.fechaInicio || '').slice(0, 10)
-            && (!x.fechaFin || x.estado === 'activa' || dia <= String(x.fechaFin).slice(0, 10)));
-        return f ? f.id : null;
-    };
-    const filasOpTodas = [
-        ...gastos.filter(g => esPagoOperador(g) && g.corteId != null).map(g => {
-            const e = estadoCausado(g, pagosOp);
-            return { key: 'c' + g.id, tipo: 'corte', id: g.id, fecha: g.fecha, operador: g.operadorNombre || partesPagoOp(g).operador,
-                desc: (g.descripcion || '').split(': ').slice(1).join(': ') || g.descripcion, maquina: g.maquinaNombre, monto: g.monto,
-                faenaId: g.faenaId, estado: nombreEstadoCausado(e), debe: e ? e.debe : 0, pagado: e ? e.pagado : 0, raw: g };
-        }),
-        ...pagosOp.map(p => ({ key: 'p' + p.id, tipo: 'pago', id: p.id, fecha: p.fecha, operador: p.operadorNombre, desc: p.descripcion,
-            maquina: (maquinas.find(m => m.operadorNombre === p.operadorNombre) || {}).nombre, monto: p.monto, faenaId: periodoDePago(p), raw: p })),
-        // pagos viejos que solo quedaron como gasto
-        ...gastos.filter(g => esPagoOperador(g) && g.corteId == null && !pagosOp.some(p => p.gastoGeneradoId === g.id)).map(g => {
-            const x = partesPagoOp(g);
-            return { key: 'g' + g.id, tipo: 'pago', via: 'gasto', id: g.id, fecha: g.fecha, operador: x.operador, desc: x.detalle, maquina: g.maquinaNombre, monto: g.monto, faenaId: g.faenaId, raw: g };
-        }),
-    ];
-    const filasOp = porFecha(filasOpTodas, 'fecha').filter(f => (!q || f.operador?.toLowerCase().includes(q) || f.desc?.toLowerCase().includes(q) || f.maquina?.toLowerCase().includes(q))
-        && (!maqFiltro || f.maquina === maqFiltro));
+    // Salarios: cuenta de cada operador (lo que ganó en cada corte y lo que se le ha pagado)
+    const nombresOp = [...new Set([...maquinas.map(m => m.operadorNombre), ...horasF.map(h => h.operadorNombre), ...pagosOp.map(p => p.operadorNombre)].filter(Boolean))];
+    const cuentasOpTodas = nombresOp.map(nombre => cuentaOperador({ nombre, maquinas, horas: horasF, cortes: cortesF, pagosOp, faenas }));
+    const cuentasOp = cuentasOpTodas
+        .filter(c => !maqFiltro || (maquinas.find(m => m.operadorNombre === c.nombre) || {}).nombre === maqFiltro)
+        .map(c => ({ ...c, filas: porFecha(c.filas, 'fecha').filter(f => !q || f.operador?.toLowerCase().includes(q) || f.desc?.toLowerCase().includes(q) || f.imputado?.toLowerCase().includes(q) || f.metodo?.toLowerCase().includes(q)) }))
+        .filter(c => c.filas.length > 0);
+    const filasOp = cuentasOp.flatMap(c => c.filas);
+    const cuentasPorNombre = Object.fromEntries(cuentasOpTodas.map(c => [c.nombre, c]));
 
-    const resumenOp = calcularOperadores({ maquinas, horas: horasF, cortes: cortesF, pagosOp });
-
-    const editarFilaOp = (f) => {
-        if (f.tipo === 'pago' && f.via !== 'gasto') {
-            const maq = maquinas.find(m => m.operadorNombre === f.operador) || null;
-            setPagarOp({ operador: { nombre: f.operador, maq, valorHora: maq?.valorHoraOperador || 0 }, saldo: 0,
-                edicion: { id: f.id, monto: f.monto, descripcion: f.desc || '', fecha: f.fecha } });
-        } else setEditGasto(f.raw);
-    };
-    const eliminarFilaOp = async (f) => {
-        const aviso = f.tipo === 'corte' ? 'Se borra el costo que se causó con este corte. ¿Continuar?' : '¿Eliminar este pago?';
-        if (!await confirm(aviso)) return;
-        try {
-            if (f.tipo === 'pago' && f.via !== 'gasto') await deletePagoOperador(f.id); else await deleteGasto(f.id);
-        } catch { toast('No se pudo eliminar. Intenta de nuevo.', 'e'); return; }
+    const eliminarPagoOp = async (f) => {
+        if (!await confirm('¿Eliminar este pago? El saldo del corte vuelve a quedar pendiente.')) return;
+        try { await deletePagoOperador(f.id); } catch { toast('No se pudo eliminar. Intenta de nuevo.', 'e'); return; }
         cargarTodo();
     };
 
     const TABS = [
         { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp size={14} />, count: ingPeriodo.length },
         { key: 'gastos',   label: 'Gastos',   icon: <TrendingDown size={14} />, count: gasPeriodo.length },
-        { key: 'salarios', label: 'Salarios', icon: <HardHat size={14} />, count: salPeriodo.length + filasOpTodas.length },
+        { key: 'salarios', label: 'Salarios', icon: <HardHat size={14} />, count: salPeriodo.length + cuentasOpTodas.reduce((a, c) => a + c.filas.length, 0) },
         { key: 'pagos',    label: 'Pagos Clientes', icon: <CreditCard size={14} />, count: pagPeriodo.length },
     ];
 
@@ -396,7 +363,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const footTotal = tab === 'ingresos' ? totalIngresos
         : tab === 'gastos' ? totalGastos
-        : tab === 'salarios' ? filasOp.filter(f => f.tipo === 'pago').reduce((a, f) => a + (Number(f.monto) || 0), 0) + salariosEgreso.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0)
+        : tab === 'salarios' ? filasOp.filter(f => f.tipo === 'pago').reduce((a, f) => a + (Number(f.pagado) || 0), 0) + salariosEgreso.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0)
         : pagFiltrados.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
     const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : tab === 'salarios' ? 'Pagado a operadores' : 'Total del periodo';
     const footTono = tab === 'ingresos' ? 'pos' : tab === 'pagos' ? 'pos' : 'neg';
@@ -605,13 +572,13 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             {/* ── SALARIOS ── */}
                             {tab === 'salarios' && (
                                 <>
-                                    {filasOp.length === 0 && salFiltrados.length === 0 && (
+                                    {filasOp.length === 0 && salFiltrados.length === 0 && nombresOp.length === 0 && (
                                         <EmptyState icono={<HardHat size={20} />} titulo="No hay pagos a operadores para mostrar" texto="Cambia el filtro de fechas o la búsqueda. Los pagos se registran en Operadores, pestaña Pago Operador." />
                                     )}
-                                    {filasOp.length > 0 && (
+                                    {nombresOp.length > 0 && (
                                         <>
-                                            {salFiltrados.length > 0 && <div className="fin-subhead">Cortes y pagos a operadores</div>}
-                                            <OperadoresPeriodo resumen={resumenOp} filas={filasOp} faenas={faenas} onEditar={editarFilaOp} onEliminar={eliminarFilaOp} />
+                                            <HistorialOperadores cuentas={cuentasOp} faenas={faenas} onRegistrar={() => setFormPagoOp({})}
+                                                onEditar={(f) => setFormPagoOp({ edicion: f.raw })} onEliminar={eliminarPagoOp} />
                                         </>
                                     )}
                                     {salFiltrados.length > 0 && (
@@ -792,12 +759,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
             </div></div>
         </div>
-        {pagarOp && (
-            <PagarOperadorModal operador={pagarOp.operador} saldo={pagarOp.saldo || 0} edicion={pagarOp.edicion || null}
-                onCerrar={() => setPagarOp(null)} onPagado={() => { setPagarOp(null); cargarTodo(); }} />
-        )}
-        {editGasto && (
-            <EditarGastoOperadorModal gasto={editGasto} onCerrar={() => setEditGasto(null)} onGuardado={() => { setEditGasto(null); cargarTodo(); }} />
+        {formPagoOp && (
+            <PagoOperadorForm operadores={nombresOp.map(nombre => ({ nombre }))} cuentas={cuentasPorNombre} edicion={formPagoOp.edicion || null}
+                onCerrar={() => setFormPagoOp(null)} onGuardado={() => { setFormPagoOp(null); cargarTodo(); }} />
         )}
         </>
     );
