@@ -105,10 +105,10 @@
 .do-pagar-saldo:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
 
 /* Pestañas como píldoras */
-.do-zona .do-dtabs{gap:2px;padding:4px;margin-bottom:16px;background:#050a13;border:1px solid #17233a;border-radius:14px;width:fit-content;max-width:100%;}
-.do-zona .do-dtab{position:relative;flex-shrink:0;min-height:42px;padding:0 16px;border-radius:10px;border:0;margin:0;color:#8fa3bd;font-size:14px;transition:color .15s,background .15s,box-shadow .15s;}
-.do-zona .do-dtab:hover{background:rgba(255,255,255,.06);color:#fff;}
-.do-zona .do-dtab.on{background:#111c30;color:#fff;border:0;box-shadow:0 1px 2px rgba(0,0,0,.5);}
+.do-zona .do-dtabs{gap:2px;padding:4px;margin-bottom:16px;background:#eef2f7;border:1px solid #e3e8ef;border-radius:14px;width:fit-content;max-width:100%;}
+.do-zona .do-dtab{position:relative;flex-shrink:0;min-height:42px;padding:0 16px;border-radius:10px;border:0;margin:0;color:#64748b;font-size:14px;transition:color .15s,background .15s,box-shadow .15s;}
+.do-zona .do-dtab:hover{background:rgba(255,255,255,.7);color:#0f1b2d;}
+.do-zona .do-dtab.on{background:#050a13;color:#fff;border:0;box-shadow:0 2px 8px -2px rgba(5,10,19,.5);}
 .do-zona .do-dtab.on::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0 0 10px 10px;background:#ffb81c;}
 .do-zona .do-dtab:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
 
@@ -200,7 +200,10 @@ body.dark .opm-cuerpo .fi{background:#0f172a;border-color:#334155;color:#f1f5f9;
 body.dark .opm-pie{background:#1e293b;}
 body.dark .opm-cancelar{color:#cbd5e1;}
 body.dark .do-zona .do-dh,body.dark .do-zona .dop-stat,body.dark .do-zona .ct-card,body.dark .do-zona .fc,body.dark .do-zona .ct-box{background:#1e293b;border-color:#334155;}
-body.dark .do-zona .do-dtabs{background:#050a13;border-color:#17233a;}
+body.dark .do-zona .do-dtabs{background:#0f172a;border-color:#334155;}
+body.dark .do-zona .do-dtab{color:#94a3b8;}
+body.dark .do-zona .do-dtab:hover{background:rgba(255,255,255,.06);color:#f1f5f9;}
+body.dark .do-zona .do-dtab.on{background:#050a13;color:#fff;}
 body.dark .do-zona .ct-card.curso{background:#2a2418;}
 
 /* ═══ Tarjetas del roster y ficha, igual que el diseño de referencia ═══ */
