@@ -1,4 +1,4 @@
-export default function MoneyInput({ value, onChange, name, className, placeholder, style }) {
+export default function MoneyInput({ value, onChange, name, className, placeholder, style, id }) {
     const raw = String(value ?? '').replace(/[^0-9]/g, '');
     const display = raw !== '' ? Number(raw).toLocaleString('es-CO') : '';
 
@@ -9,6 +9,7 @@ export default function MoneyInput({ value, onChange, name, className, placehold
 
     return (
         <input
+            id={id}
             type="text"
             inputMode="numeric"
             className={className}

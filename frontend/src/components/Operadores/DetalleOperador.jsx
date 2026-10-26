@@ -400,6 +400,28 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     const ultimoPagoFecha = pagosOperador.map(p => String(p.fecha || '').slice(0, 10)).filter(Boolean).sort().pop();
     const diasUltimoPago = ultimoPagoFecha ? Math.round((new Date(hoy() + 'T00:00:00') - new Date(ultimoPagoFecha + 'T00:00:00')) / 864e5) : null;
     const debeTotal = Math.max(0, salarioNeto);
+    // El resumen se centra en el corte actual; lo de los cortes ya cerrados queda aparte, como pendiente de pago
+    const cortesPorPagar = filasCorte.filter(f => f.id !== 'curso' && f.debe > 0.5);
+    const pendienteCerrados = cortesPorPagar.reduce((a, f) => a + f.debe, 0);
+    const controlCorte = periodoActivo ? (
+        <div className="dop-corte-desde">
+            {editandoCorte ? (
+                <div className="ct-curso-edit">
+                    <input className="fi" type="date" aria-label="Fecha desde la que cuenta el corte" value={corteInput} onChange={(e) => setCorteInput(e.target.value)} />
+                    <button type="button" className="bp" onClick={() => corteInput ? guardarCorteDesde(corteInput) : toast('Selecciona una fecha', 'e')}>Guardar</button>
+                    {corteManual && <button type="button" className="bs" onClick={() => guardarCorteDesde('')}>Usar fecha automática</button>}
+                    <button type="button" className="bs" onClick={() => setEditandoCorte(false)}>Cancelar</button>
+                </div>
+            ) : (
+                <div className="dop-desde">
+                    Cuenta desde el{' '}
+                    <button type="button" className="dop-desde-b" title="Cambiar la fecha desde la que cuenta el corte"
+                        onClick={() => { setCorteInput(corteDesde || hoy()); setEditandoCorte(true); }}>{fmtFecha(corteDesde)} <Pencil size={11} /></button>
+                    {corteManual ? ' · ajustada a mano' : ultimoCorte ? ' · día siguiente al último corte' : ' · inicio del periodo'}
+                </div>
+            )}
+        </div>
+    ) : null;
     useEffect(() => {
         if (tab === 3 && !editandoPagoOpId && pagoOpForm.total === '' && debeTotal > 0) {
             setPagoOpForm(f => (f.total === '' ? { ...f, total: String(Math.round(debeTotal)) } : f));
@@ -553,16 +575,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                             {periodoActivo ? (
                                 <div className="dop-hero">
                                     <div className="dop-hero-main">
-                                        <div className="dop-hero-k">{salarioNeto < 0 ? 'Le pagaste de más a' : 'Le debes a'} {operadorLocal.nombre}</div>
-                                        <div className="dop-hero-big">{fmt(salarioNeto < 0 ? -salarioNeto : debeTotal)}</div>
+                                        <div className="dop-hero-k">Corte en curso · lo que va ganando {operadorLocal.nombre}</div>
+                                        <div className="dop-hero-big">{fmt(filaCurso.ganado)}</div>
                                         <div className="dop-hero-sub">
-                                            <span>{fmtHoras(horasPeriodo)} h × {fmt(valorHora)} = <b>{fmt(salarioBruto)}</b> ganados</span>
-                                            <span aria-hidden="true">·</span>
-                                            <span className="vd">{fmt(anticipos)} pagados</span>
+                                            <span>{fmtHoras(filaCurso.horas)} h × {fmt(valorHora)}</span>
+                                            {filaCurso.pagado > 0.5 && (<><span aria-hidden="true">·</span><span className="vd">{fmt(filaCurso.pagado)} ya adelantados</span></>)}
                                             <button type="button" className="dop-desglose" aria-expanded={verDesglose} onClick={() => setVerDesglose(v => !v)}>
-                                                (Ver desglose) <ChevronDown size={12} aria-hidden="true" className={verDesglose ? 'gira' : ''} />
+                                                (Ver desglose por cortes) <ChevronDown size={12} aria-hidden="true" className={verDesglose ? 'gira' : ''} />
                                             </button>
                                         </div>
+                                        {controlCorte}
                                         {verDesglose && (
                                             <div className="dop-desg">
                                                 <div className="dop-desg-t">Liquidación consolidada por cortes</div>
@@ -575,10 +597,12 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                                 <div className="dop-desg-f total"><span>Saldo neto pendiente a liquidar hoy:</span><span>{fmt(debeTotal)}</span></div>
                                             </div>
                                         )}
-                                        <div className="dop-bar" role="img" aria-label="Porcentaje ya pagado"><i style={{ width: `${salarioBruto > 0 ? Math.min(100, anticipos / salarioBruto * 100) : 0}%` }} /></div>
+                                        <div className="dop-chips">
+                                            <div className={`dop-chip ${pendienteCerrados > 0.5 ? 'rj' : 'vd'}`}><span>Por pagar de cortes cerrados</span><b>{fmt(pendienteCerrados)}</b></div>
+                                            <div className="dop-chip vd"><span>Pagado en el periodo</span><b>{fmt(anticipos)}</b></div>
+                                            <div className="dop-chip"><span>Ganado en el periodo</span><b>{fmtHoras(horasPeriodo)} h · {fmt(salarioBruto)}</b></div>
+                                        </div>
                                         <div className="dop-hero-sub dop-pct">
-                                            <span className="vd">{salarioBruto > 0 ? Math.round(Math.min(100, anticipos / salarioBruto * 100)) : 0}% ya pagado</span>
-                                            <span aria-hidden="true">·</span>
                                             {editandoFechaPeriodo ? (
                                                 <span className="dop-edit">
                                                     <input className="fi" type="date" aria-label="Fecha de inicio del periodo" value={fechaPeriodoInput} onChange={(e) => setFechaPeriodoInput(e.target.value)} />
@@ -586,13 +610,13 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                                     <button type="button" className="bs" onClick={() => setEditandoFechaPeriodo(false)}>Cancelar</button>
                                                 </span>
                                             ) : (
-                                                <button type="button" className="dop-pen" title={`Periodo activo desde ${fmtFecha(periodoActivo.fechaInicio)}. Toca para cambiar la fecha.`} aria-label="Cambiar la fecha de inicio del periodo"
-                                                    onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button>
+                                                <span>Periodo desde el {fmtFecha(periodoActivo.fechaInicio)} <button type="button" className="dop-pen" title="Toca para cambiar la fecha." aria-label="Cambiar la fecha de inicio del periodo"
+                                                    onClick={() => { setFechaPeriodoInput(periodoActivo.fechaInicio || hoy()); setEditandoFechaPeriodo(true); }}><Pencil size={12} /></button></span>
                                             )}
                                         </div>
                                     </div>
                                     <div className="dop-acciones">
-                                        <button type="button" className="dop-pagar" onClick={() => { cancelarPagoOperador(); setFormPagoAbierto(true); }}><DollarSign size={16} aria-hidden="true" /> Pagar Ahora</button>
+                                        <button type="button" className="dop-pagar" onClick={() => { cancelarPagoOperador(); setSaldoCorte(pendienteCerrados > 0.5 ? pendienteCerrados : null); setFormPagoAbierto(true); }}><DollarSign size={16} aria-hidden="true" /> {pendienteCerrados > 0.5 ? `Pagar ${fmt(pendienteCerrados)}` : 'Registrar pago'}</button>
                                         <button type="button" className="dop-imprimir" onClick={() => setCertificando(true)}><Printer size={14} aria-hidden="true" /> Imprimir Comprobante</button>
                                     </div>
                                 </div>
@@ -614,59 +638,24 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 </div>
                             </div>
 
-                            {periodoActivo && (() => {
-                                const controlCorte = (
-                                    <div className="dop-corte-desde">
-                                        {editandoCorte ? (
-                                            <div className="ct-curso-edit">
-                                                <input className="fi" type="date" aria-label="Fecha desde la que cuenta el corte" value={corteInput} onChange={(e) => setCorteInput(e.target.value)} />
-                                                <button type="button" className="bp" onClick={() => corteInput ? guardarCorteDesde(corteInput) : toast('Selecciona una fecha', 'e')}>Guardar</button>
-                                                {corteManual && <button type="button" className="bs" onClick={() => guardarCorteDesde('')}>Usar fecha automática</button>}
-                                                <button type="button" className="bs" onClick={() => setEditandoCorte(false)}>Cancelar</button>
-                                            </div>
-                                        ) : (
-                                            <div className="ct-card-f">
-                                                Cuenta desde el{' '}
-                                                <button type="button" className="ct-link" title="Cambiar la fecha desde la que cuenta el corte"
-                                                    onClick={() => { setCorteInput(corteDesde || hoy()); setEditandoCorte(true); }}>{fmtFecha(corteDesde)} <Pencil size={11} /></button>
-                                                {corteManual ? ' · ajustada a mano' : ultimoCorte ? ' · día siguiente al último corte' : ' · inicio del periodo'}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                                return (
-                                    <div className="ct-box">
-                                        <div className="ct-head"><b><DollarSign size={16} className="ct-ico" /> Cortes con saldo pendiente</b><button type="button" className="ct-link plano" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
-                                        <CortesOperador filas={filasCorte.filter(f => f.debe > 0 || f.id === 'curso')} resumen={false} ancho extraEnCurso={controlCorte}
+                            {periodoActivo && (
+                                <div className="ct-box">
+                                    <div className="ct-head"><b><DollarSign size={16} className="ct-ico" /> Cortes cerrados por pagar</b><button type="button" className="ct-link plano" onClick={() => setTab(2)}>Ver todos los cortes</button></div>
+                                    {cortesPorPagar.length > 0 ? (
+                                        <CortesOperador filas={cortesPorPagar} resumen={false} ancho
+                                            onPagar={(f) => { cancelarPagoOperador(); setSaldoCorte(f.debe); setFormPagoAbierto(true); }}
                                             onVerHoras={(id) => setHorasAbiertas(a => (a === id ? null : id))} horasAbiertas={horasAbiertas}
                                             renderHoras={(f) => <HorasCorteLista horas={horasDeFila(f)} valorHora={valorHora} getHrs={getHrs} />} />
-                                    </div>
-                                );
-                            })()}
+                                    ) : (
+                                        <p className="ppc-vacio"><CheckCircle size={15} aria-hidden="true" /> No hay cortes cerrados por pagar. Cuando hagas un corte, lo que ganó aparece aquí.</p>
+                                    )}
+                                </div>
+                            )}
 
                             {cortesAntesDelPeriodo > 0 && periodoActivo && (
                                 <div className="ct-aviso"><AlertTriangle size={14} /> Hay {cortesAntesDelPeriodo} corte{cortesAntesDelPeriodo === 1 ? '' : 's'} anterior{cortesAntesDelPeriodo === 1 ? '' : 'es'} al inicio de este periodo ({fmtFecha(periodoActivo.fechaInicio)}) que no se están contando. Si el operador viene trabajando desde antes, cambia la fecha en "Periodo activo desde".</div>
                             )}
 
-                            <div className="ic-grupo open">
-                                <div className="dop-uh"><b>Últimas horas</b><button type="button" className="ct-link" onClick={() => setTab(1)}>Ver el historial por corte</button></div>
-                                {horasDelPeriodo.length === 0 ? <p className="vacio">Sin horas en este periodo — se registran desde Telegram/WhatsApp</p> : (
-                                    <div className="ic-tabla">
-                                        <div className="ic-row ic-hd"><span>Fecha</span><span>Máquina</span><span>Horas</span><span>Horómetro inicio</span><span>Horómetro fin</span><span className="r">Valor</span><span /></div>
-                                        {horasDelPeriodo.slice(0, 5).map((h) => (
-                                            <div className="ic-row" key={h.id}>
-                                                <span className="ic-f" data-l="Fecha"><b>{fmtFecha(h.fecha)}</b></span>
-                                                <span className="ic-d" data-l="Máquina">{h.maquinaNombre}</span>
-                                                <span className="ic-h" data-l="Horas">{fmtHoras(getHrs(h))} h</span>
-                                                <span className="ic-m" data-l="Inicio">{h.horometroInicio ? fmtHoro(h.horometroInicio) : ''}</span>
-                                                <span className="ic-m" data-l="Fin">{h.horometroFin ? fmtHoro(h.horometroFin) : ''}</span>
-                                                <span className="ic-t pos" data-l="Valor">{fmt(getHrs(h) * (h.valorHora || valorHora))}</span>
-                                                <span className="ic-a" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
                         </>
                     )}
 
@@ -933,15 +922,15 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                             <div className="ale purple">
                                 <CreditCard size={18} color="#8e44ad" />
                                 <div>
-                                    <p>Cada pago queda también en Gastos</p>
-                                    <span className="ale-desc">Anota aquí los pagos y adelantos que le das a {operadorLocal.nombre}. La app crea el gasto sola, así que no lo anotes otra vez en Finanzas. Si editas o borras un pago, el gasto cambia igual.</span>
+                                    <p>El corte crea el gasto, tus pagos lo abonan</p>
+                                    <span className="ale-desc">Al hacer un corte, lo que ganó {operadorLocal.nombre} ya queda como gasto. Cada pago que registres aquí lo abona sin contarse dos veces; un adelanto (más de lo que se debe) sí entra como gasto.</span>
                                 </div>
                             </div>
 
                             <div className="dpo-tarjetas">
                                 <div className="dpo-t"><span>Pagado</span><b className="vd"><Monto v={totalPagadoOperador} /></b><small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} registrado{pagosOperador.length === 1 ? '' : 's'}</small></div>
-                                <div className="dpo-t"><span>Se le debe</span><b className={debeTotal > 0 ? 'na' : ''}><Monto v={debeTotal} /></b><small>{debeTotal > 0 ? 'saldo por pagar' : 'está al día'}</small></div>
-                                <div className="dpo-t"><span>Ganado en el periodo</span><b><Monto v={salarioBruto} /></b><small>{fmtHoras(horasPeriodo)} h × {fmt(valorHora)}</small></div>
+                                <div className="dpo-t"><span>Por pagar de cortes cerrados</span><b className={pendienteCerrados > 0.5 ? 'na' : ''}><Monto v={pendienteCerrados} /></b><small>{pendienteCerrados > 0.5 ? `${cortesPorPagar.length} corte${cortesPorPagar.length === 1 ? '' : 's'} pendiente${cortesPorPagar.length === 1 ? '' : 's'}` : 'está al día'}</small></div>
+                                <div className="dpo-t"><span>Corte en curso</span><b><Monto v={filaCurso.ganado} /></b><small>{fmtHoras(filaCurso.horas)} h × {fmt(valorHora)} · aún sin cortar</small></div>
                             </div>
 
                             {pagosSinGasto.length > 0 && (

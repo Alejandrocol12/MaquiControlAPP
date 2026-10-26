@@ -10,7 +10,7 @@ import {
     getPagos, createPago, updatePago, deletePago,
     getFaenas, createFaena,
     contarRegistrosHuerfanos, limpiarRegistrosHuerfanos,
-    getPagosOperador, getCortes,
+    getPagosOperador, getCortes, getHoras,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -20,6 +20,8 @@ import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
 import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
 import PorPeriodo from './PorPeriodo';
+import { TarjetasOperadores, TarjetasClientes, RegistrarCobroModal } from './Carteras';
+import PagarOperadorModal from '../Operadores/PagarOperadorModal';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
 import { ErrorCarga } from '../../utils/EstadosCarga';
@@ -101,6 +103,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const [cargando, setCargando] = useState(true);
     const [errorCarga, setErrorCarga] = useState(false);
+    const [horasF, setHorasF] = useState([]);       // horas trabajadas, para saber lo que va ganando cada operador en su corte actual
+    const [pagarOp, setPagarOp] = useState(null);     // { operador, saldo }: pago a un operador abierto desde las tarjetas
+    const [cobrando, setCobrando] = useState(null);   // { cliente, cobros }: pago de un cliente abierto desde las tarjetas
     const [pagosOp, setPagosOp] = useState([]);   // pagos hechos a operadores (para saber cuánto de cada corte está pagado)
     const [cortesF, setCortesF] = useState([]);    // cortes, para ligar cada pago de cliente a su periodo
     // Pagos de clientes y de operadores: agrupados por periodo o en lista (se recuerda la elección)
@@ -153,7 +158,9 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             getFaenas(),
             getPagosOperador().catch(() => ({ data: [] })),
             getCortes().catch(() => ({ data: [] })),
-        ]).then(([maqR, ingR, gasR, salR, pagR, faeR, popR, corR]) => {
+            getHoras().catch(() => ({ data: [] })),
+        ]).then(([maqR, ingR, gasR, salR, pagR, faeR, popR, corR, horR]) => {
+            setHorasF(horR.data || []);
             setPagosOp(popR.data || []);
             setCortesF(corR.data || []);
             setMaquinas(maqR.data);
@@ -495,6 +502,15 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 </div>
                             </div>
 
+                            {tab === 'salarios' && (
+                                <TarjetasOperadores maquinas={maquinas} horas={horasF} cortes={cortesF} pagosOp={pagosOp}
+                                    onPagar={(operador, saldo) => setPagarOp({ operador, saldo })} />
+                            )}
+                            {tab === 'pagos' && (
+                                <TarjetasClientes pagos={pagos} ingresos={ingresos} faenas={faenas} cortes={cortesF}
+                                    onCobrar={(cliente, cobros) => setCobrando({ cliente, cobros })} />
+                            )}
+
                             {/* ── INGRESOS ── */}
                             {tab === 'ingresos' && (ingFiltrados.length === 0
                                 ? <EmptyState icono={<TrendingUp size={20} />} titulo="No hay ingresos para mostrar" texto="Cambia el filtro de fechas o la búsqueda, o registra uno nuevo." accion={{ label: 'Nuevo ingreso', onClick: abrirNuevo }} />
@@ -815,6 +831,14 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
             </div></div>
         </div>
+        {pagarOp && (
+            <PagarOperadorModal operador={pagarOp.operador} saldo={pagarOp.saldo != null ? pagarOp.saldo : 0}
+                onCerrar={() => setPagarOp(null)} onPagado={() => { setPagarOp(null); cargarTodo(); }} />
+        )}
+        {cobrando && (
+            <RegistrarCobroModal cliente={cobrando.cliente} cobros={cobrando.cobros}
+                onCerrar={() => setCobrando(null)} onGuardado={() => { setCobrando(null); cargarTodo(); }} />
+        )}
         </>
     );
 }

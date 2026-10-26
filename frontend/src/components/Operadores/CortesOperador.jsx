@@ -7,7 +7,7 @@ const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
 // Los cortes del operador como tarjetas (el mismo diseño de los cortes de Periodo en Maquinaria),
 // con lo que se ganó, lo que se le pagó y lo que se le debe en cada uno. Los pagos se aplican
 // primero al corte más viejo que tenga deuda.
-function CortesOperador({ filas, resumen = true, ancho = false, onVerHoras, extraEnCurso, horasAbiertas = null, renderHoras }) {
+function CortesOperador({ filas, resumen = true, ancho = false, onVerHoras, onPagar, extraEnCurso, horasAbiertas = null, renderHoras }) {
     if (!filas.length) return null;
     const pagado = filas.reduce((a, f) => a + f.pagado, 0);
     const porPagar = filas.filter(f => f.id !== 'curso').reduce((a, f) => a + f.debe, 0);
@@ -48,6 +48,7 @@ function CortesOperador({ filas, resumen = true, ancho = false, onVerHoras, extr
                             <div className="ct-card-r"><span>Pagado</span><b className="pos">{fmt(f.pagado)}</b></div>
                             <div className="ct-bar" aria-hidden="true"><i style={{ width: `${f.ganado > 0 ? Math.min(100, f.pagado / f.ganado * 100) : 0}%` }} /></div>
                             {curso && extraEnCurso}
+                            {onPagar && !curso && f.debe > 0.5 && <div className="ct-card-a"><button type="button" className="ct-pagar" onClick={() => onPagar(f)}>Pagar {fmt(f.debe)}</button></div>}
                             {onVerHoras && <div className="ct-card-a"><button type="button" className="ct-link" aria-expanded={horasAbiertas === f.id} onClick={() => onVerHoras(f.id)}>{ancho ? (horasAbiertas === f.id ? 'Ocultar horas' : 'Ver las horas detalladas') : 'Ver las horas'}{ancho && <ChevronDown size={14} aria-hidden="true" className={horasAbiertas === f.id ? 'gira' : ''} />}</button></div>}
                             {horasAbiertas === f.id && renderHoras && renderHoras(f)}
                         </div>
