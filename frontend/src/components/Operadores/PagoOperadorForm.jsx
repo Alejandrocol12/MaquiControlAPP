@@ -27,6 +27,7 @@ export default function PagoOperadorForm({ operadores, cuentas, inicial = {}, ed
     const [fecha, setFecha] = useState(editando && edicion.fecha ? String(edicion.fecha).slice(0, 10) : hoy());
     const [metodo, setMetodo] = useState(edicion?.metodoPago || 'Transferencia');
     const [comprobante, setComprobante] = useState(edicion?.comprobante || '');
+    const [descripcion, setDescripcion] = useState(edicion?.descripcion || '');
     const [guardando, setGuardando] = useState(false);
     const [error, setError] = useState('');
 
@@ -56,7 +57,7 @@ export default function PagoOperadorForm({ operadores, cuentas, inicial = {}, ed
             const corteNum = tramo && tramo.id !== 'antes' ? Number(tramo.id) : null;
             const payload = {
                 operadorNombre: operador, monto: valor, fecha, metodoPago: metodo, comprobante: comprobante.trim(),
-                corteId: corteNum, descripcion: tramo ? `Pago · ${tramo.nombre}` : 'Adelanto',
+                corteId: corteNum, descripcion: descripcion.trim() || (tramo ? `Pago · ${tramo.nombre}` : 'Adelanto'),
             };
             if (editando) await updatePagoOperador(edicion.id, payload); else await createPagoOperador(payload);
             toast(editando ? 'Pago actualizado' : `Pago de ${fmt(valor)} registrado a ${operador}`);
@@ -107,6 +108,8 @@ export default function PagoOperadorForm({ operadores, cuentas, inicial = {}, ed
                     <div className="crt-campo"><label htmlFor="pof-comp">Comprobante #</label>
                         <input id="pof-comp" className="crt-in" maxLength={60} value={comprobante} onChange={e => setComprobante(e.target.value)} placeholder="Ej: TR-99410294" /></div>
                 </div>
+                <div className="crt-campo"><label htmlFor="pof-desc">Descripción <span style={{ fontWeight: 400 }}>(opcional)</span></label>
+                    <input id="pof-desc" className="crt-in" maxLength={120} value={descripcion} onChange={e => setDescripcion(e.target.value)} placeholder="Ej: Quincena, abono del corte, viáticos" /></div>
                 <div className="pof-res" aria-live="polite">
                     <div><span>Total del corte</span><b>{tramo ? fmt(tramo.ganado) : '—'}</b></div>
                     <div><span>Pagado</span><b className="pos">{fmt(valor)}</b></div>
