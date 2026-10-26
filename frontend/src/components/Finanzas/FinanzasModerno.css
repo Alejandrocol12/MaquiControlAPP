@@ -36,7 +36,7 @@
 .fin-tabs{gap:2px;padding:4px;margin-bottom:16px;background:#eef2f7;border:1px solid #e3e8ef;border-radius:14px;width:fit-content;max-width:100%;overflow-x:auto;}
 .fin-tab{position:relative;flex-shrink:0;min-height:42px;padding:0 16px;border-radius:10px;border:0;margin:0;color:#64748b;font-size:14px;white-space:nowrap;transition:color .15s,background .15s,box-shadow .15s;}
 .fin-tab:hover{background:rgba(255,255,255,.7);color:#0f1b2d;}
-.fin-tab.on{background:#050a13;color:#fff;border:0;box-shadow:0 2px 8px -2px rgba(5,10,19,.5);}
+.fin-tab.on{background:#13213a;color:#fff;border:0;box-shadow:0 2px 8px -2px rgba(5,10,19,.5);}
 .fin-tab.on::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0 0 10px 10px;background:#ffb81c;}
 .fin-tab.on .n{background:rgba(255,184,28,.18);color:#ffb81c;border-color:transparent;}
 .fin-tab .n{font-weight:600;}
@@ -83,7 +83,7 @@
 body.dark .fin-tabs{background:#0f172a;border-color:#334155;}
 body.dark .fin-tab{color:#94a3b8;}
 body.dark .fin-tab:hover{background:rgba(255,255,255,.06);color:#f1f5f9;}
-body.dark .fin-tab.on{background:#050a13;color:#fff;}
+body.dark .fin-tab.on{background:#13213a;color:#fff;}
 body.dark .fin-lrow-head{background:#162033;}
 body.dark .fin-lrow:hover{background:#243244;}
 body.dark .fin-filters .fchip.on{background:#f5a623;border-color:#f5a623;}
