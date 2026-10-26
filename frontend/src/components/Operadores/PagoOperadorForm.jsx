@@ -8,6 +8,7 @@ import '../Finanzas/Carteras.css';
 const n = (v) => Number(v) || 0;
 const fmt = (v) => '$' + Math.round(n(v)).toLocaleString('es-CO');
 const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const etq = (f) => { const [y, m, d] = String(f).slice(0, 10).split('-'); return `${Number(d)}/${Number(m)}/${y.slice(2)}`; };
 const METODOS = ['Transferencia', 'Daviplata / Nequi', 'Consignación', 'Efectivo', 'Cheque', 'Otro'];
 
 // Registrar o editar un pago a un operador: fecha, corte al que se imputa (opcional), método, comprobante y monto.
@@ -83,9 +84,9 @@ export default function PagoOperadorForm({ operadores, cuentas, inicial = {}, ed
                 </div>
                 <div className="crt-campo"><label htmlFor="pof-corte">Corte imputado <span style={{ fontWeight: 400 }}>(opcional)</span></label>
                     <select id="pof-corte" className="crt-in" value={corte} onChange={e => cambiarCorte(e.target.value)}>
-                        <option value="">Sin imputar (adelanto)</option>
-                        {tramos.filter(t => t.debe > 0.5 || String(t.id) === String(corte)).map(t => (
-                            <option key={t.id} value={t.id}>{t.nombre}{t.debe > 0.5 ? ` · falta ${fmt(t.debe)}` : ' · pagado'}</option>
+                        <option value="">Sin imputar (se reparte desde el corte más viejo)</option>
+                        {tramos.filter(t => t.id !== 'antes' || t.debe > 0.5 || String(t.id) === String(corte)).map(t => (
+                            <option key={t.id} value={t.id}>{t.nombre}{t.inicio ? ` · ${etq(t.inicio)} a ${etq(t.fecha)}` : ''}{t.debe > 0.5 ? ` · falta ${fmt(t.debe)}` : ' · pagado'}</option>
                         ))}
                     </select>
                 </div>
