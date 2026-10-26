@@ -45,3 +45,6 @@ body.dark .crt-modal{--c-card:#16233a;--c-ink:#e8eef7;--c-mut:#9aa9bf;--c-field:
 .crt-acc{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;}
 
 @media (max-width:760px){.crt-tot{grid-template-columns:1fr;}.crt-f2{grid-template-columns:1fr;}.crt{padding-inline:12px;}}
+.crt-tot.dos{grid-template-columns:repeat(2,minmax(0,1fr));}
+.crt-c dl.dos{grid-template-columns:repeat(2,1fr);}
+@media (max-width:760px){.crt-tot.dos{grid-template-columns:1fr;}}

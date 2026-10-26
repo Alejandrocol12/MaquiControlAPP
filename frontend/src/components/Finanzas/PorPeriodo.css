@@ -40,3 +40,17 @@ body.dark .pp2-est.on{background:#10301f;color:#6fe0aa;}
 body.dark .fin-vista{background:#1d2d47;}
 body.dark .fin-vista button{color:#e8eef7;}
 body.dark .fin-vista button[aria-pressed="true"]{background:#ffb81c;color:#2a1d00;}
+
+/* Salarios: cortes causados y pagos */
+.pp2-lista{overflow-x:auto;}
+.pp2-fila.mv{grid-template-columns:84px minmax(200px,1.7fr) 140px 130px 120px 76px;min-width:760px;}
+.pp2-fila.mv.h{font:700 11px 'Barlow',sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--pp-mut);background:var(--pp-soft);border-top:0;}
+.pp2-fila.mv .r{text-align:right;}
+.pp2-tipo{display:inline-flex;font:600 12px 'Barlow',sans-serif;padding:4px 9px;border-radius:99px;background:var(--pp-soft);color:var(--pp-mut);white-space:nowrap;}
+.pp2-tipo.corte{background:#0f1a2b;color:#ffb81c;}
+body.dark .pp2-tipo.corte{background:#ffb81c;color:#2a1d00;}
+/* Pagos Clientes agrupados por periodo, dentro del historial */
+.pc-historial .pp2-grupo.pcp{margin:0 20px 14px;border-radius:14px;}
+.pc-historial .pp2-grupo.pcp .pc-tabla{overflow-x:auto;border-top:1px solid #e5eaf1;}
+.pc-historial .pp2-grupo.pcp .pc-tr{padding-inline:16px;}
+@media (max-width:760px){.pc-historial .pp2-grupo.pcp{margin-inline:10px;}}
