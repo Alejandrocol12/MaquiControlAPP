@@ -73,9 +73,12 @@
 .mq-kpi.profit .mq-kpi-sub{color:rgba(36,23,5,.75);}
 
 /* ── tabs ── */
-.mq-dtabs{display:flex;gap:4px;border-bottom:1px solid #dbe1e9;overflow-x:auto;margin-bottom:16px;}
-.mq-dtab{display:flex;align-items:center;gap:7px;padding:10px 14px;font-size:13px;font-weight:600;color:#5c7086;border:none;background:transparent;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;cursor:pointer;font-family:'Barlow',sans-serif;}
-.mq-dtab.on{color:#16283b;border-bottom-color:#f5a623;font-weight:700;}
+.mq-dtabs{display:flex;gap:2px;padding:4px;margin-bottom:16px;background:#eef2f7;border:1px solid #e3e8ef;border-radius:14px;width:fit-content;max-width:100%;overflow-x:auto;}
+.mq-dtab{position:relative;display:flex;align-items:center;gap:7px;flex-shrink:0;min-height:42px;padding:0 16px;border:0;border-radius:10px;background:transparent;color:#64748b;font:600 14px 'Barlow',sans-serif;white-space:nowrap;cursor:pointer;transition:color .15s,background .15s,box-shadow .15s;}
+.mq-dtab:hover{background:rgba(255,255,255,.65);color:#0f1b2d;}
+.mq-dtab.on{background:#fff;color:#0f1b2d;font-weight:700;box-shadow:0 1px 2px rgba(15,26,43,.10),0 4px 10px -4px rgba(15,26,43,.14);}
+.mq-dtab.on::after{content:'';position:absolute;left:50%;bottom:3px;width:18px;height:3px;margin-left:-9px;border-radius:99px;background:#ffb81c;}
+.mq-dtab:focus-visible{outline:3px solid #4C8DFF;outline-offset:2px;}
 
 /* ── mini tables (resumen) ── */
 .mq-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
@@ -162,9 +165,11 @@ body.dark .mq-kpi{background:#1e293b;border-color:#334155;box-shadow:none;}
 body.dark .mq-kpi-label{color:#94a3b8;}
 body.dark .mq-kpi-sub{color:#64748b;}
 body.dark .mq-kpi.profit{color:#1a1004;}
-body.dark .mq-dtabs{border-bottom-color:#334155;}
-body.dark .mq-dtab{color:#64748b;}
-body.dark .mq-dtab.on{color:#f1f5f9;}
+body.dark .mq-dtabs{background:#0f172a;border-color:#334155;}
+body.dark .mq-dtab{color:#94a3b8;}
+body.dark .mq-dtab:hover{background:rgba(255,255,255,.06);color:#f1f5f9;}
+body.dark .mq-dtab.on{background:#1e293b;color:#f1f5f9;box-shadow:0 1px 2px rgba(0,0,0,.4);}
+body.dark .mq-dtab.on::after{background:#f5a623;}
 body.dark .mq-mini{background:#1e293b;border-color:#334155;}
 body.dark .mq-mini-head{border-bottom-color:#334155;}
 body.dark .mq-mini-head.good{background:rgba(52,193,124,.12);color:#5fe0a0;border-bottom-color:rgba(52,193,124,.25);}
