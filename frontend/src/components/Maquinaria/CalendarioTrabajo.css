@@ -137,3 +137,7 @@ body.dark .pd-cancelar{color:#cbd5e1;}
     .cl-estado{width:12px;height:12px;}
     .cl-acum{font-size:12px;}
 }
+.cl-pron{padding-left:12px;border-left:2px solid #d5dce6;}
+.cl-pron b{color:#2563eb;}
+body.dark .cl-pron{border-left-color:#334155;}
+body.dark .cl-pron b{color:#8cc4f5;}

@@ -117,10 +117,7 @@ export function PronosticoCorte({ pronostico, horasCiclo, valorHora, ciclo, onGu
     const total = pronostico ? pronostico.totalProyectado : horasCiclo;
     const progreso = meta > 0 ? Math.min(100, (horasCiclo / meta) * 100) : 0;
     const hechas = pronostico ? pronostico.horasEsteMes : horasCiclo;
-    const faltan = Math.max(0, meta - hechas);
     const vencido = ciclo.hasta && pronostico && pronostico.diasRestantes === 0 && ciclo.hasta < hoyISO();
-    const porDia = pronostico && pronostico.diasTrabajoEsperados > 0 && faltan > 0 ? faltan / pronostico.diasTrabajoEsperados : 0;
-    const llega = meta > 0 && total >= meta;
 
     const abrir = () => {
         setF({ desde: ciclo.desdeManual || '', hasta: ciclo.hastaManual || '', meta: meta > 0 ? String(meta).replace('.', ',') : '' });
@@ -147,12 +144,6 @@ export function PronosticoCorte({ pronostico, horasCiclo, valorHora, ciclo, onGu
                         <p>Aún no hay suficiente historial para pronosticar (se necesitan al menos 3 días registrados). Llevas <b>{num(horasCiclo)} h</b> desde el {fFecha(ciclo.desde)}.</p>
                     )}
                     {vencido && <p className="rs-ciclo-av" role="alert">La fecha del corte ya pasó: haz el corte o cambia la fecha.</p>}
-                    {meta > 0 && pronostico && !vencido && (
-                        <p className={`rs-ciclo-est ${llega ? 'ok' : 'falta'}`}>
-                            {llega ? `Vas a llegar a la meta (+${num(total - meta)} h de sobra).` : `Al ritmo actual te faltarían ${num(meta - total)} h para la meta.`}
-                            {porDia > 0 && <> Necesitas <b>~{num(porDia)} h</b> por día trabajado.</>}
-                        </p>
-                    )}
                 </div>
             </div>
 

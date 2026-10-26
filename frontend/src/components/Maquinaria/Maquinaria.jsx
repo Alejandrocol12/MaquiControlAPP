@@ -774,6 +774,8 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const cicloHasta = hastaManual || isoLocal(new Date(ahoraMes.getFullYear(), ahoraMes.getMonth() + 1, 0));
     const metaCiclo = faenaActiva ? (faenaActiva.metaHorasCorte || (hastaManual ? 0 : (maq.metaMensualHoras || 0))) : (maq.metaMensualHoras || 0);
     const pronostico = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina, { desde: cicloDesde, hasta: cicloHasta });
+    // Pronóstico del mes calendario (el del corte usa las fechas del cliente)
+    const pronosticoMes = calcularPronosticoHoras(ingresos.filter(i => i.tipoTrabajo === 'Horas'), maq.valorHoraMaquina);
     const horasCiclo = ingresos.filter(i => i.tipoTrabajo === 'Horas' && String(i.fecha || '').slice(0, 10) >= cicloDesde && String(i.fecha || '').slice(0, 10) <= isoLocal(new Date()))
         .reduce((a, i) => a + (Number(i.cantidad) || 0), 0);
 
@@ -1086,7 +1088,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             ciclo={{ desde: cicloDesde, hasta: cicloHasta, meta: metaCiclo, automatico: !hastaManual, desdeManual, hastaManual }} />
 
                         <CalendarioTrabajo maq={maq} ingresos={ingresos} combustibles={combustibles}
-                            esperadoPorDia={pronostico?.esperadoPorDia || null} verGalones={moduloVisible('combustible')}
+                            esperadoPorDia={pronostico?.esperadoPorDia || null} pronosticoMes={pronosticoMes ? pronosticoMes.totalProyectado : null} verGalones={moduloVisible('combustible')}
                             onCambio={refrescarTrasParte} />
                     </>
                 )}

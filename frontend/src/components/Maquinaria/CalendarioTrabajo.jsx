@@ -24,7 +24,7 @@ function semanaISO(y, m, d) {
 // El mes en una cuadrícula: cada día con sus horas (y los galones si hay combustible), los días que vienen con
 // la proyección según el patrón histórico, y al costado de cada semana sus horas y su valor.
 // Al tocar un día se abre su parte diario.
-function CalendarioTrabajo({ maq, ingresos, combustibles = [], esperadoPorDia = null, verGalones = false, onCambio }) {
+function CalendarioTrabajo({ maq, ingresos, combustibles = [], esperadoPorDia = null, pronosticoMes = null, verGalones = false, onCambio }) {
     const hoy = new Date();
     const [mes, setMes] = useState({ y: hoy.getFullYear(), m: hoy.getMonth() });
     const [abierto, setAbierto] = useState(null);
@@ -134,6 +134,7 @@ function CalendarioTrabajo({ maq, ingresos, combustibles = [], esperadoPorDia = 
                     <button type="button" aria-label="Mes siguiente" onClick={() => mover(1)} disabled={esMesActual}><ChevronRight size={16} /></button>
                 </div>
                 <span className="cl-acum">Horómetro acumulado mensual: <b>{num(acumulado)} hrs</b></span>
+                {esMesActual && pronosticoMes != null && <span className="cl-acum cl-pron" title="Lo trabajado más lo que se espera hasta fin de mes, según el patrón de la máquina">Pronóstico del mes: <b>{num(pronosticoMes)} hrs</b></span>}
                 <div className="cl-leyenda" aria-label="Leyenda de horas">
                     <span><i className="l0" />0 h / Parada</span>
                     <span><i className="l1" />1 - 7 h</span>
