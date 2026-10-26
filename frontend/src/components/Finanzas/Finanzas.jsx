@@ -10,6 +10,7 @@ import {
     getPagos, createPago, updatePago, deletePago,
     getFaenas, createFaena,
     contarRegistrosHuerfanos, limpiarRegistrosHuerfanos,
+    getPagosOperador, getCortes,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -17,6 +18,8 @@ import { TrendingUp, TrendingDown, BarChart2, Plus, Check, Pencil, Trash2, HardH
 import MoneyInput from '../../utils/MoneyInput';
 import FiltroChips from '../../utils/FiltroChips';
 import { salarioCuenta, esPagoOperador } from '../../utils/nomina';
+import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
+import PorPeriodo from './PorPeriodo';
 import Estado from '../../utils/Estado';
 import EmptyState from '../../utils/EmptyState';
 import { ErrorCarga } from '../../utils/EstadosCarga';
@@ -98,6 +101,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
 
     const [cargando, setCargando] = useState(true);
     const [errorCarga, setErrorCarga] = useState(false);
+    const [pagosOp, setPagosOp] = useState([]);   // pagos hechos a operadores (para saber cuánto de cada corte está pagado)
+    const [cortesF, setCortesF] = useState([]);    // cortes, para ligar cada pago de cliente a su periodo
+    // Pagos de clientes y de operadores: agrupados por periodo o en lista (se recuerda la elección)
+    const [vistaPeriodo, setVistaPeriodoE] = useState(() => { try { return localStorage.getItem('mc_fin_por_periodo') !== '0'; } catch { return true; } });
+    const setVistaPeriodo = (v) => { setVistaPeriodoE(v); try { localStorage.setItem('mc_fin_por_periodo', v ? '1' : '0'); } catch { /* sin almacenamiento */ } };
     const [mostrarForm, setMostrarForm] = useState(false);
     const [editandoId, setEditandoId]   = useState(null);
     const [gastoFactura, setGastoFactura] = useState(null);
@@ -143,7 +151,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
             getSalarios(),
             getPagos(),
             getFaenas(),
-        ]).then(([maqR, ingR, gasR, salR, pagR, faeR]) => {
+            getPagosOperador().catch(() => ({ data: [] })),
+            getCortes().catch(() => ({ data: [] })),
+        ]).then(([maqR, ingR, gasR, salR, pagR, faeR, popR, corR]) => {
+            setPagosOp(popR.data || []);
+            setCortesF(corR.data || []);
             setMaquinas(maqR.data);
             setIngresos(ingR.data);
             setGastos(gasR.data);
@@ -339,7 +351,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
         : tab === 'gastos' ? totalGastos
         : tab === 'salarios' ? totalPagosOp + salariosEgreso.reduce((a, s) => a + (Number(s.totalNeto) || 0), 0)
         : pagFiltrados.reduce((a, p) => a + (Number(p.valorPagado) || 0), 0);
-    const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : tab === 'salarios' ? 'Pagado a operadores' : 'Total del periodo';
+    const footLabel = tab === 'pagos' ? 'Cobrado en el periodo' : tab === 'salarios' ? 'Costo de operadores' : 'Total del periodo';
     const footTono = tab === 'ingresos' ? 'pos' : tab === 'pagos' ? 'pos' : 'neg';
     const listaTab = { ingresos: ingFiltrados, gastos: gasFiltrados, salarios: [...pagosOpFiltrados, ...salFiltrados], pagos: pagFiltrados }[tab];
     const paginadosTab = { salarios: { ...pagSal, paginados: [...pagPOp.paginados, ...pagSal.paginados] }, pagos: pagPag }[tab];
@@ -471,6 +483,12 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                         <div style={{ minWidth: 560 }}>
                             <div className="fin-ledger-head">
                                 <h2>{TABS.find(t => t.key === tab).label}</h2>
+                                {(tab === 'pagos' || tab === 'salarios') && (
+                                    <div className="fin-vista" role="group" aria-label="Cómo ver los movimientos">
+                                        <button type="button" aria-pressed={vistaPeriodo} onClick={() => setVistaPeriodo(true)}>Por periodo</button>
+                                        <button type="button" aria-pressed={!vistaPeriodo} onClick={() => setVistaPeriodo(false)}>Lista</button>
+                                    </div>
+                                )}
                                 <div className="fin-search">
                                     <Search size={14} />
                                     <input type="text" placeholder="Buscar..." value={buscar} onChange={e => setBuscar(e.target.value)} />
@@ -549,7 +567,13 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                     {pagosOpFiltrados.length === 0 && salFiltrados.length === 0 && (
                                         <EmptyState icono={<HardHat size={20} />} titulo="No hay pagos a operadores para mostrar" texto="Cambia el filtro de fechas o la búsqueda. Los pagos se registran en Operadores, pestaña Pago Operador." />
                                     )}
-                                    {pagosOpFiltrados.length > 0 && (
+                                    {pagosOpFiltrados.length > 0 && vistaPeriodo && (
+                                        <>
+                                            {salFiltrados.length > 0 && <div className="fin-subhead">Pagos al operador</div>}
+                                            <PorPeriodo modo="operadores" items={pagosOpFiltrados} faenas={faenas} pagosOperador={pagosOp} partes={partesPagoOp} />
+                                        </>
+                                    )}
+                                    {pagosOpFiltrados.length > 0 && !vistaPeriodo && (
                                         <>
                                             {salFiltrados.length > 0 && <div className="fin-subhead">Pagos al operador</div>}
                                             <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.pagosop }}>
@@ -564,6 +588,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                                         <div className="fin-desc">
                                                             <div className="t">{p.operador}</div>
                                                             {p.detalle && <div className="auto">{p.detalle}</div>}
+                                                            {g.corteId != null && (() => { const e = estadoCausado(g, pagosOp); return <div className="auto">Causado al hacer el corte · {nombreEstadoCausado(e)}{e && e.debe > 0.5 ? ` ${fmt(e.debe)}` : ''}</div>; })()}
                                                         </div>
                                                         <span className="fin-cell">{g.maquinaNombre || '—'}</span>
                                                         <span className="fin-money neg">{fmt(g.monto)}</span>
@@ -609,7 +634,11 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                             )}
 
                             {/* ── PAGOS ── */}
-                            {tab === 'pagos' && (
+                            {tab === 'pagos' && vistaPeriodo && (
+                                <PorPeriodo modo="clientes" items={pagFiltrados} faenas={faenas} cortes={cortesF}
+                                    onEditar={abrirEditar} onEliminar={p => eliminar('pagos', p.id)} />
+                            )}
+                            {tab === 'pagos' && !vistaPeriodo && (
                                 <>
                                     <div className="fin-lrow-head" style={{ gridTemplateColumns: GRID.pagos }}>
                                         <ThPag campo="fecha">Fecha</ThPag>
@@ -652,7 +681,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                 <span>{listaTab.length} registros{paginadosTab ? ` · mostrando ${paginadosTab.paginados.length}` : ''}</span>
                                 <span>{footLabel} <span className={`fin-ledger-total fin-num ${footTono === 'pos' ? 'fin-money pos' : 'fin-money neg'}`}>{fmt(footTotal)}</span></span>
                             </div>
-                            {paginadosTab && tab !== 'salarios' && (
+                            {paginadosTab && tab !== 'salarios' && !(tab === 'pagos' && vistaPeriodo) && (
                                 <Paginacion pagina={paginadosTab.pagina} total={paginadosTab.total} ir={paginadosTab.ir} totalItems={listaTab.length} porPagina={20} />
                             )}
                         </div>

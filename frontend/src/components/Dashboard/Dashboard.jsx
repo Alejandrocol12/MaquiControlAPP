@@ -263,7 +263,7 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
                     <div className="db-kpi bad">
                         <div className="db-kpi-top"><span className="db-kpi-label">Egresos</span><span className="db-kpi-ico"><TrendingDown size={15} /></span></div>
                         <div className="db-kpi-val db-num"><AnimatedNumber value={totEgresosMes} prefix="$" /></div>
-                        <div className="db-kpi-sub">gastos, con lo pagado a operadores</div>
+                        <div className="db-kpi-sub">gastos, con el costo de operadores</div>
                     </div>
                     <div className="db-kpi profit">
                         <div>

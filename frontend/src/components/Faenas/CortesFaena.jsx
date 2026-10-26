@@ -176,6 +176,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                     </div>
                     <label className="ct-check"><input type="checkbox" checked={crearCobro} onChange={e => setCrearCobro(e.target.checked)} /><span>Crear el cobro en Pagos Clientes</span></label>
                     <label className="ct-check"><input type="checkbox" checked={conOperador} onChange={e => setConOperador(e.target.checked)} /><span>Hacer también el corte del operador con estas fechas</span></label>
+                    {conOperador && previaOp.ganado > 0 && <p className="ct-error" style={{ color: "inherit", margin: "0 0 8px", fontSize: 13 }}>Se registra el gasto del operador por <b>{fmt(previaOp.ganado)}</b> ({fmtHoras(previaOp.horas)} h) como "Pago operador", pendiente de pagar. Cuando le pagues, ese pago se descuenta de ahí y no se cuenta dos veces.</p>}
                     {error && <p className="ct-error" role="alert">{error}</p>}
                     <div className="ct-acts">
                         <button className="bs" onClick={() => setAbierto(false)}>Cancelar</button>
