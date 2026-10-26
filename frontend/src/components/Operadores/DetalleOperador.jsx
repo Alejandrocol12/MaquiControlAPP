@@ -17,6 +17,7 @@ import {
     pasarPagosOperadorAGastos,
     getCortes,
     getFaenas,
+    getGastos,
 } from '../../api';
 import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
@@ -47,6 +48,8 @@ import {
 import Monto from '../../utils/Monto';
 import ScrollTabs from '../../utils/ScrollTabs';
 import Estado from '../../utils/Estado';
+import { estadoCausado, nombreEstadoCausado } from '../../utils/causacion';
+import './PorPagarCorte.css';
 import EmptyState from '../../utils/EmptyState';
 import { useErrores, ErrorCampo } from '../../utils/useErrores';
 import { fmtFecha } from '../../utils/fmtFecha';
@@ -117,9 +120,16 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     const [pagoOpForm, setPagoOpForm] = useState(PAGO_OP_VACIO);
     const [editandoPagoOpId, setEditandoPagoOpId] = useState(null);
     const [formPagoAbierto, setFormPagoAbierto] = useState(false);
+    // Lo que el corte dejó por pagar a este operador (gastos que el servidor causa al hacer el corte)
+    const [causados, setCausados] = useState([]);
+    const [saldoCorte, setSaldoCorte] = useState(null); // monto con el que se abre el pago cuando sale de un corte
 
     const refrescarPagosOperador = () =>
         getPagosOperador().then(r => setPagosOperador((r.data || []).filter(p => p.operadorNombre === operador.nombre))).catch(() => {});
+
+    const refrescarCausados = () =>
+        getGastos().then(r => setCausados((r.data || []).filter(g => g.corteId != null && g.operadorNombre === operador.nombre)
+            .sort((a, b) => String(b.fecha || '').localeCompare(String(a.fecha || ''))))).catch(() => {});
 
     const refrescarPagosSinGasto = () =>
         getPagosOperadorSinGasto().then(r => setPagosSinGasto(r.data || [])).catch(() => {});
@@ -127,6 +137,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
     useEffect(() => {
         if (modoPortal) return;
         refrescarPagosOperador();
+        refrescarCausados();
         refrescarPagosSinGasto();
         getCortes().then(r => setCortes(r.data || [])).catch(() => {});
         getFaenas().then(r => setFaenas(r.data || [])).catch(() => {});
@@ -150,7 +161,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         setPagoOpForm({ descripcion: p.descripcion || '', monto: String(p.monto ?? ''), total: '', fecha: p.fecha || hoy() });
         setEditandoPagoOpId(p.id);
     };
-    const cancelarPagoOperador = () => { setFormPagoAbierto(false); setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
+    const cancelarPagoOperador = () => { setSaldoCorte(null); setFormPagoAbierto(false); setEditandoPagoOpId(null); setPagoOpForm(PAGO_OP_VACIO); errPagoOp.setErrores({}); };
     const eliminarPagoOperador = async (id) => {
         if (!await confirm('¿Eliminar este registro de pago?')) return;
         const prev = pagosOperador;
@@ -959,6 +970,33 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 </button>
                             </div>
 
+                            {causados.length > 0 && (
+                                <div className="tbl">
+                                    <div className="th"><strong>Por pagar por corte — {operadorLocal.nombre}</strong></div>
+                                    <div className="ppc-lista">
+                                        {causados.map(g => {
+                                            const e = estadoCausado(g, pagosOperador);
+                                            const estado = nombreEstadoCausado(e);
+                                            return (
+                                                <div className={`ppc-fila ${estado === 'Pagado' ? 'ok' : estado === 'Parcial' ? 'warn' : 'bad'}`} key={g.id}>
+                                                    <div className="ppc-t">
+                                                        <b>{String(g.descripcion || '').split(': ').slice(1).join(': ') || 'Corte'}</b>
+                                                        <span>Causado el {fmtFecha(g.fecha)} al hacer el corte</span>
+                                                    </div>
+                                                    <div className="ppc-n"><span>Ganó</span><b>{fmt(e.ganado)}</b></div>
+                                                    <div className="ppc-n"><span>Pagado</span><b className="pos">{fmt(e.pagado)}</b></div>
+                                                    <div className="ppc-n"><span>Por pagar</span><b className={e.debe > 0.5 ? 'neg' : ''}>{fmt(e.debe)}</b></div>
+                                                    <div className="ppc-a">
+                                                        <Estado valor={estado === 'Por pagar' ? 'Pendiente' : estado} />
+                                                        {e.debe > 0.5 && <button type="button" className="ppc-btn" onClick={() => { cancelarPagoOperador(); setSaldoCorte(e.debe); setFormPagoAbierto(true); }}>Pagar</button>}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="tbl">
                                 <div className="th"><strong>Pagos registrados — {operadorLocal.nombre}</strong></div>
                                 {pagosOperador.length === 0 ? (
@@ -1133,10 +1171,10 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                 {!modoPortal && (formPagoAbierto || editandoPagoOpId) && (
                     <PagarOperadorModal
                         operador={{ nombre: operadorLocal.nombre, maq: maqAsignada, valorHora }}
-                        saldo={debeTotal}
+                        saldo={saldoCorte != null ? saldoCorte : debeTotal}
                         edicion={editandoPagoOpId ? { id: editandoPagoOpId, monto: pagoOpForm.monto, descripcion: pagoOpForm.descripcion, fecha: pagoOpForm.fecha } : null}
                         onCerrar={cancelarPagoOperador}
-                        onPagado={() => { cancelarPagoOperador(); refrescarPagosOperador(); }} />
+                        onPagado={() => { cancelarPagoOperador(); refrescarPagosOperador(); refrescarCausados(); }} />
                 )}
                 {certificando && (
                     <CertificadoOperadorModal
