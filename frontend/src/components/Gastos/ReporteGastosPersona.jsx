@@ -101,10 +101,15 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona', gastos: gastosViv
         <div className="gp">
             {admin && <AdministrarPagadores pagadores={pagadores} gastos={gastos} onCambio={async () => { await recargar(); await cargar(); }} onCerrar={() => setAdmin(false)} />}
             <div className="gp-head">
-                <b><Users size={16} /> {titulo}</b>
-                <button type="button" className="qp-link" onClick={() => setAdmin(true)}>Administrar personas</button>
+                <div className="gp-tit">
+                    <span className="gp-ico"><Users size={20} /></span>
+                    <div>
+                        <b>{titulo}</b>
+                        <p className="gp-sub">Quién pagó cada gasto. Elige las fechas, las personas y cómo quieres el reporte.</p>
+                    </div>
+                </div>
+                <button type="button" className="gp-admin" onClick={() => setAdmin(true)}>Administrar personas</button>
             </div>
-            <p className="gp-sub">Quién pagó cada gasto. Elige las fechas, las personas y cómo quieres el reporte.</p>
 
             <div className="gp-sec">
                 <span className="gp-lab">Fechas</span>
@@ -149,14 +154,21 @@ function ReporteGastosPersona({ titulo = 'Gastos por persona', gastos: gastosViv
                 {cargando ? <span>Cargando…</span> : lista.length === 0
                     ? <span>No hay gastos con esas opciones.</span>
                     : <>
-                        <div className="gp-tot"><span>{lista.length} gasto{lista.length === 1 ? '' : 's'} · {grupos.length} persona{grupos.length === 1 ? '' : 's'}</span><b>{fmt(total)}</b></div>
-                        {grupos.slice(0, 8).map(g => (
-                            <div className="gp-barra" key={g.clave}>
-                                <span className="gp-n">{g.clave}</span>
-                                <div className="gp-tr"><i style={{ width: `${total ? g.total / total * 100 : 0}%` }} /></div>
-                                <b>{fmt(g.total)}</b>
-                            </div>
-                        ))}
+                        <div className="gp-tot">
+                            <div><small>Total pagado</small><b>{fmt(total)}</b></div>
+                            <span>{lista.length} gasto{lista.length === 1 ? '' : 's'} · {grupos.length} persona{grupos.length === 1 ? '' : 's'}</span>
+                        </div>
+                        {grupos.slice(0, 8).map(g => {
+                            const pct = total ? g.total / total * 100 : 0;
+                            return (
+                                <div className="gp-barra" key={g.clave}>
+                                    <span className="gp-n">{g.clave}</span>
+                                    <div className="gp-tr"><i style={{ width: `${pct}%` }} /></div>
+                                    <em>{Math.round(pct)}%</em>
+                                    <b>{fmt(g.total)}</b>
+                                </div>
+                            );
+                        })}
                         {grupos.length > 8 && <span className="gp-hint">y {grupos.length - 8} personas más</span>}
                     </>}
                 {!cargando && fuera > 0 && (
