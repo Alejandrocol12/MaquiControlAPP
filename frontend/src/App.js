@@ -694,16 +694,16 @@ function App() {
 
     const renderModulo = () => {
         switch (modulo) {
-            case 'dashboard': return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
+            case 'dashboard': return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} accionTopbar={campana('top')} />;
             case 'maquinaria': return <Maquinaria vistaInicial={maqVista} key={`maq-${maqVista}`} />;
             case 'finanzas': return <Finanzas tabInicial={finTab} />;
             case 'operadores': return <Operadores />;
-            case 'mantenimientos': return moduloVisible('mantenimientos') ? <Mantenimientos /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
-            case 'combustible': return moduloVisible('combustible') ? <Combustible /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
+            case 'mantenimientos': return moduloVisible('mantenimientos') ? <Mantenimientos /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} accionTopbar={campana('top')} />;
+            case 'combustible': return moduloVisible('combustible') ? <Combustible /> : <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} accionTopbar={campana('top')} />;
             case 'reportes': return <Reportes />;
             case 'faenas': return <Faenas />;
             case 'perfil': return <Perfil user={user} onUpdate={u => setUser(prev => ({ ...prev, ...u }))} onIniciarTour={() => { setTourActivo(true); setModulo('dashboard'); }} onLogout={logout} tema={tema} setTema={setTema} />;
-            default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} />;
+            default: return <Dashboard onIrMaquinaria={irMaquinaria} onNuevaMaquina={irNuevaMaquina} onIrFinanzas={navFin2} onIrModulo={ir} accionTopbar={campana('top')} />;
         }
     };
 
@@ -774,8 +774,6 @@ function App() {
                                 <span>{user.email || 'sin-correo'}</span>
                             </div>
                         </div>
-
-                        {campana('sb')}
 
                         <nav className="nav">
                             <div className="ns">Principal</div>

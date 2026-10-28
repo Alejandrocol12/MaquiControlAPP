@@ -28,6 +28,7 @@ export default function Campana({ avisos, leidos, noLeidos, onMarcar, onMarcarTo
         if (abierta) { setAbierta(false); return; }
         const r = btn.current?.getBoundingClientRect();
         if (window.innerWidth <= 768 || !r) setPos({ left: 8, right: 8, top: 56, maxHeight: 'calc(100vh - 72px)' });
+        else if (variante === 'top') setPos({ left: Math.max(12, r.right - 360), top: r.bottom + 8, width: 360, maxHeight: `calc(100vh - ${r.bottom + 24}px)` });
         else setPos({ left: Math.min(r.right + 10, window.innerWidth - 380), top: Math.max(12, Math.min(r.top - 8, window.innerHeight - 200)), width: 360, maxHeight: `calc(100vh - ${Math.max(12, r.top - 8) + 16}px)` });
         onRecargar?.();
         setAbierta(true);
@@ -52,9 +53,9 @@ export default function Campana({ avisos, leidos, noLeidos, onMarcar, onMarcarTo
         <>
             <button ref={btn} type="button" className={`campana ${variante}${abierta ? ' on' : ''}${noLeidos > 0 ? ' tiene' : ''}`} onClick={abrir}
                 aria-label={noLeidos ? `Avisos: ${noLeidos} sin leer` : 'Avisos'} aria-expanded={abierta} title="Avisos">
-                <Bell size={variante === 'sb' ? 17 : 20} />
+                <Bell size={variante === 'mob' ? 20 : 17} />
                 {noLeidos > 0 && <i className="campana-n">{noLeidos > 9 ? '9+' : noLeidos}</i>}
-                {variante === 'sb' && <span className="campana-t sb-label">Avisos</span>}
+                {variante === 'top' && <span className="campana-t">Avisos</span>}
             </button>
 
             {abierta && (

@@ -42,7 +42,7 @@ const mesHoy = () => new Date().toISOString().slice(0, 7);
 const parseLocal = (str) => { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, m - 1, d); };
 
 
-function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
+function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo, accionTopbar }) {
     const [maquinas,  setMaquinas]  = useState([]);
     const [ingresos,  setIngresos]  = useState([]);
     const [gastos,    setGastos]    = useState([]);
@@ -225,6 +225,7 @@ function Dashboard({ onIrMaquinaria, onIrFinanzas, onIrModulo }) {
                     <h1>Dashboard</h1>
                     <p>Resumen general — {labelFiltro}</p>
                 </div>
+                {accionTopbar}
             </div>
 
             <div className="content"><div className="pad">

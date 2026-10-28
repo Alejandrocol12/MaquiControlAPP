@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X, Printer, Clock } from 'lucide-react';
+import { Scissors, Check, RotateCcw, AlertTriangle, Share2, Pencil, X, Printer, Clock, PenLine } from 'lucide-react';
 import { gruposDeCortes, pdfReporteCorte, pdfActaHoras } from '../../utils/reporteCorte';
 import './CortesNuevo.css';
 import { getCortes, createCorte, deleteCorte, getPagos, getHoras, renombrarCorte } from '../../api';
@@ -115,9 +115,21 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     };
 
     // Acta de horas: cada día del corte con sus horas y el horómetro de inicio y fin, para firmar
-    // Primero se abre la ventana de firmas (cliente y operador); desde ahí se genera el PDF. Sirve para cualquier
-    // corte, también los ya hechos: el operador que sale es el que más horas puso dentro de las fechas del corte.
-    const actaHoras = (idGrupo) => {
+    // Acta de horas directa, sin firmas en pantalla (con líneas en blanco para firmar a mano)
+    const actaHoras = async (idGrupo) => {
+        const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === idGrupo);
+        if (!g) { toast('Este corte no tiene horas para el acta.', 'e'); return; }
+        setGenerandoActa('h' + idGrupo);
+        try {
+            await pdfActaHoras({ maquina: faena.maquinaNombre, faena, grupo: g });
+            toast('Acta de horas generada');
+        } catch (e) { console.error(e); toast('No se pudo generar el acta de horas. Intenta de nuevo.', 'e'); }
+        setGenerandoActa('');
+    };
+
+    // Firmar en pantalla es opcional: abre la ventana de firmas (cliente y operador) y de ahí se genera el PDF. Sirve para
+    // cualquier corte, también los ya hechos: el operador que sale es el que más horas puso dentro de las fechas del corte.
+    const firmarActa = (idGrupo) => {
         const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === idGrupo);
         if (!g) { toast('Este corte no tiene horas para el acta.', 'e'); return; }
         const corte = idGrupo.startsWith('c') ? cortes.find(c => 'c' + c.id === idGrupo) : null;
@@ -277,6 +289,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                                     {onCompartir && <button type="button" className="ctn-ico" aria-label="Compartir este corte" title="Compartir" onClick={() => onCompartir('c:' + c.id)}><Share2 size={14} /></button>}
                                     {i === cortes.length - 1 && <button type="button" className="ctn-ico" aria-label="Deshacer el último corte" title="Deshacer corte" onClick={() => deshacer(c, pago)}><RotateCcw size={14} /></button>}
                                     <button type="button" className="ctn-acta" data-tour="acta-horas" disabled={!!generandoActa} onClick={() => actaHoras('c' + c.id)}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hc' + c.id ? 'Generando…' : 'Acta de horas'}</button>
+                                    <button type="button" className="ctn-acta" disabled={!!generandoActa} title="Firmar el acta de horas en pantalla (opcional)" onClick={() => firmarActa('c' + c.id)}><PenLine size={14} aria-hidden="true" /> Firmar</button>
                                     <button type="button" className="ctn-acta" data-tour="acta" disabled={!!generandoActa} onClick={() => acta('c' + c.id)}><Printer size={14} aria-hidden="true" /> {generandoActa === 'c' + c.id ? 'Generando…' : 'Acta'}</button>
                                 </span>
                             </div>
@@ -301,6 +314,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
                             <span className="ctn-acc">
                                 {onCompartir && faena.estado === 'activa' && <button type="button" className="ctn-ico" aria-label="Compartir el corte en curso" title="Compartir" onClick={() => onCompartir('curso:' + faena.id)}><Share2 size={14} /></button>}
                                 <button type="button" className="ctn-acta" data-tour="acta-horas" disabled={!!generandoActa} onClick={() => actaHoras('curso')}><Clock size={14} aria-hidden="true" /> {generandoActa === 'hcurso' ? 'Generando…' : 'Acta de horas'}</button>
+                                <button type="button" className="ctn-acta" disabled={!!generandoActa} title="Firmar el acta de horas en pantalla (opcional)" onClick={() => firmarActa('curso')}><PenLine size={14} aria-hidden="true" /> Firmar</button>
                                 <button type="button" className="ctn-acta" data-tour="acta" disabled={!!generandoActa} onClick={() => acta('curso')}><Printer size={14} aria-hidden="true" /> {generandoActa === 'curso' ? 'Generando…' : 'Acta'}</button>
                                 {!abierto && <button type="button" className="ctn-cerrar" onClick={abrir}>Cerrar Corte →</button>}
                             </span>
