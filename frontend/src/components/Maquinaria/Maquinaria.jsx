@@ -660,6 +660,12 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
         </span>
     );
 
+    // En el celular, los gastos se deslizan para editar o borrar (el pago a un operador se maneja desde Operadores)
+    const accionesDeslizar = (g) => (g.categoria === 'Pago operador' ? null : [
+        { label: 'Editar', icono: <Pencil size={16} />, tono: 'azul', onClick: () => editarGasto(g) },
+        { label: 'Borrar', icono: <Trash2 size={16} />, tono: 'rojo', onClick: () => eliminarGasto(g.id) },
+    ]);
+
     const cargarTodo = () => { cargarDatos(); cargarFaena(); };
 
     // Meta de horas del mes (0 la quita)
@@ -1226,7 +1232,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                                 externos={extAbierto ? { nombre: extAbierto.nombreObra || 'sin nombre', items: gastos.filter(g => String(g.faenaId) === String(extAbierto.id)) } : null}
                                 sueltos={gastos.filter(g => !g.faenaId)}
                                 onRegistrar={() => setFormGastoAbierto(true)}
-                                renderAcciones={accionesGasto} />
+                                renderAcciones={accionesGasto} swipe={accionesDeslizar} />
                         )}
                         {/* Sin periodo activo se conserva la lista completa con su filtro de fechas */}
                         {!faenaActiva && <>
@@ -1240,7 +1246,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                             </div>
                         </div>
                         <AgrupadoPorCorte modo="gastos" items={gasOrdenadosF} faenas={faenasMaq}
-                            envoltura="tbl tbl-r" claseFila="tr" claseCab="tr hdr"
+                            envoltura="tbl tbl-r" claseFila="tr" claseCab="tr hdr" swipe={accionesDeslizar}
                             cabecera={['Fecha', { t: 'Descripción', c: 'w2' }, 'Pagó', 'Categoría', { t: 'Total', c: 'amt' }, 'Acc.']}
                             renderFila={g => (
                                 <>

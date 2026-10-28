@@ -1,0 +1,55 @@
+.campana{position:relative;border:none;cursor:pointer;font-family:'Barlow',sans-serif;}
+/* en el menú lateral: una fila más, como los otros botones */
+.campana.sb{display:flex;align-items:center;gap:10px;width:calc(100% - 24px);margin:0 12px 8px;padding:9px 12px;border-radius:10px;background:rgba(255,255,255,.07);color:#cdd8e6;font-size:13.5px;font-weight:600;}
+.campana.sb:hover,.campana.sb.on{background:rgba(255,255,255,.14);color:#fff;}
+.campana.sb .campana-n{position:static;margin-left:auto;}
+.sb.col .campana.sb{width:auto;justify-content:center;}
+.sb.col .campana.sb .campana-t,.sb.col .campana.sb .campana-n{display:none;}
+.sb.col .campana.sb.tiene::after{content:'';position:absolute;top:6px;right:8px;width:8px;height:8px;border-radius:50%;background:#e74c3c;}
+/* en el celular: flotante arriba a la derecha, junto al menú */
+.campana.mob{display:none;}
+.campana-n{position:absolute;top:-3px;right:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:#e74c3c;color:#fff;font-style:normal;font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff;}
+.campana.sb .campana-n{box-shadow:none;}
+
+.campana-velo{position:fixed;inset:0;z-index:1300;background:rgba(13,27,42,.25);}
+.campana-panel{position:fixed;z-index:1301;background:#fff;border:1px solid #dde4ed;border-radius:14px;box-shadow:0 18px 50px rgba(13,27,42,.28);display:flex;flex-direction:column;overflow:hidden;animation:toastIn .18s ease;}
+.campana-cab{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid #eef1f5;flex-shrink:0;}
+.campana-cab b{font-family:'Barlow Condensed',sans-serif;font-size:18px;color:#1a2d42;}
+.campana-cab span{font-size:11.5px;color:#93a2b3;margin-right:auto;}
+.campana-todo{border:1px solid #dde4ed;background:#fff;color:#4a5b6f;border-radius:8px;padding:4px 8px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:'Barlow',sans-serif;}
+.campana-todo:hover{border-color:#f5a623;color:#1a2d42;}
+.campana-x{border:none;background:#f0f2f5;color:#6b7a8d;width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.campana-lista{overflow-y:auto;padding:4px 8px 10px;}
+.campana-vacio{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 10px;color:#93a2b3;font-size:13px;text-align:center;}
+.campana-grupo{font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#93a2b3;padding:10px 6px 4px;}
+.campana-av{position:relative;display:flex;gap:10px;align-items:flex-start;padding:10px 12px 10px 14px;border:1px solid #eef1f5;border-radius:10px;margin-bottom:6px;cursor:pointer;background:#fff;overflow:hidden;}
+.campana-av::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#2980b9;}
+.campana-av.warn::before{background:#f5a623;}
+.campana-av.crit::before{background:#e74c3c;}
+.campana-av:hover,.campana-av:focus-visible{border-color:#f5a623;outline:none;}
+.campana-av.nuevo{background:#fffaf0;}
+.campana-ico{flex-shrink:0;width:28px;height:28px;border-radius:8px;background:#eef4fa;color:#2980b9;display:flex;align-items:center;justify-content:center;}
+.campana-av.warn .campana-ico{background:#fff4dc;color:#c9790f;}
+.campana-av.crit .campana-ico{background:#fdecea;color:#c0392b;}
+.campana-av b{display:block;font-size:13px;color:#1a2d42;line-height:1.3;}
+.campana-av small{display:block;font-size:11.5px;color:#6b7a8d;margin-top:2px;line-height:1.35;}
+.campana-ac{margin-top:6px;border:1px solid #1d3a5f;background:#1d3a5f;color:#fff;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;}
+.campana-pt{position:absolute;top:10px;right:10px;width:8px;height:8px;border-radius:50%;background:#f5a623;}
+
+@media (max-width:768px){
+  .campana.mob{display:flex;position:fixed;top:10px;right:12px;z-index:70;width:40px;height:40px;border-radius:12px;background:#fff;color:#1a2d42;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+  .campana.sb{display:none;}
+  .app .topbar{padding-right:60px;}
+}
+body.dark .campana.mob{background:#1e293b;color:#f1f5f9;}
+body.dark .campana-n{box-shadow:0 0 0 2px #1e293b;}
+body.dark .campana-panel{background:#1e293b;border-color:#334155;}
+body.dark .campana-cab{border-bottom-color:#334155;}
+body.dark .campana-cab b{color:#f1f5f9;}
+body.dark .campana-todo{background:#1e293b;border-color:#334155;color:#cbd5e1;}
+body.dark .campana-x{background:#334155;color:#cbd5e1;}
+body.dark .campana-av{background:#1e293b;border-color:#334155;}
+body.dark .campana-av.nuevo{background:#2a2a1f;}
+body.dark .campana-av b{color:#f1f5f9;}
+body.dark .campana-av small{color:#94a3b8;}
+body.dark .campana-ico{background:#273449;}

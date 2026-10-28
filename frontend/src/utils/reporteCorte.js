@@ -6,6 +6,33 @@ import { enRango, ordenarCortes, nombreCorte, fmtHoras } from './cortes';
 import { fmtHoro } from './horometro';
 import { fmtFecha } from './fmtFecha';
 
+// Bloque de conformidad al final del acta: firma del cliente y del operador. Con la firma hecha en pantalla
+// va la imagen; sin ella queda la línea en blanco para firmar a mano.
+function bloqueFirmas(doc, y, firmas = {}) {
+    const ALTO = 50;
+    if (y + ALTO + 10 > 276) { doc.addPage(); y = 18; }
+    y = seccion(doc, y, 'Conformidad del corte');
+    y += 4;
+    const cols = [
+        { x: 14, titulo: 'Firma del cliente', f: firmas.cliente, nombre: firmas.nombres?.cliente },
+        { x: 110, titulo: 'Firma del operador', f: firmas.operador, nombre: firmas.nombres?.operador },
+    ];
+    cols.forEach(c => {
+        if (c.f?.img) { try { doc.addImage(c.f.img, 'PNG', c.x + 2, y, 66, 22); } catch { /* si la imagen falla queda la línea en blanco */ } }
+        doc.setDrawColor(...GRIS);
+        doc.setLineWidth(0.4);
+        doc.line(c.x, y + 25, c.x + 86, y + 25);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(...GRIS);
+        doc.text(c.titulo.toUpperCase(), c.x, y + 30);
+        doc.setFont('helvetica', 'normal');
+        doc.text(c.nombre ? `Nombre: ${c.nombre}` : 'Nombre:', c.x, y + 35);
+        doc.text(c.f?.img ? `Firmado en pantalla el ${new Date().toLocaleDateString('es-CO')}` : 'Fecha:', c.x, y + 40);
+    });
+    return y + ALTO - 4;
+}
+
 const dia = (f) => String(f || '').slice(0, 10);
 const porFecha = (a, b) => dia(a.fecha).localeCompare(dia(b.fecha)) || Number(a.id) - Number(b.id);
 const sumar = (l, k) => l.reduce((a, x) => a + (Number(x[k]) || 0), 0);
@@ -117,7 +144,8 @@ export async function pdfReporteCorte({ maquina, faena, grupos, incluir }) {
 
 // Acta de horas de un corte: por cada día trabajado, las horas y el horómetro de inicio y fin.
 // grupo es uno de los que devuelve gruposDeCortes.
-export async function pdfActaHoras({ maquina, faena, grupo }) {
+// firmas (opcional): { cliente: { img }, operador: { img }, nombres: { cliente, operador } }
+export async function pdfActaHoras({ maquina, faena, grupo, firmas }) {
     const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
     const porDia = {};
     grupo.ingresos.filter(i => i.tipoTrabajo === 'Horas').forEach(i => {
@@ -160,6 +188,8 @@ export async function pdfActaHoras({ maquina, faena, grupo }) {
         doc.setFontSize(9); doc.setTextColor(...GRIS);
         doc.text('Este corte no tiene horas registradas.', 17, y + 4); y += 12;
     }
+
+    bloqueFirmas(doc, y, firmas || {});
 
     pie(doc, `Acta de horas — ${maquina}`);
     doc.save(`acta-horas-${slug(maquina)}-${slug(grupo.nombre)}.pdf`);

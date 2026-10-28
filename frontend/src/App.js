@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import VistaCompartida from './components/VistaCompartida/VistaCompartida';
 import Dashboard from './components/Dashboard/Dashboard';
 import Maquinaria from './components/Maquinaria/Maquinaria';
@@ -11,6 +11,9 @@ import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
+import BotonRegistro from './components/Dashboard/BotonRegistro';
+import Campana from './components/Avisos/Campana';
+import { useAvisos } from './utils/avisos';
 import { moduloVisible } from './utils/modulosOcultos';
 import TourGuiado, { MINI_TOURS, TOUR_OPERADOR } from './components/TourGuiado/TourGuiado';
 import Novedades, { VERSION_NOVEDADES } from './components/TourGuiado/Novedades';
@@ -530,6 +533,20 @@ function App() {
     const ir = (mod) => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); };
     const esOperador = !!user && isOperatorRole(user.rol);
 
+    // Avisos de la campana y botón +: al guardar algo con el botón, la pantalla y los avisos se vuelven a cargar
+    const [versionDatos, setVersionDatos] = useState(0);
+    const av = useAvisos(versionDatos, !!user && !esOperador && !isOffline);
+    const irAviso = (d) => {
+        if (!d) return;
+        if (d.modulo === 'finanzas') navFin2(d.tab || 'ingresos');
+        else if (d.modulo === 'maquinaria') { irMaquinaria(); setSbMob(false); }
+        else ir(d.modulo);
+    };
+    const campana = (variante) => (
+        <Campana variante={variante} avisos={av.avisos} leidos={av.leidos} noLeidos={av.noLeidos}
+            onMarcar={av.marcar} onMarcarTodos={av.marcarTodos} onRecargar={av.recargar} onIr={irAviso} />
+    );
+
     // Datos de la empresa para el encabezado de los PDF
     useEffect(() => {
         if (user && !isOperatorRole(user.rol)) cargarEmpresa(); else limpiarEmpresa();
@@ -758,6 +775,8 @@ function App() {
                             </div>
                         </div>
 
+                        {campana('sb')}
+
                         <nav className="nav">
                             <div className="ns">Principal</div>
                             <div className={`ni ${modulo === 'dashboard' ? 'active' : ''}`} data-modulo="dashboard" onClick={() => ir('dashboard')}>
@@ -837,7 +856,7 @@ function App() {
                                 <Mapa />
                             </div>
                         )}
-                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && renderModulo()}
+                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && <Fragment key={versionDatos}>{renderModulo()}</Fragment>}
                     </div>
 
                     {/* Navegación inferior: solo se ve en celular */}
@@ -856,6 +875,9 @@ function App() {
                             <MoreHorizontal size={20} />Más
                         </button>
                     </nav>
+
+                    {campana('mob')}
+                    <BotonRegistro onGuardado={() => setVersionDatos(v => v + 1)} />
                 </div>
             )}
 

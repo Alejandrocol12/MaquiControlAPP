@@ -7,9 +7,11 @@ import { useToast } from '../../utils/toast';
 import { useConfirm } from '../../utils/ConfirmModal';
 import { fmtFecha } from '../../utils/fmtFecha';
 import CalendarioCorte from './CalendarioCorte';
+import FirmaActaModal from './FirmaActaModal';
+import { firmasDeCorte, guardarFirmasDeCorte } from '../../utils/firmasActa';
 import {
     hoyISO, diaSiguiente, ordenarCortes, nombreCorte, resumenTramo, resumenOperador, sinCortarAntesDe, fmtHoras,
-    resumenGastosTramo, gastosSinCortarAntesDe, leerContarOperador, guardarContarOperador,
+    resumenGastosTramo, gastosSinCortarAntesDe, leerContarOperador, guardarContarOperador, enRango,
 } from '../../utils/cortes';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -31,6 +33,7 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     const [guardando, setGuardando] = useState(false);
     const [contarOp, setContarOp] = useState(leerContarOperador);
     const [generandoActa, setGenerandoActa] = useState('');
+    const [firmando, setFirmando] = useState(null); // { idGrupo, corteId, titulo, subtitulo, operador }
     const cambiarOp = (v) => { setContarOp(v); guardarContarOperador(v); };
     const [renombrando, setRenombrando] = useState(null); // id del corte que se está renombrando
     const [nombreNuevo, setNombreNuevo] = useState('');
@@ -112,13 +115,33 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     };
 
     // Acta de horas: cada día del corte con sus horas y el horómetro de inicio y fin, para firmar
-    const actaHoras = async (idGrupo) => {
+    // Primero se abre la ventana de firmas (cliente y operador); desde ahí se genera el PDF. Sirve para cualquier
+    // corte, también los ya hechos: el operador que sale es el que más horas puso dentro de las fechas del corte.
+    const actaHoras = (idGrupo) => {
         const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === idGrupo);
         if (!g) { toast('Este corte no tiene horas para el acta.', 'e'); return; }
-        setGenerandoActa('h' + idGrupo);
+        const corte = idGrupo.startsWith('c') ? cortes.find(c => 'c' + c.id === idGrupo) : null;
+        const desde = corte ? corte.fechaInicio : sigue;
+        const hasta = corte ? corte.fechaFin : null;
+        const cuenta = {};
+        horasOp.filter(h => h.operadorNombre && enRango(h.fecha, desde, hasta))
+            .forEach(h => { cuenta[h.operadorNombre] = (cuenta[h.operadorNombre] || 0) + (parseFloat(h.horas) || 0); });
+        const operador = Object.entries(cuenta).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+        setFirmando({ idGrupo, corteId: corte ? corte.id : null, titulo: g.nombre, subtitulo: g.fechas, operador });
+    };
+
+    const generarActaHoras = async (firmas) => {
+        const g = gruposDeCortes(faena, cortes, ingresos, gastos).find(x => x.id === firmando.idGrupo);
+        if (!g) { setFirmando(null); return; }
+        setGenerandoActa('h' + firmando.idGrupo);
         try {
-            await pdfActaHoras({ maquina: faena.maquinaNombre, faena, grupo: g });
-            toast('Acta de horas generada');
+            await pdfActaHoras({ maquina: faena.maquinaNombre, faena, grupo: g, firmas });
+            // las firmas hechas en pantalla se recuerdan en este equipo solo para cortes ya hechos (el corte en curso cambia)
+            if (firmas.recordar && firmando.corteId && (firmas.cliente || firmas.operador)) {
+                guardarFirmasDeCorte(firmando.corteId, { cliente: firmas.cliente, operador: firmas.operador });
+            }
+            toast(firmas.cliente || firmas.operador ? 'Acta de horas firmada y generada' : 'Acta de horas generada');
+            setFirmando(null);
         } catch (e) { console.error(e); toast('No se pudo generar el acta de horas. Intenta de nuevo.', 'e'); }
         setGenerandoActa('');
     };
@@ -156,6 +179,11 @@ function CortesFaena({ faena, ingresos, gastos = [], onCambio, onCompartir }) {
     return (
         <div className="ct-box">
             {ConfirmUI}
+            {firmando && (
+                <FirmaActaModal titulo={firmando.titulo} subtitulo={firmando.subtitulo} nombreOperador={firmando.operador}
+                    guardadas={firmasDeCorte(firmando.corteId)} generando={!!generandoActa}
+                    onGenerar={generarActaHoras} onCerrar={() => setFirmando(null)} />
+            )}
             <div className="ct-head">
                 <b><Scissors size={14} /> Cortes</b>
                 {!abierto && <button className="bp ct-btn" onClick={abrir}><Scissors size={13} /> Hacer corte</button>}

@@ -5,6 +5,7 @@ import { useToast } from '../../utils/toast';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { diaSiguiente, ordenarCortes, nombreCorte, enRango, hoyISO } from '../../utils/cortes';
 import Monto from '../../utils/Monto';
+import Deslizable from '../../utils/Deslizable';
 import './FacturacionPorCorte.css';
 
 const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
@@ -16,7 +17,7 @@ const claseCat = { 'Reparación': 'info', 'Repuestos': 'gold', 'Combustible': 'o
 
 // Pestaña Gastos del periodo: cabecera con lo gastado, y el desglose por corte (cada corte se despliega con
 // sus gastos). Es el mismo diseño que el de Ingresos. Las acciones de cada fila vienen de quien lo usa.
-export default function GastosPorCorte({ faena, gastos, ingresos, externos, sueltos, onRegistrar, renderAcciones }) {
+export default function GastosPorCorte({ faena, gastos, ingresos, externos, sueltos, onRegistrar, renderAcciones, swipe }) {
     const toast = useToast();
     const [cortes, setCortes] = useState([]);
     const [abiertos, setAbiertos] = useState({});
@@ -132,7 +133,7 @@ export default function GastosPorCorte({ faena, gastos, ingresos, externos, suel
                                         <div className="fc-tabla">
                                             <div className="fc-tr gas fc-th"><span>Fecha</span><span>Descripción</span><span>Pagó</span><span>Categoría</span><span className="r">Total</span><span /></div>
                                             {g.items.map(x => (
-                                                <div className="fc-tr gas" key={x.id}>
+                                                <Deslizable className="fc-tr gas" key={x.id} acciones={swipe ? swipe(x) || [] : []}>
                                                     <span data-l="Fecha"><b>{fmtFecha(x.fecha)}</b></span>
                                                     <span data-l="Descripción">{x.descripcion}
                                                         {(x.proveedor || x.numeroFactura) && <small> · {[x.proveedor, x.numeroFactura].filter(Boolean).join(' · ')}</small>}</span>
@@ -140,7 +141,7 @@ export default function GastosPorCorte({ faena, gastos, ingresos, externos, suel
                                                     <span data-l="Categoría"><span className={`mq-catpill mq-cat-${claseCat[x.categoria] || 'neutral'}`}><i></i>{x.categoria}</span></span>
                                                     <span data-l="Total" className="r rj">{fmt(x.monto)}</span>
                                                     <span className="fc-acc">{renderAcciones(x)}</span>
-                                                </div>
+                                                </Deslizable>
                                             ))}
                                             <div className="fc-tr gas fc-sub"><span><b>Subtotal</b></span><span /><span /><span /><span className="r"><b>{fmt(g.total)}</b></span><span /></div>
                                         </div>

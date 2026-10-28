@@ -3,6 +3,7 @@ import { ChevronRight, Pencil, Trash2, Check, X } from 'lucide-react';
 import { getCortes, getPagos, renombrarCorte } from '../../api';
 import { useToast } from '../../utils/toast';
 import Estado from '../../utils/Estado';
+import Deslizable from '../../utils/Deslizable';
 import { fmtFecha } from '../../utils/fmtFecha';
 import { fmtHoro } from '../../utils/horometro';
 import { enRango, ordenarCortes, fmtHoras, diaSiguiente, hoyISO, nombreCorte } from '../../utils/cortes';
@@ -20,7 +21,7 @@ const valorDe = (modo, i) => Number(modo === 'gastos' ? i.monto : i.total) || 0;
 // los cortes van sueltos, el que está en curso primero y abierto. Cada corte tiene nombre editable.
 function AgrupadoPorCorte({
     modo = 'ingresos', items, faenas = [], anidado = false, mostrarMaquina = false, resumen = true,
-    onEditar, onEliminar, renderFila, cabecera, cols, claseFila = 'ic-row', claseCab = 'ic-row ic-hd', envoltura = '', onCambio,
+    onEditar, onEliminar, renderFila, cabecera, cols, claseFila = 'ic-row', claseCab = 'ic-row ic-hd', envoltura = '', onCambio, swipe,
 }) {
     const toast = useToast();
     const esGasto = modo === 'gastos';
@@ -132,7 +133,7 @@ function AgrupadoPorCorte({
                 <>
                     <div className={claseCab} style={cols ? { gridTemplateColumns: cols } : undefined}>{(cabecera || []).map((h, k) => (typeof h === 'string' ? <span key={k}>{h}</span> : <span key={k} className={h.c} style={h.s}>{h.t}</span>))}</div>
                     {g.items.map(i => (
-                        <div className={claseFila} key={i.id} style={cols ? { gridTemplateColumns: cols } : undefined}>{renderFila(i)}</div>
+                        <Deslizable key={i.id} acciones={swipe ? swipe(i) || [] : []} className={claseFila} style={cols ? { gridTemplateColumns: cols } : undefined}>{renderFila(i)}</Deslizable>
                     ))}
                 </>
             ) : (

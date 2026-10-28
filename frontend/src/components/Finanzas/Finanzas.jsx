@@ -520,6 +520,10 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                                     <div style={{ padding: '12px 18px' }}>
                                         <AgrupadoPorCorte modo="gastos" items={gasFiltrados} faenas={faenasVisibles} anidado mostrarMaquina={!maqFiltro} resumen={false}
                                             cols={GRID.gastos} claseFila="fin-lrow" claseCab="fin-lrow-head"
+                                            swipe={g => (esPagoOperador(g) ? null : [
+                                                { label: 'Editar', icono: <Pencil size={16} />, tono: 'azul', onClick: () => abrirEditar(g) },
+                                                { label: 'Borrar', icono: <Trash2 size={16} />, tono: 'rojo', onClick: () => eliminar('gastos', g.id) },
+                                            ])}
                                             cabecera={['Fecha', 'Descripción', 'Categoría', 'Máquina', 'Pagó', { t: 'Monto', s: { textAlign: 'right' } }, { t: 'Acc.', s: { textAlign: 'right' } }]}
                                             renderFila={g => {
                                                 const esCombAuto = g.descripcion?.includes('Combustible —');

@@ -1,0 +1,11 @@
+.dz{position:relative;overflow:hidden;border-bottom:1px solid #eef1f5;}
+.dz:last-child{border-bottom:none;}
+.dz-acc{position:absolute;right:0;top:0;bottom:0;display:flex;}
+.dz-b{border:none;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:'Barlow',sans-serif;font-size:11px;font-weight:700;cursor:pointer;}
+.dz-b.azul{background:#1d3a5f;}
+.dz-b.rojo{background:#d64545;}
+.dz-b.verde{background:#1f9d63;}
+.dz-fr{position:relative;background:#fff;touch-action:pan-y;transition:transform .22s ease;border-bottom:none!important;}
+.dz-fr.mov{transition:none;}
+body.dark .dz{border-bottom-color:#334155;}
+body.dark .dz-fr{background:#1e293b;}

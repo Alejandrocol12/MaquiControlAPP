@@ -60,6 +60,8 @@ import PagoOperadorForm from './PagoOperadorForm';
 import CertificadoOperadorModal from './CertificadoOperadorModal';
 import HorasCorteLista from './HorasCorteLista';
 import HorasPorCorte from './HorasPorCorte';
+import RachaOperador from './RachaOperador';
+import { calcularRacha } from '../../utils/racha';
 import { useDateRange, DateRangePicker } from '../../utils/useDateRange';
 import { GiBulldozer } from 'react-icons/gi';
 import { TbBackhoe } from 'react-icons/tb';
@@ -266,16 +268,13 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
         : [];
 
     const horasPeriodo = horasDelPeriodo.reduce((acc, h) => acc + getHrs(h), 0);
-    // Jornada promedio: horas por día trabajado, y cuántos días seguidos lleva trabajando hasta el último registro
+    // Jornada promedio: horas por día trabajado, y y su racha de días seguidos
     const horasPorDia = {};
     horasDelPeriodo.forEach(h => { const k = String(h.fecha).slice(0, 10); horasPorDia[k] = (horasPorDia[k] || 0) + getHrs(h); });
     const diasConHoras = Object.keys(horasPorDia).filter(k => horasPorDia[k] > 0).sort();
     const jornadaPromedio = diasConHoras.length ? horasPeriodo / diasConHoras.length : 0;
-    let turnosSeguidos = diasConHoras.length ? 1 : 0;
-    for (let i = diasConHoras.length - 1; i > 0; i--) {
-        const dif = (new Date(diasConHoras[i] + 'T00:00:00') - new Date(diasConHoras[i - 1] + 'T00:00:00')) / 86400000;
-        if (Math.round(dif) === 1) turnosSeguidos++; else break;
-    }
+    // Racha: días seguidos trabajando hasta hoy, con todo el historial del operador (no solo este periodo)
+    const racha = calcularRacha(horas);
 
     const salarioBruto = horasPeriodo * valorHora;
     // Lo entregado al operador en este periodo: los anticipos que venían anotados en el periodo
@@ -624,7 +623,7 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                 {maqAsignada && <div className="dop-stat"><span>Horómetro de {maqAsignada.nombre}</span><b>{fmtHoro(maqAsignada.horometroActual)}</b><small>horas acumuladas en la máquina</small></div>}
                                 <div className="dop-stat"><span>Jornada promedio</span>
                                     <b>{diasConHoras.length ? fmtHoras(jornadaPromedio) : '—'}{diasConHoras.length > 0 && <i className="u">h/d</i>}</b>
-                                    <small>{diasConHoras.length ? `${turnosSeguidos} turno${turnosSeguidos === 1 ? '' : 's'} continuo${turnosSeguidos === 1 ? '' : 's'} sin paro` : 'sin horas en este periodo'}</small>
+                                    <small>{diasConHoras.length ? racha.actual > 0 ? `${racha.actual} turno${racha.actual === 1 ? '' : 's'} seguido${racha.actual === 1 ? '' : 's'}` : 'sin turno reciente' : 'sin horas en este periodo'}</small>
                                 </div>
                                 <div className="dop-stat">
                                     <span>Último pago</span>
@@ -632,6 +631,8 @@ function DetalleOperador({ operador, onVolver, modoPortal = false, tabInicial = 
                                     <small>{pagosOperador.length} pago{pagosOperador.length === 1 ? '' : 's'} · {fmt(totalPagadoOperador)} en total</small>
                                 </div>
                             </div>
+
+                            <RachaOperador racha={racha} />
 
                             {periodoActivo && (
                                 <div className="ct-box">
