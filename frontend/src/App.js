@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import VistaCompartida from './components/VistaCompartida/VistaCompartida';
 import Dashboard from './components/Dashboard/Dashboard';
 import Maquinaria from './components/Maquinaria/Maquinaria';
@@ -11,7 +11,6 @@ import Reportes from './components/Reportes/Reportes';
 import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
-import BotonRegistro from './components/Dashboard/BotonRegistro';
 import Campana from './components/Avisos/Campana';
 import { useAvisos } from './utils/avisos';
 import { moduloVisible } from './utils/modulosOcultos';
@@ -533,9 +532,8 @@ function App() {
     const ir = (mod) => { setModulo(moduloVisible(mod) ? mod : 'dashboard'); setSbMob(false); };
     const esOperador = !!user && isOperatorRole(user.rol);
 
-    // Avisos de la campana y botón +: al guardar algo con el botón, la pantalla y los avisos se vuelven a cargar
-    const [versionDatos, setVersionDatos] = useState(0);
-    const av = useAvisos(versionDatos, !!user && !esOperador && !isOffline);
+    // Avisos de la campana (botón arriba en el Dashboard)
+    const av = useAvisos(0, !!user && !esOperador && !isOffline);
     const irAviso = (d) => {
         if (!d) return;
         if (d.modulo === 'finanzas') navFin2(d.tab || 'ingresos');
@@ -854,7 +852,7 @@ function App() {
                                 <Mapa />
                             </div>
                         )}
-                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && <Fragment key={versionDatos}>{renderModulo()}</Fragment>}
+                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && renderModulo()}
                     </div>
 
                     {/* Navegación inferior: solo se ve en celular */}
@@ -874,8 +872,6 @@ function App() {
                         </button>
                     </nav>
 
-                    {campana('mob')}
-                    <BotonRegistro onGuardado={() => setVersionDatos(v => v + 1)} />
                 </div>
             )}
 

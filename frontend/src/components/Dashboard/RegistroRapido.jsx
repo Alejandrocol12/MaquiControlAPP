@@ -15,23 +15,12 @@ const fmt = (v) => '$' + Math.round(Number(v) || 0).toLocaleString('es-CO');
 
 // Barra para registrar escribiendo como se habla ("8 y media a la retro", "20 lucas de ACPM").
 // La IA solo interpreta; siempre se muestra lo que entendió para revisarlo antes de guardar.
-// Con `modal` no hay barra de texto: se abre el mismo formulario, vacío y con el tipo escogido, como ventana
-// (lo usa el botón + de la app). La fecha se puede cambiar, así que sirve también para registros atrasados.
-const borradorVacio = (tipo, maquinas) => {
-    const unica = maquinas.length === 1 ? maquinas[0] : null;
-    return {
-        tipo, desconocido: false, maquina: unica ? unica.nombre : '', horas: '',
-        valorHora: unica ? String(unica.valorHoraMaquina || '') : '', monto: '', categoria: 'Combustible',
-        descripcion: '', fecha: hoyISO(), nota: null,
-    };
-};
-
-function RegistroRapido({ maquinas, onGuardado, modal = false, tipoInicial = 'horas', onCerrar }) {
+function RegistroRapido({ maquinas, onGuardado }) {
     const toast = useToast();
     const [texto, setTexto] = useState('');
     const [cargando, setCargando] = useState(false);
     const [guardando, setGuardando] = useState(false);
-    const [borrador, setBorrador] = useState(() => (modal ? borradorVacio(tipoInicial, maquinas) : null));
+    const [borrador, setBorrador] = useState(null);
     const [operadores, setOperadores] = useState([]);
 
     useEffect(() => { getOperadoresAPI().then(r => setOperadores(r.data || [])).catch(() => {}); }, []);
@@ -129,7 +118,6 @@ function RegistroRapido({ maquinas, onGuardado, modal = false, tipoInicial = 'ho
             setBorrador(null);
             setTexto('');
             onGuardado?.();
-            if (modal) onCerrar?.();
         } catch {
             toast('No se pudo guardar. Intenta de nuevo', 'e');
         } finally {
@@ -138,13 +126,37 @@ function RegistroRapido({ maquinas, onGuardado, modal = false, tipoInicial = 'ho
     };
 
     const falta = faltantes();
-    const descartar = () => { if (modal) onCerrar?.(); else setBorrador(null); };
 
-    const tarjeta = borrador && (
+    return (
+        <div className="rr-wrap">
+            <form className="rr-bar" onSubmit={e => { e.preventDefault(); entender(); }}>
+                <Sparkles size={18} className="rr-ico" />
+                <input
+                    id="rr-texto"
+                    value={texto}
+                    onChange={e => setTexto(e.target.value)}
+                    placeholder="Escribe lo que pasó: «le metí 8 y media a la retro»"
+                    aria-label="Escribe lo que pasó en obra"
+                    autoComplete="off"
+                />
+                <button type="submit" disabled={cargando || !texto.trim()}>
+                    {cargando ? <Loader size={14} className="rr-spin" /> : 'Entender'}
+                </button>
+            </form>
+
+            {!borrador && !cargando && (
+                <div className="rr-ej">
+                    {EJEMPLOS.map(e => (
+                        <button key={e} type="button" onClick={() => { setTexto(e); entender(e); }}>{e}</button>
+                    ))}
+                </div>
+            )}
+
+            {borrador && (
                 <div className="rr-card">
                     <div className="rr-card-head">
-                        <span>{modal ? (borrador.tipo === 'horas' ? 'Registrar horas' : 'Nuevo gasto') : 'Esto entendí. Revisa y guarda:'}</span>
-                        <button type="button" className="rr-x" aria-label={modal ? 'Cerrar' : 'Descartar'} onClick={descartar}><X size={15} /></button>
+                        <span>Esto entendí. Revisa y guarda:</span>
+                        <button type="button" className="rr-x" aria-label="Descartar" onClick={() => setBorrador(null)}><X size={15} /></button>
                     </div>
                     {(borrador.nota || borrador.desconocido) && (
                         <div className="rr-nota"><AlertTriangle size={14} />{borrador.nota || 'No estoy seguro de qué tipo de registro es. Escoge abajo.'}</div>
@@ -196,52 +208,17 @@ function RegistroRapido({ maquinas, onGuardado, modal = false, tipoInicial = 'ho
                         </label>
                     </div>
                     {borrador.tipo === 'horas' && parseFloat(borrador.horas) > 0 && parseFloat(borrador.valorHora) > 0 && (
-                        <div className="rr-total">Ingreso: <b>{fmt(parseFloat(borrador.horas) * parseFloat(borrador.valorHora))}</b> · el horómetro sube {String(borrador.horas).replace('.', ',')} h{borrador.fecha && borrador.fecha < hoyISO() ? ' · registro de un día anterior: entra al corte que cubra esa fecha' : ''}</div>
+                        <div className="rr-total">Ingreso: <b>{fmt(parseFloat(borrador.horas) * parseFloat(borrador.valorHora))}</b> · el horómetro sube {String(borrador.horas).replace('.', ',')} h</div>
                     )}
                     <div className="rr-acts">
                         {falta.length > 0 && <span className="rr-falta">Falta: {falta.join(', ')}</span>}
-                        <button type="button" className="bs" onClick={descartar}>Cancelar</button>
+                        <button type="button" className="bs" onClick={() => setBorrador(null)}>Cancelar</button>
                         <button type="button" className="bp" disabled={guardando || falta.length > 0} onClick={guardar}>
                             <Check size={14} style={{ marginRight: '5px', verticalAlign: 'middle' }} />{guardando ? 'Guardando...' : 'Guardar'}
                         </button>
                     </div>
                 </div>
-    );
-
-    if (modal) {
-        return (
-            <div className="rr-modal" role="dialog" aria-modal="true" aria-label={tipoInicial === 'horas' ? 'Registrar horas' : 'Nuevo gasto'} onClick={descartar}>
-                <div className="rr-modal-in" onClick={e => e.stopPropagation()}>{tarjeta}</div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="rr-wrap">
-            <form className="rr-bar" onSubmit={e => { e.preventDefault(); entender(); }}>
-                <Sparkles size={18} className="rr-ico" />
-                <input
-                    id="rr-texto"
-                    value={texto}
-                    onChange={e => setTexto(e.target.value)}
-                    placeholder="Escribe lo que pasó: «le metí 8 y media a la retro»"
-                    aria-label="Escribe lo que pasó en obra"
-                    autoComplete="off"
-                />
-                <button type="submit" disabled={cargando || !texto.trim()}>
-                    {cargando ? <Loader size={14} className="rr-spin" /> : 'Entender'}
-                </button>
-            </form>
-
-            {!borrador && !cargando && (
-                <div className="rr-ej">
-                    {EJEMPLOS.map(e => (
-                        <button key={e} type="button" onClick={() => { setTexto(e); entender(e); }}>{e}</button>
-                    ))}
-                </div>
             )}
-
-            {tarjeta}
         </div>
     );
 }
