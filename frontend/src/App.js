@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import VistaCompartida from './components/VistaCompartida/VistaCompartida';
 import Dashboard from './components/Dashboard/Dashboard';
 import Maquinaria from './components/Maquinaria/Maquinaria';
@@ -12,6 +12,7 @@ import Faenas from './components/Faenas/Faenas';
 import Perfil from './components/Perfil/Perfil';
 import Mapa from './components/Mapa/Mapa';
 import Campana from './components/Avisos/Campana';
+import TirarActualizar from './components/Avisos/TirarActualizar';
 import { useAvisos } from './utils/avisos';
 import { moduloVisible } from './utils/modulosOcultos';
 import TourGuiado, { MINI_TOURS, TOUR_OPERADOR } from './components/TourGuiado/TourGuiado';
@@ -513,6 +514,7 @@ function App() {
     const [tourActivo, setTourActivo] = useState(false);
     const [miniTour, setMiniTour] = useState(null); // guía corta de una pantalla ('operador' = recorrido del portal del operador)
     const [verNovedades, setVerNovedades] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0); // al tirar hacia abajo se vuelve a montar la pantalla y recarga sus datos
     // Tema: 'auto' sigue el modo del celular/computador; 'claro' y 'oscuro' lo fijan.
     // Quien ya había activado el modo oscuro a mano lo conserva.
     const [tema, setTema] = useState(() => {
@@ -575,6 +577,36 @@ function App() {
         } catch (e) { /* sin almacenamiento */ }
     }, [user, esOperador]);
     const navFin2 = (tab) => { navFin(tab); setSbMob(false); };
+
+    // Atajos del ícono de la app (manifest.json): /?atajo=horas | gasto | saldo
+    useEffect(() => {
+        if (!user || esOperador) return undefined;
+        const p = new URLSearchParams(window.location.search);
+        const a = p.get('atajo');
+        if (!a) return undefined;
+        p.delete('atajo');
+        const q = p.toString();
+        window.history.replaceState(null, '', window.location.pathname + (q ? '?' + q : '') + window.location.hash);
+        let t;
+        if (a === 'horas') {
+            setModulo('dashboard');
+            let n = 0; // el Dashboard carga sus datos; se espera a que aparezca el cuadro de registro rápido
+            t = setInterval(() => {
+                const inp = document.getElementById('rr-texto');
+                if (inp) { inp.scrollIntoView({ block: 'center' }); inp.focus(); clearInterval(t); } else if (++n > 20) clearInterval(t);
+            }, 250);
+        } else if (a === 'gasto') navFin('gastos');
+        else if (a === 'saldo') navFin('ingresos');
+        return () => clearInterval(t);
+    }, [user, esOperador]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Encabezado que se encoge: al bajar en el celular la barra superior queda delgada
+    useEffect(() => {
+        const onScroll = () => document.body.classList.toggle('bajando', (window.scrollY || 0) > 30);
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => { window.removeEventListener('scroll', onScroll); document.body.classList.remove('bajando'); };
+    }, []);
     const toggleDark = () => setTema(darkMode ? 'claro' : 'oscuro');
 
     useEffect(() => {
@@ -852,8 +884,10 @@ function App() {
                                 <Mapa />
                             </div>
                         )}
-                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && renderModulo()}
+                        {(modulo !== 'mapa' || !moduloVisible('mapa')) && <Fragment key={refreshKey}>{renderModulo()}</Fragment>}
                     </div>
+
+                    <TirarActualizar activo={modulo !== 'mapa' && !tourActivo && !miniTour} onActualizar={() => { setRefreshKey(k => k + 1); av.recargar?.(); toast('Datos actualizados', 's'); return new Promise(r => setTimeout(r, 400)); }} />
 
                     {/* Navegación inferior: solo se ve en celular */}
                     <nav className="bnav" aria-label="Navegación principal">

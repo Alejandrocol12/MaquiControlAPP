@@ -1144,3 +1144,18 @@ body.dark .po-saldo{color:#94a3b8;} body.dark .po-saldo b{color:#f1f5f9;}
 .auth-logo{display:block;height:76px;width:auto;margin-bottom:16px;}
 .offline-logo{display:block;height:72px;width:auto;margin:0 auto 10px;}
 .vc-logo{height:28px;width:auto;}
+
+/* Encabezado que se encoge al bajar (celular) y sin recarga nativa al tirar hacia abajo (la hace TirarActualizar) */
+@media (max-width: 768px){
+  html{overscroll-behavior-y:contain;}
+  .topbar{transition:padding .2s, box-shadow .2s;}
+  .topbar h1{transition:font-size .2s;}
+  .topbar p{max-height:24px;overflow:hidden;transition:max-height .2s, opacity .2s, margin .2s;}
+  body.bajando .topbar{padding-top:6px;padding-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.12);}
+  body.bajando .topbar h1{font-size:15px;}
+  body.bajando .topbar p{max-height:0;opacity:0;margin:0;}
+  body.bajando .hamburger{top:6px;}
+}
+@media (max-width: 768px) and (prefers-reduced-motion: reduce){
+  .topbar,.topbar h1,.topbar p{transition:none;}
+}

@@ -27,5 +27,49 @@
   "orientation": "any",
   "theme_color": "#1a2d42",
   "background_color": "#1a2d42",
-  "categories": ["productivity", "business"]
+  "categories": [
+    "productivity",
+    "business"
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar horas",
+      "short_name": "Horas",
+      "description": "Escribir lo que pasó en obra",
+      "url": "/?atajo=horas",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Nuevo gasto",
+      "short_name": "Gasto",
+      "description": "Ir a los gastos",
+      "url": "/?atajo=gasto",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Ver finanzas",
+      "short_name": "Finanzas",
+      "description": "Ingresos y saldos",
+      "url": "/?atajo=saldo",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

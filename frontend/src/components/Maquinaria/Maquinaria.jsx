@@ -38,6 +38,7 @@ import './TrabajoMaquina.css';
 import { usePagadores, AdministrarPagadores } from '../Gastos/QuienPago';
 import { destinoPorDefecto, faenaIdDeDestino, destinoDeGasto, gastosExternosAbierto } from '../Gastos/DestinoGasto';
 import ScrollTabs from '../../utils/ScrollTabs';
+import useSwipe from '../../utils/useSwipe';
 import { fmtFecha } from '../../utils/fmtFecha';
 import {
     Tractor, Plus, Check, Pencil, Trash2, Settings, ClipboardList,
@@ -389,6 +390,13 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
     const [tab, setTab] = useState(0);
+    // Deslizar de lado cambia de pestaña (se salta Combustible si ese módulo está oculto)
+    const irTab = (paso) => {
+        const vis = TABS.map((_, i) => i).filter(i => !(i === 4 && !moduloVisible('combustible')));
+        const n = vis.indexOf(tab) + paso;
+        if (n >= 0 && n < vis.length) setTab(vis[n]);
+    };
+    const swipeRef = useSwipe(() => irTab(1), () => irTab(-1));
     const [ingresos, setIngresos] = useState([]);
     const [gastos, setGastos] = useState([]);
     const [combustibles, setCombustibles] = useState([]);
@@ -1057,7 +1065,7 @@ function DetalleMaquina({ maquina, onVolver, onEditar, onActualizar }) {
                     <button className="bp" onClick={onEditar}><Pencil size={14} style={{verticalAlign:'middle'}} /><span className="tb-label" style={{marginLeft:'5px'}}>Editar</span></button>
                 </div>
             </div>
-            <div className="content"><div className="pad">
+            <div className="content" ref={swipeRef}><div className="pad">
 
                 {/* HEADER */}
                 <CabeceraMaquina maq={maq} faenaActiva={faenaActiva} icono={<IcoMaquina tipo={maq.tipo} size={42} />} />

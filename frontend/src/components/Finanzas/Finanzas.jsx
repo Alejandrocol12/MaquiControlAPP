@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Monto from '../../utils/Monto';
+import useSwipe from '../../utils/useSwipe';
 import { usePaginacion, Paginacion } from '../../utils/Paginacion';
 import { useSortable } from '../../utils/useSortable';
 import {
@@ -84,6 +85,14 @@ function Finanzas({ tabInicial = 'ingresos' }) {
     const toast = useToast();
     const { confirm, ConfirmUI } = useConfirm();
     const [tab, setTab]           = useState(tabInicial);
+    // Deslizar de lado cambia de pestaña (Ingresos, Gastos, Salarios, Pagos)
+    const irTab = (paso) => {
+        const ks = ['ingresos', 'gastos', 'salarios', 'pagos'];
+        const n = ks.indexOf(tab) + paso;
+        if (n < 0 || n >= ks.length) return;
+        setTab(ks[n]); cerrarCompose(); setBuscar('');
+    };
+    const swipeRef = useSwipe(() => irTab(1), () => irTab(-1));
     const [maquinas, setMaquinas] = useState([]);
     const [ingresos, setIngresos] = useState([]);
     const [gastos, setGastos]     = useState([]);
@@ -380,7 +389,7 @@ function Finanzas({ tabInicial = 'ingresos' }) {
                 </div>
             </div>
 
-            <div className="content"><div className="pad">
+            <div className="content" ref={swipeRef}><div className="pad">
 
                 {/* HERO: 4 KPIs incluyendo cobranza */}
                 <div className="fin-hero">
